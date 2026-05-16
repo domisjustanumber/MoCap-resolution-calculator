@@ -6,7 +6,7 @@ export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
   const d = app.derived;
 
-  setText('card-fc', formatLpMm(r.fc) + ' lp/mm');
+  setText('card-fc', formatLpMm(r.fcAberrated) + ' lp/mm');
   setText('card-nyquist', formatLpMm(r.fNyquistSkipped) + ' lp/mm');
   setText('card-fov', formatFov(d.diagonalFov));
   setText('card-skip', r.skippingFactor.toFixed(1) + '\u00d7');

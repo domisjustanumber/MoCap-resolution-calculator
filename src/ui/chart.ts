@@ -30,9 +30,9 @@ export function drawChart(app: AppStateFull): void {
   ctx.clearRect(0, 0, cssW, cssH);
 
   const { results, state } = app;
-  const { fc, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency } = results;
+  const { fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency } = results;
 
-  const xMax = Math.max(fc, fNyquistNative, fNyquistSkipped, fEffective, 200) * 1.15;
+  const xMax = Math.max(fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, 200) * 1.15;
   const pad = { top: 36, right: 40, bottom: 54, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
@@ -118,7 +118,7 @@ export function drawChart(app: AppStateFull): void {
   ctx.beginPath();
   let firstPoint = true;
   for (let f = 0; f <= xMax; f += 1) {
-    const mtf = lensMtf(f, fc, state.lensTier);
+    const mtf = lensMtf(f, fcAberrated);
     if (firstPoint) { ctx.moveTo(px(f), py(mtf)); firstPoint = false; } else { ctx.lineTo(px(f), py(mtf)); }
   }
   ctx.stroke();
@@ -157,7 +157,7 @@ export function drawChart(app: AppStateFull): void {
   ctx.beginPath();
   firstPoint = true;
   for (let f = 0; f <= fNyquistSkipped; f += 1) {
-    const mtf = lensMtf(f, fc, state.lensTier) * formatEfficiency;
+    const mtf = lensMtf(f, fcAberrated) * formatEfficiency;
     if (firstPoint) { ctx.moveTo(px(f), py(mtf)); firstPoint = false; } else { ctx.lineTo(px(f), py(mtf)); }
   }
   ctx.stroke();
@@ -190,10 +190,8 @@ export function drawChart(app: AppStateFull): void {
   ctx.fillText('\u00b7\u00b7 Effective', lx, ly + 45);
 }
 
-function lensMtf(f: number, fc: number, tier: string): number {
-  const tierScalar = tier === 'cheap-plastic' ? 0.6 : tier === 'mid-glass' ? 0.8 : 0.95;
-  const effectiveFc = fc * tierScalar;
-  if (f >= effectiveFc) return 0;
-  const ratio = f / effectiveFc;
+function lensMtf(f: number, fcAberrated: number): number {
+  if (f >= fcAberrated) return 0;
+  const ratio = f / fcAberrated;
   return Math.max(0, 1 - ratio * ratio);
 }

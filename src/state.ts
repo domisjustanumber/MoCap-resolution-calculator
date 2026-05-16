@@ -8,13 +8,13 @@ import {
 } from './constants';
 
 export const DEFAULT_STATE: AppState = {
-  focalLength: 3.6,
+  focalLength: 3.60,
   diagonalFov: 0,
-  aperture: 2.4,
+  aperture: 2.0,
   wavelength: 550,
-  pixelPitch: 2.4,
-  nativeWidth: 1920,
-  nativeHeight: 1080,
+  pixelPitch: 1.4,
+  nativeWidth: 2592,
+  nativeHeight: 1944,
   olpfPresent: true,
   pixelBinning: 1,
   extractedWidth: 640,
@@ -31,7 +31,7 @@ export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
   const results = calculateResults(state, derived);
-  return { state, activePreset: 'cheap-webcam', derived, results };
+  return { state, activePreset: 'ov5647', derived, results };
 }
 
 export function clamped(value: number, min: number, max: number): number {
@@ -90,7 +90,11 @@ export function recalculate(app: AppStateFull): AppStateFull {
 }
 
 export function applyPreset(app: AppStateFull, presetValues: Partial<AppState>, name: PresetName): AppStateFull {
+  const prevLensTier = app.state.lensTier;
   Object.assign(app.state, { ...DEFAULT_STATE }, presetValues);
+  if (!('lensTier' in presetValues)) {
+    app.state.lensTier = prevLensTier;
+  }
   app.activePreset = name;
   return recalculate(app);
 }
@@ -100,6 +104,8 @@ export function setField<K extends keyof AppState>(app: AppStateFull, key: K, va
   if (key === 'focalLength') {
     (app.state as unknown as Record<string, unknown>).diagonalFov = 0;
   }
-  app.activePreset = 'custom';
+  if (key !== 'lensTier') {
+    app.activePreset = 'custom';
+  }
   return recalculate(app);
 }

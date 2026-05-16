@@ -16,14 +16,23 @@
   <main class="mx-auto max-w-7xl px-4 py-6 lg:px-6">
     <!-- Preset chips -->
     <div id="preset-bar" class="mb-6 flex flex-wrap gap-2">
-      <button data-preset="cheap-webcam" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-blue-500">
-        Cheap Webcam
+      <button data-preset="ov5647" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-blue-500">
+        Pi Cam&nbsp;v1 (OV5647)
+      </button>
+      <button data-preset="imx219" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Pi Cam&nbsp;v2 (IMX219)
+      </button>
+      <button data-preset="imx708" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Pi Cam&nbsp;v3 (IMX708)
+      </button>
+      <button data-preset="imx708-wide" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Pi Cam&nbsp;v3 Wide
+      </button>
+      <button data-preset="imx477" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Pi HQ&nbsp;Cam (IMX477)
       </button>
       <button data-preset="flagship-smartphone" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Flagship Smartphone
-      </button>
-      <button data-preset="machine-vision" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Machine Vision
+        Smartphone
       </button>
       <button data-preset="custom" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
         Custom
@@ -65,23 +74,22 @@
             </div>
 
             <div>
-              <label class="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400" for="wavelength">
+              <label class="mb-1 block text-xs font-medium text-slate-400">Lens Quality</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button data-preset="lens-cheap" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Plastic</button>
+                <button data-preset="lens-mid" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Glass</button>
+                <button data-preset="lens-premium" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Premium</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
                 Light Wavelength
                 <span id="wavelength-color-dot" class="inline-block h-2.5 w-2.5 rounded-full" style="background:#22c55e"></span>
                 <span id="wavelength-color-label" class="text-[10px] text-slate-500">Green</span>
                 <span id="ir-badge" class="ml-1 hidden rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-400">IR</span>
               </label>
-              <div class="flex items-center gap-2">
-                <input id="wavelength" class="calc-input input-field" type="number" step="1" min="380" max="2500" value="550" />
-                <span class="text-xs text-slate-500">nm</span>
-              </div>
-              <div class="mt-1.5 flex flex-wrap gap-1.5" id="wavelength-chips"></div>
-            </div>
-
-            <div class="mt-2">
-              <p class="text-[11px] leading-relaxed text-slate-600">
-                <span class="text-indigo-400">\u25b2 Hover</span> over the distance chart below to see resolvable feature size at any distance.
-              </p>
+              <div class="flex flex-wrap gap-1.5" id="wavelength-chips"></div>
             </div>
 
           </div>
@@ -114,6 +122,16 @@
             <div class="flex items-center gap-2">
               <input id="olpfPresent" class="calc-input h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500" type="checkbox" checked />
               <label class="text-xs font-medium text-slate-400" for="olpfPresent">OLPF Present (Optical Low-Pass / Anti-Aliasing Filter<span class="text-slate-500">, typically yes on webcams</span>)</label>
+            </div>
+
+            <div class="flex flex-wrap gap-1.5">
+              <button data-preset="ov5647" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV5647</button>
+              <button data-preset="imx219" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX219</button>
+              <button data-preset="imx708" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708</button>
+              <button data-preset="imx708-wide" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708 W</button>
+              <button data-preset="imx477" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX477</button>
+              <button data-preset="ov9281" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV9281</button>
+              <button data-preset="ar0234" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">AR0234</button>
             </div>
 
             <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
@@ -149,6 +167,18 @@
               </div>
             </div>
             <p id="extracted-warning" class="hidden text-[11px] text-amber-400"></p>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400">Res. Mode</label>
+              <div class="flex flex-wrap gap-1.5">
+                <button data-res="sd-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">SD MJPG</button>
+                <button data-res="sd-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">SD NV12</button>
+                <button data-res="720p-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">720p MJPG</button>
+                <button data-res="720p-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">720p NV12</button>
+                <button data-res="1080p-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">1080p MJPG</button>
+                <button data-res="1080p-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">1080p NV12</button>
+              </div>
+            </div>
 
             <div>
               <label class="mb-1 block text-xs font-medium text-slate-400" for="subsamplingMethod">Subsampling Method</label>
@@ -196,6 +226,12 @@
 
         <!-- Distance vs Resolution Chart -->
         <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Min Resolvable Feature vs Distance</span>
+            <span class="text-[10px] leading-relaxed text-slate-600">
+              <span class="text-indigo-400">&#9650; Hover</span> or click to pin
+            </span>
+          </div>
           <canvas id="distance-chart"></canvas>
           <div class="mt-2 flex items-center gap-3 px-1">
             <label class="text-[10px] font-medium text-slate-500" for="dist-range">Range</label>

@@ -1,4 +1,4 @@
-import type { AppState, DerivedState, Results, BottleneckType } from './types';
+import type { AppState, DerivedState, Results, BottleneckType, LensTier } from './types';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const pixelPitch = state.pixelPitch;
@@ -33,8 +33,13 @@ export function calculateDiffractionCutoff(aperture: number, wavelengthNm: numbe
   return 1 / (wavelengthMm * aperture);
 }
 
+function lensTierScalar(tier: LensTier): number {
+  return tier === 'cheap-plastic' ? 0.6 : tier === 'mid-glass' ? 0.8 : 0.95;
+}
+
 export function calculateResults(state: Readonly<AppState>, derived: Readonly<DerivedState>): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
+  const fcAberrated = fc * lensTierScalar(state.lensTier);
 
   const skipH = Math.max(1, state.nativeWidth / state.extractedWidth);
   const skipV = Math.max(1, state.nativeHeight / state.extractedHeight);
@@ -60,7 +65,7 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     }
   }
 
-  const limitingFrequency = Math.min(fc, fNyquistSkipped);
+  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped);
   const fEffective = limitingFrequency * formatEfficiency;
   const minFeatureSize = (1 / (2 * fEffective)) * 1000;
 
@@ -71,14 +76,15 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
   if (formatEfficiency < 0.85 && state.outputFormat === 'mjpg') {
     bottleneckType = 'compression-throttled';
   }
-  if (fNyquistSkipped < fc * 0.85) {
+  if (fNyquistSkipped < fcAberrated * 0.85) {
     bottleneckType = 'sensor-limited';
-  } else if (fc < fNyquistSkipped * 0.85) {
+  } else if (fcAberrated < fNyquistSkipped * 0.85) {
     bottleneckType = 'lens-limited';
   }
 
   return {
     fc,
+    fcAberrated,
     fNyquistNative,
     fNyquistSkipped,
     skippingFactor,

@@ -127,14 +127,13 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
   const py = (f: number) => {
-    const maxF = featureMm(dMax);
-    return maxF > 0 ? pad.top + (1 - f / maxF) * plotH : pad.top;
+    return pad.top + (1 - f / 20) * plotH;
   };
 
   const featureMm = (d: number) => (minFeatureSize * d) / focalLength;
 
-  const yMax = Math.ceil(featureMm(dMax) * 1.15);
-  const yStep = Math.pow(10, Math.floor(Math.log10(yMax)));
+  const yMax = 20;
+  const yStep = 5;
 
   // Background
   ctx.fillStyle = '#020617';
@@ -152,7 +151,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.stroke();
   }
   for (let y = 0; y <= yMax; y += yStep) {
-    const yp = py(featureMm(dMax * (y / yMax)));
+    const yp = py(y);
     ctx.beginPath();
     ctx.moveTo(pad.left, yp);
     ctx.lineTo(cssW - pad.right, yp);
@@ -173,9 +172,8 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   ctx.font = '12px monospace';
   ctx.textAlign = 'right';
   for (let y = 0; y <= yMax; y += yStep) {
-    const val = (y / yMax) * yMax;
-    const yp = pad.top + (1 - val / yMax) * plotH;
-    ctx.fillText(String(val), pad.left - 8, yp + 4);
+    const yp = py(y);
+    ctx.fillText(String(y), pad.left - 8, yp + 4);
   }
   ctx.save();
   ctx.translate(14, pad.top + plotH / 2);

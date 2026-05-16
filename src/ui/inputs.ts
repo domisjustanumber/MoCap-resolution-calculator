@@ -9,6 +9,15 @@ import { drawDistanceChart } from './distanceChart';
 let app: AppStateFull;
 let renderCallback: (() => void) | null = null;
 
+const RES_PRESETS: Record<string, { w: number; h: number; fmt: string }> = {
+  'sd-mjpg': { w: 640, h: 480, fmt: 'mjpg' },
+  'sd-nv12': { w: 640, h: 480, fmt: 'nv12' },
+  '720p-mjpg': { w: 1280, h: 720, fmt: 'mjpg' },
+  '720p-nv12': { w: 1280, h: 720, fmt: 'nv12' },
+  '1080p-mjpg': { w: 1920, h: 1080, fmt: 'mjpg' },
+  '1080p-nv12': { w: 1920, h: 1080, fmt: 'nv12' },
+};
+
 export function initInputs(state: AppStateFull, onUpdate: () => void): void {
   app = state;
   renderCallback = onUpdate;
@@ -28,10 +37,13 @@ export function initInputs(state: AppStateFull, onUpdate: () => void): void {
   bindRangeInput('mjpgQuality', 'mjpgQuality');
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
+  bindLensTierChips();
+  bindProcessingChips();
   bindPresetChips();
   buildWavelengthChips();
 
   syncInputsFromState();
+  updateLensTierChipStyles();
   updateMjpgQualityState();
 }
 
@@ -120,6 +132,53 @@ function bindFovInput(): void {
   });
 }
 
+function bindLensTierChips(): void {
+  const map: Record<string, string> = { 'lens-cheap': 'cheap-plastic', 'lens-mid': 'mid-glass', 'lens-premium': 'premium-stack' };
+  Object.entries(map).forEach(([preset, tier]) => {
+    const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;
+    if (!chip) return;
+    chip.addEventListener('click', () => {
+      setField(app, 'lensTier', tier as AppState['lensTier']);
+      syncInputsFromState();
+      updateMjpgQualityState();
+      refresh();
+    });
+  });
+}
+
+function bindProcessingChips(): void {
+  Object.keys(RES_PRESETS).forEach((key) => {
+    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
+    if (!chip) return;
+    chip.addEventListener('click', () => {
+      const { w, h, fmt } = RES_PRESETS[key];
+      app.state.extractedWidth = w;
+      app.state.extractedHeight = h;
+      app.state.outputFormat = fmt as AppState['outputFormat'];
+      recalculate(app);
+      syncInputsFromState();
+      updateMjpgQualityState();
+      refresh();
+
+      document.querySelectorAll('[data-res]').forEach((el) => el.classList.remove('active'));
+      chip.classList.add('active');
+    });
+  });
+}
+
+function updateResChipStyles(): void {
+  Object.keys(RES_PRESETS).forEach((key) => {
+    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
+    if (!chip) return;
+    const { w, h, fmt } = RES_PRESETS[key];
+    if (app.state.extractedWidth === w && app.state.extractedHeight === h && app.state.outputFormat === fmt) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+}
+
 function bindDistanceRange(): void {
   const el = document.getElementById('dist-range') as HTMLInputElement | null;
   const label = document.getElementById('dist-range-label');
@@ -172,7 +231,6 @@ function bindPresetChips(): void {
       applyPreset(app, preset.values, preset.name);
       syncInputsFromState();
       updateMjpgQualityState();
-      updatePresetChipStyles();
       refresh();
     });
   });
@@ -182,6 +240,19 @@ export function updatePresetChipStyles(): void {
   const chips = document.querySelectorAll('.preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   chips.forEach((chip) => {
     if (chip.dataset.preset === app.activePreset) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+}
+
+function updateLensTierChipStyles(): void {
+  const map: Record<string, string> = { 'lens-cheap': 'cheap-plastic', 'lens-mid': 'mid-glass', 'lens-premium': 'premium-stack' };
+  Object.entries(map).forEach(([preset, tier]) => {
+    const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;
+    if (!chip) return;
+    if (app.state.lensTier === tier) {
       chip.classList.add('active');
     } else {
       chip.classList.remove('active');
@@ -269,7 +340,6 @@ export function syncInputsFromState(): void {
   const numberFields: Array<keyof AppState> = [
     'focalLength',
     'aperture',
-    'wavelength',
     'pixelPitch',
     'nativeWidth',
     'nativeHeight',
@@ -281,6 +351,7 @@ export function syncInputsFromState(): void {
     if (el && el !== document.activeElement) {
       if (key === 'aperture') el.value = app.state.aperture.toFixed(1);
       else if (key === 'pixelPitch') el.value = app.state.pixelPitch.toFixed(1);
+      else if (key === 'focalLength') el.value = app.state.focalLength.toFixed(1);
       else el.value = String(app.state[key]);
     }
   });
@@ -317,9 +388,11 @@ export function syncInputsFromState(): void {
   }
 
   updatePresetChipStyles();
+  updateResChipStyles();
   updateWavelengthChipStyles();
   updateWavelengthColorIndicator();
   updateIrBadge();
+  updateLensTierChipStyles();
 
   handleExtractedClamp();
 }

@@ -3,7 +3,7 @@ export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-th
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'luma' | 'chroma';
 export type SubsamplingMethod = 'line-skip' | 'binning-average';
-export type PresetName = 'cheap-webcam' | 'flagship-smartphone' | 'machine-vision' | 'custom';
+export type PresetName = 'ov5647' | 'imx219' | 'imx708' | 'imx708-wide' | 'imx477' | 'flagship-smartphone' | 'ov9281' | 'ar0234' | 'custom';
 
 export interface AppState {
   focalLength: number;
@@ -38,6 +38,7 @@ export interface DerivedState {
 
 export interface Results {
   fc: number;
+  fcAberrated: number;
   fNyquistNative: number;
   fNyquistSkipped: number;
   skippingFactor: number;
