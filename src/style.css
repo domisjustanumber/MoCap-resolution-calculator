@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-size: 17.6px;
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer components {
+  .input-field {
+    @apply rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-200
+           placeholder-slate-500 transition-colors
+           focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50;
+  }
+
+  .input-field[type="range"] {
+    @apply h-2 cursor-pointer appearance-none bg-slate-700 px-0 accent-blue-500;
+  }
+
+  .input-field:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  .preset-chip.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
+}
+
+/* Number input spinner styling */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  opacity: 0.4;
+}

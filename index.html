@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en" class="bg-slate-950 text-slate-200">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Spatial Resolution Calculator</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body class="min-h-screen">
+  <header class="border-b border-slate-800 px-6 py-4">
+    <h1 class="text-xl font-semibold tracking-tight text-slate-100">
+      Optical System Spatial Resolution Calculator
+    </h1>
+  </header>
+
+  <main class="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+    <!-- Preset chips -->
+    <div id="preset-bar" class="mb-6 flex flex-wrap gap-2">
+      <button data-preset="cheap-webcam" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-blue-500">
+        Cheap Webcam
+      </button>
+      <button data-preset="flagship-smartphone" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Flagship Smartphone
+      </button>
+      <button data-preset="machine-vision" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Machine Vision
+      </button>
+      <button data-preset="custom" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        Custom
+      </button>
+    </div>
+
+    <div class="grid gap-6 lg:grid-cols-5">
+
+      <!-- Left column: inputs -->
+      <div class="space-y-5 lg:col-span-2">
+
+        <!-- LENS -->
+        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-blue-400">Lens</legend>
+          <div class="space-y-3">
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="focalLength">Focal Length</label>
+              <div class="flex items-center gap-2">
+                <input id="focalLength" class="calc-input input-field" type="number" step="0.1" min="0.1" value="3.6" />
+                <span class="text-xs text-slate-500">mm</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="diagonalFov">Diagonal FoV</label>
+              <div class="flex items-center gap-2">
+                <input id="diagonalFov" class="calc-input input-field" type="number" step="0.1" min="0.1" value="" />
+                <span class="text-xs text-slate-500">&deg;</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="aperture">Aperture</label>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-500">f/</span>
+                <input id="aperture" class="calc-input input-field" type="number" step="0.1" min="0.1" max="32" value="2.4" />
+              </div>
+            </div>
+
+            <div>
+              <label class="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400" for="wavelength">
+                Light Wavelength
+                <span id="wavelength-color-dot" class="inline-block h-2.5 w-2.5 rounded-full" style="background:#22c55e"></span>
+                <span id="wavelength-color-label" class="text-[10px] text-slate-500">Green</span>
+                <span id="ir-badge" class="ml-1 hidden rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-400">IR</span>
+              </label>
+              <div class="flex items-center gap-2">
+                <input id="wavelength" class="calc-input input-field" type="number" step="1" min="380" max="2500" value="550" />
+                <span class="text-xs text-slate-500">nm</span>
+              </div>
+              <div class="mt-1.5 flex flex-wrap gap-1.5" id="wavelength-chips"></div>
+            </div>
+
+            <div class="mt-2">
+              <p class="text-[11px] leading-relaxed text-slate-600">
+                <span class="text-indigo-400">\u25b2 Hover</span> over the distance chart below to see resolvable feature size at any distance.
+              </p>
+            </div>
+
+          </div>
+        </fieldset>
+
+        <!-- SENSOR -->
+        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-orange-400">Sensor</legend>
+          <div class="space-y-3">
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="pixelPitch">Pixel Pitch</label>
+              <div class="flex items-center gap-2">
+                <input id="pixelPitch" class="calc-input input-field" type="number" step="0.1" min="0.1" value="2.4" />
+                <span class="text-xs text-slate-500">&mu;m</span>
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <div class="flex-1">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeWidth">Native Horiz. Pixels</label>
+                <input id="nativeWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="1920" />
+              </div>
+              <div class="flex-1">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeHeight">Native Vert. Pixels</label>
+                <input id="nativeHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="1080" />
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <input id="olpfPresent" class="calc-input h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500" type="checkbox" checked />
+              <label class="text-xs font-medium text-slate-400" for="olpfPresent">OLPF Present (Optical Low-Pass / Anti-Aliasing Filter<span class="text-slate-500">, typically yes on webcams</span>)</label>
+            </div>
+
+            <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <span class="text-slate-500">Sensor Width</span>
+                <span id="derived-width" class="font-mono text-slate-300">—</span>
+                <span class="text-slate-500">Sensor Height</span>
+                <span id="derived-height" class="font-mono text-slate-300">—</span>
+                <span class="text-slate-500">Sensor Diagonal</span>
+                <span id="derived-diagonal" class="font-mono text-slate-300">—</span>
+                <span class="text-slate-500">Sensor Size</span>
+                <span id="derived-size" class="font-mono text-slate-300">—</span>
+                <span class="text-slate-500">Native Nyquist</span>
+                <span id="derived-nyquist" class="font-mono text-slate-300">—</span>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- PROCESSING -->
+        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-purple-400">Processing</legend>
+          <div class="space-y-3">
+
+            <div class="flex gap-3">
+              <div class="flex-1">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedWidth">Extracted Horiz. Pixels</label>
+                <input id="extractedWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="640" />
+              </div>
+              <div class="flex-1">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedHeight">Extracted Vert. Pixels</label>
+                <input id="extractedHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="480" />
+              </div>
+            </div>
+            <p id="extracted-warning" class="hidden text-[11px] text-amber-400"></p>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="subsamplingMethod">Subsampling Method</label>
+              <select id="subsamplingMethod" class="calc-input input-field w-full">
+                <option value="line-skip">Line Skip</option>
+                <option value="binning-average">Binning / Averaging</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="outputFormat">Output Format</label>
+              <select id="outputFormat" class="calc-input input-field w-full">
+                <option value="mjpg">MJPG (Motion JPEG)</option>
+                <option value="uyuv">UYVY (YUV 4:2:2)</option>
+                <option value="nv12">NV12 (YUV 4:2:0)</option>
+              </select>
+            </div>
+
+            <div id="mjpg-quality-group">
+              <label class="mb-1 block text-xs font-medium text-slate-400" for="mjpgQuality">
+                MJPG Quality (Q)
+                <span id="mjpg-quality-value" class="ml-1 font-mono text-slate-300">60</span>
+              </label>
+              <input id="mjpgQuality" class="calc-input w-full" type="range" min="1" max="100" value="60" />
+            </div>
+
+            <div class="flex gap-6">
+              <label class="flex items-center gap-2 text-xs text-slate-400">
+                <input id="mode-luma" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="luma" checked />
+                Luma
+              </label>
+              <label class="flex items-center gap-2 text-xs text-slate-400">
+                <input id="mode-chroma" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="chroma" />
+                Chroma
+              </label>
+            </div>
+
+          </div>
+        </fieldset>
+
+      </div>
+
+      <!-- Right column: outputs -->
+      <div class="space-y-5 lg:col-span-3">
+
+        <!-- Distance vs Resolution Chart -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <canvas id="distance-chart"></canvas>
+          <div class="mt-2 flex items-center gap-3 px-1">
+            <label class="text-[10px] font-medium text-slate-500" for="dist-range">Range</label>
+            <input id="dist-range" class="w-full" type="range" min="1" max="10" step="1" value="5" />
+            <span id="dist-range-label" class="min-w-[3ch] text-right text-[11px] font-mono text-slate-400">5m</span>
+          </div>
+        </div>
+
+        <!-- Metric cards -->
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Lens Cutoff</p>
+            <p id="card-fc" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
+          </div>
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-orange-400">Sensor Nyquist</p>
+            <p id="card-nyquist" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
+          </div>
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-teal-400">Diagonal FoV</p>
+            <p id="card-fov" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Skip Factor</p>
+            <p id="card-skip" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
+          </div>
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Effective Res.</p>
+            <p id="card-effective" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
+          </div>
+          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Feature @ Distance</p>
+            <p id="card-feature-distance" class="mt-1 text-sm font-mono text-slate-500">Hover chart</p>
+          </div>
+        </div>
+
+        <!-- Bottleneck banner -->
+        <div id="bottleneck-banner" class="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-400">
+          —
+        </div>
+
+        <!-- Conditional notes -->
+        <div id="conditional-notes" class="space-y-1"></div>
+
+        <!-- MTF Chart -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <canvas id="mtf-chart"></canvas>
+          <p class="mt-1 text-[10px] leading-relaxed text-slate-600">
+            Curves use diffraction-theoretical lens MTF. Real aberrated lenses degrade faster — consult actual MTF charts when available.
+          </p>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
