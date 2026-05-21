@@ -179,7 +179,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   if (!parent) return;
   const parentStyle = getComputedStyle(parent);
   const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
-  const cssH = cssW * (360 / 600);
+  const cssH = cssW * (240 / 600);
   const bufW = Math.round(cssW * dpr);
   const bufH = Math.round(cssH * dpr);
   canvas.width = bufW;
