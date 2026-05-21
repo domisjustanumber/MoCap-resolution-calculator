@@ -6,6 +6,7 @@ let mouseY = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
 let maxDistance = 3;
+let yMaxOverride = 100;
 
 export interface Pin {
   distance: number;
@@ -35,6 +36,10 @@ let nextColorIndex = 0;
 
 export function setMaxDistance(d: number): void {
   maxDistance = Math.max(1, d);
+}
+
+export function setYMax(y: number): void {
+  yMaxOverride = Math.max(20, Math.min(500, y));
 }
 
 function setupEvents(canvas: HTMLCanvasElement): void {
@@ -100,6 +105,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     String(app.results.minFeatureSize) +
     String(app.state.focalLength) +
     String(maxDistance) +
+    String(yMaxOverride) +
     pins.map((p) => p.distance.toFixed(2) + p.color).join('|');
   if (hash === lastHash && !force) return;
   lastHash = hash;
@@ -134,17 +140,8 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const px = (d: number) => pad.left + (d / dMax) * plotW;
   const featureMm = (d: number) => (minFeatureSize * d) / focalLength;
 
-  const maxFeature = featureMm(dMax);
-  const rawStep = maxFeature / 6;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(Math.max(rawStep, 1))));
-  const normalized = rawStep / magnitude;
-  let yStep: number;
-  if (normalized <= 1.5) yStep = magnitude;
-  else if (normalized <= 3) yStep = 2 * magnitude;
-  else if (normalized <= 7) yStep = 5 * magnitude;
-  else yStep = 10 * magnitude;
-  if (yStep < 5) yStep = 5;
-  const yMax = Math.max(20, Math.ceil(maxFeature * 1.15 / yStep) * yStep);
+  const yMax = yMaxOverride;
+  const yStep = yMax / 5;
   const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
 
   // Background
@@ -208,7 +205,11 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   ctx.textAlign = 'center';
   ctx.fillText('Distance from Camera (m)', pad.left + plotW / 2, cssH - 6);
 
-  // Line: feature size vs distance
+  // Line: feature size vs distance (clipped to plot area)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.left, pad.top, plotW, plotH);
+  ctx.clip();
   ctx.strokeStyle = 'rgba(99, 102, 241, 0.9)';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -218,6 +219,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     if (first) { ctx.moveTo(px(d), py(f)); first = false; } else { ctx.lineTo(px(d), py(f)); }
   }
   ctx.stroke();
+  ctx.restore();
 
   // Auto-place first pin at 2m on initial draw
   if (pins.length === 0 && !hasAutoPlaced && maxDistance >= 2) {
@@ -247,7 +249,8 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.arc(pinnedX, pinnedY, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    const pinLabel = featureMm(pin.distance).toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m';
+    const fMm = featureMm(pin.distance);
+    const pinLabel = fMm.toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m | ChArUco ' + (fMm * 8.8).toFixed(1) + ' mm';
     ctx.font = 'bold 11px monospace';
     const textW = ctx.measureText(pinLabel).width;
     const bx = Math.min(pinnedX + 10, cssW - pad.right - textW - 12);
@@ -295,7 +298,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.fill();
 
     // Tooltip box
-    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m';
+    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ChArUco ' + (fHover * 8.8).toFixed(1) + ' mm';
     const tipX = hoverX + 10 < cssW - pad.right ? hoverX + 10 : hoverX - 10;
     const tipY = hoverY - 10 > pad.top ? hoverY - 10 : hoverY + 10;
     ctx.font = 'bold 11px monospace';

@@ -50,12 +50,6 @@ export function drawChart(app: AppStateFull): void {
   ctx.fillStyle = '#020617';
   ctx.fillRect(0, 0, cssW, cssH);
 
-  // Title
-  ctx.fillStyle = '#e2e8f0';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('Spatial Resolution', cssW / 2, 20);
-
   // Grid lines
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth = 0.5;
@@ -150,6 +144,9 @@ export function drawChart(app: AppStateFull): void {
     ctx.stroke();
   }
 
+  // Collect marker labels for collision avoidance
+  const topLabels: Array<{ x: number; text: string; color: string; font: string }> = [];
+
   // Native Nyquist marker (thin grey)
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
   ctx.lineWidth = 1;
@@ -159,10 +156,7 @@ export function drawChart(app: AppStateFull): void {
   ctx.lineTo(px(fNyquistNative), cssH - pad.bottom);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('Native Nyquist', px(fNyquistNative), pad.top - 6);
+  topLabels.push({ x: px(fNyquistNative), text: 'Native Nyquist', color: '#94a3b8', font: '11px monospace' });
 
   // Effective Nyquist marker (orange bold)
   ctx.strokeStyle = 'rgba(251, 146, 60, 0.9)';
@@ -173,10 +167,7 @@ export function drawChart(app: AppStateFull): void {
   ctx.lineTo(px(fNyquistSkipped), cssH - pad.bottom);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#fb923c';
-  ctx.font = 'bold 11px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText('Sensor Limit', px(fNyquistSkipped), pad.top - 14);
+  topLabels.push({ x: px(fNyquistSkipped), text: 'Sensor Limit', color: '#fb923c', font: 'bold 11px monospace' });
 
   // System effective curve (white)
   ctx.strokeStyle = 'rgba(248, 250, 252, 0.9)';
@@ -214,10 +205,7 @@ export function drawChart(app: AppStateFull): void {
     ctx.lineTo(px(fMotionMTF50), cssH - pad.bottom);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = '11px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Motion MTF50', px(fMotionMTF50), pad.top - 20);
+    topLabels.push({ x: px(fMotionMTF50), text: 'Motion MTF50', color: '#fbbf24', font: '11px monospace' });
   }
 
   // Effective cutoff marker (red dotted)
@@ -229,10 +217,24 @@ export function drawChart(app: AppStateFull): void {
   ctx.lineTo(px(fEffective), cssH - pad.bottom);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#fca5a5';
-  ctx.font = 'bold 11px monospace';
+  topLabels.push({ x: px(fEffective), text: 'Effective', color: '#fca5a5', font: 'bold 11px monospace' });
+
+  // Draw top labels with collision avoidance
   ctx.textAlign = 'center';
-  ctx.fillText('Effective', px(fEffective), pad.top - 26);
+  const placedBounds: Array<{ x1: number; x2: number; y: number }> = [];
+  for (const lbl of topLabels) {
+    ctx.font = lbl.font;
+    const tw = ctx.measureText(lbl.text).width;
+    let ly = pad.top - 8;
+    const lx1 = lbl.x - tw / 2 - 4;
+    const lx2 = lbl.x + tw / 2 + 4;
+    while (placedBounds.some((b) => lx1 < b.x2 && lx2 > b.x1 && Math.abs(ly - b.y) < 16)) {
+      ly -= 16;
+    }
+    placedBounds.push({ x1: lx1, x2: lx2, y: ly });
+    ctx.fillStyle = lbl.color;
+    ctx.fillText(lbl.text, lbl.x, ly);
+  }
 
   // Legend
   const lx = cssW - pad.right - 180;

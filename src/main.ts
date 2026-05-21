@@ -2,7 +2,7 @@ import { createState, recalculate } from './state';
 import { initInputs } from './ui/inputs';
 import { updateOutputs } from './ui/outputs';
 import { drawChart } from './ui/chart';
-import { drawDistanceChart } from './ui/distanceChart';
+import { drawDistanceChart, setYMax } from './ui/distanceChart';
 import {
   drawTemporalChart,
   setTemporalZoom,
@@ -14,6 +14,7 @@ import {
   setShutterDenom,
   getShutterDenom,
 } from './ui/temporalChart';
+import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
 
 const app = createState();
 
@@ -23,6 +24,7 @@ function refreshAll(): void {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
+  updateAccelOutputs();
 }
 
 initInputs(app, () => {});
@@ -31,6 +33,7 @@ updateOutputs(app);
 drawChart(app);
 drawDistanceChart(app);
 drawTemporalChart(app);
+initAcceleration();
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
   const slider = document.getElementById(id) as HTMLInputElement | null;
@@ -43,18 +46,100 @@ function bindSlider(id: string, setter: (v: number) => void, labelId: string, su
   });
 }
 
+// --- Chart tab switching ---
+let activeTab = 'spatial';
+
+function switchTab(tab: string): void {
+  activeTab = tab;
+  const spatialPanel = document.getElementById('panel-spatial');
+  const temporalPanel = document.getElementById('panel-temporal');
+  const accelPanel = document.getElementById('panel-acceleration');
+  const spatialTab = document.getElementById('tab-spatial');
+  const temporalTab = document.getElementById('tab-temporal');
+  const accelTab = document.getElementById('tab-acceleration');
+
+  document.querySelectorAll('.chart-tab').forEach((t) => t.classList.remove('active'));
+
+  if (spatialPanel) spatialPanel.classList.toggle('hidden', tab !== 'spatial');
+  if (temporalPanel) temporalPanel.classList.toggle('hidden', tab !== 'temporal');
+  if (accelPanel) accelPanel.classList.toggle('hidden', tab !== 'acceleration');
+
+  if (tab === 'spatial' && spatialTab) spatialTab.classList.add('active');
+  if (tab === 'temporal' && temporalTab) temporalTab.classList.add('active');
+  if (tab === 'acceleration' && accelTab) accelTab.classList.add('active');
+
+  setTimeout(() => {
+    if (tab === 'spatial') { drawChart(app); drawDistanceChart(app); }
+    if (tab === 'temporal') drawTemporalChart(app, true);
+  }, 50);
+}
+
+document.getElementById('tab-spatial')?.addEventListener('click', () => switchTab('spatial'));
+document.getElementById('tab-temporal')?.addEventListener('click', () => switchTab('temporal'));
+document.getElementById('tab-acceleration')?.addEventListener('click', () => switchTab('acceleration'));
+
+// --- Y-axis scale for distance chart ---
+function bindDistYRange(): void {
+  const slider = document.getElementById('dist-y-range') as HTMLInputElement | null;
+  const label = document.getElementById('dist-y-range-label');
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const v = parseInt(slider.value, 10);
+    if (label) label.textContent = String(v);
+    setYMax(v);
+    drawDistanceChart(app, true);
+  });
+}
+bindDistYRange();
+
+// --- Dynamic Range presets ---
+let activeDrDb = 66;
+
+function updateDrPresetStyles(): void {
+  document.querySelectorAll('.dr-preset').forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    const btnDb = parseInt(btn.dataset.dr || '0', 10);
+    if (btnDb === activeDrDb) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+document.querySelectorAll('.dr-preset').forEach((el) => {
+  el.addEventListener('click', () => {
+    const db = parseInt((el as HTMLButtonElement).dataset.dr || '66', 10);
+    activeDrDb = db;
+    updateDrPresetStyles();
+  });
+});
+updateDrPresetStyles();
+
+// --- Velocity presets ---
 const VELOCITY_PRESETS: Record<string, number> = {
   static: 0,
-  walking: 5,
-  sports: 15,
+  walking: 1.5,
+  sports: 5,
 };
 
-let activeVelocityPreset = 'static';
+let activeVelocityPreset = 'walking';
+
+// Initialize velocity to walking
+setTemporalVelocity(VELOCITY_PRESETS.walking);
+const initVelSlider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
+const initVelLabel = document.getElementById('temporal-velocity-label');
+const initCustomVel = document.getElementById('velocity-custom') as HTMLInputElement | null;
+if (initVelSlider) initVelSlider.value = String(VELOCITY_PRESETS.walking);
+if (initVelLabel) initVelLabel.textContent = VELOCITY_PRESETS.walking + ' m/s';
+if (initCustomVel) initCustomVel.value = String(VELOCITY_PRESETS.walking);
+refreshAll();
+updateVelocityPresetStyles();
 
 function detectVelocityPreset(v: number): string {
   if (Math.abs(v - 0) < 0.05) return 'static';
-  if (Math.abs(v - 5) < 0.05) return 'walking';
-  if (Math.abs(v - 15) < 0.05) return 'sports';
+  if (Math.abs(v - 1.5) < 0.05) return 'walking';
+  if (Math.abs(v - 5) < 0.05) return 'sports';
   return 'custom';
 }
 
@@ -92,7 +177,7 @@ function updateFpsPresetStyles(): void {
 
 function updateFpsLabel(): void {
   const label = document.getElementById('temporal-fps-label');
-  if (label) label.textContent = `Multi-camera kinematic @ ${getFrameRate()} fps`;
+  if (label) label.textContent = 'Kinematic @ ' + getFrameRate() + ' fps';
 }
 
 function applyVelocityPreset(preset: string): void {
@@ -109,7 +194,6 @@ function applyVelocityPreset(preset: string): void {
   if (customInput) customInput.value = String(v);
 
   refreshAll();
-
   updateVelocityPresetStyles();
 }
 
@@ -194,9 +278,9 @@ bindSlider('temporal-velocity', (v) => {
   updateVelocityPresetStyles();
   refreshAll();
 }, 'temporal-velocity-label', ' m/s');
-bindSlider('temporal-phase', (v) => { setTemporalPhase(v); drawChart(app); }, 'temporal-phase-label', ' ms');
-bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawChart(app); }, 'temporal-jitter-label', ' ms');
-bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawChart(app); }, 'temporal-zoom-label', ' mm');
+bindSlider('temporal-phase', (v) => { setTemporalPhase(v); refreshAll(); }, 'temporal-phase-label', ' ms');
+bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); refreshAll(); }, 'temporal-jitter-label', ' ms');
+bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, 'temporal-zoom-label', ' mm');
 
 updateVelocityPresetStyles();
 
