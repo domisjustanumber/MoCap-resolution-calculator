@@ -246,13 +246,35 @@
         <!-- Temporal Resolution Chart -->
         <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
           <div class="mb-2 flex items-center justify-between">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Temporal Resolution vs Frame Rate</span>
-            <span class="text-[10px] text-slate-600">Motion blur limit</span>
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Camera Sync Error Distribution</span>
+            <span class="text-[10px] text-slate-600">Multi-camera kinematic @ 30 fps</span>
           </div>
           <canvas id="temporal-chart"></canvas>
           <p class="mt-1 text-[10px] leading-relaxed text-slate-600">
-            Each line = a pinned distance from the chart above. Assumes full-frame integration (exposure ≈ 1/fps).
+            Monte Carlo simulation (2500 samples) of two-camera sync error. Spatial displacement = phase delta × target velocity. KDE-smoothed density curves.
           </p>
+          <div class="mt-2 grid grid-cols-4 gap-2">
+            <div>
+              <label class="text-[10px] font-medium text-slate-500" for="temporal-velocity">Velocity</label>
+              <input id="temporal-velocity" class="w-full" type="range" min="1" max="15" step="0.5" value="5" />
+              <span id="temporal-velocity-label" class="text-[11px] font-mono text-slate-400">5 m/s</span>
+            </div>
+            <div>
+              <label class="text-[10px] font-medium text-slate-500" for="temporal-phase">Phase Offset</label>
+              <input id="temporal-phase" class="w-full" type="range" min="0" max="100" step="0.1" value="16.6" />
+              <span id="temporal-phase-label" class="text-[11px] font-mono text-slate-400">16.6 ms</span>
+            </div>
+            <div>
+              <label class="text-[10px] font-medium text-slate-500" for="temporal-jitter">Jitter</label>
+              <input id="temporal-jitter" class="w-full" type="range" min="0" max="100" step="0.1" value="10" />
+              <span id="temporal-jitter-label" class="text-[11px] font-mono text-slate-400">10.0 ms</span>
+            </div>
+            <div>
+              <label class="text-[10px] font-medium text-slate-500" for="temporal-zoom">X-Axis</label>
+              <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
+              <span id="temporal-zoom-label" class="text-[11px] font-mono text-slate-400">200 mm</span>
+            </div>
+          </div>
         </div>
 
         <!-- Metric cards -->
