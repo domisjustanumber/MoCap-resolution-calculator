@@ -7,13 +7,18 @@ let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
 let maxDistance = 5;
 
-interface Pin {
+export interface Pin {
   distance: number;
   color: string;
 }
 
-let pins: Pin[] = [];
+export let pins: Pin[] = [];
 let hasAutoPlaced = false;
+
+let onPinsChanged: (() => void) | null = null;
+export function setOnPinsChanged(cb: () => void): void {
+  onPinsChanged = cb;
+}
 
 const PIN_COLORS = [
   '#fbbf24',
@@ -78,6 +83,7 @@ function setupEvents(canvas: HTMLCanvasElement): void {
       nextColorIndex++;
     }
     if (appRef) drawDistanceChart(appRef, true);
+    if (onPinsChanged) onPinsChanged();
   };
 
   canvas.addEventListener('mousemove', onMove);

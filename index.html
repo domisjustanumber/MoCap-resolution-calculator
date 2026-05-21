@@ -31,6 +31,9 @@
       <button data-preset="imx477" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
         Pi HQ&nbsp;Cam (IMX477)
       </button>
+      <button data-preset="ov9281" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+        OV9281 Module
+      </button>
       <button data-preset="flagship-smartphone" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
         Smartphone
       </button>
@@ -238,6 +241,18 @@
             <input id="dist-range" class="w-full" type="range" min="1" max="10" step="1" value="5" />
             <span id="dist-range-label" class="min-w-[3ch] text-right text-[11px] font-mono text-slate-400">5m</span>
           </div>
+        </div>
+
+        <!-- Temporal Resolution Chart -->
+        <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
+          <div class="mb-2 flex items-center justify-between">
+            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Temporal Resolution vs Frame Rate</span>
+            <span class="text-[10px] text-slate-600">Motion blur limit</span>
+          </div>
+          <canvas id="temporal-chart"></canvas>
+          <p class="mt-1 text-[10px] leading-relaxed text-slate-600">
+            Each line = a pinned distance from the chart above. Assumes full-frame integration (exposure ≈ 1/fps).
+          </p>
         </div>
 
         <!-- Metric cards -->

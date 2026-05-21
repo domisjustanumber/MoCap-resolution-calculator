@@ -5,6 +5,7 @@ import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constan
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
 import { drawDistanceChart } from './distanceChart';
+import { drawTemporalChart } from './temporalChart';
 
 let app: AppStateFull;
 let renderCallback: (() => void) | null = null;
@@ -402,5 +403,6 @@ function refresh(): void {
   updateOutputs(app);
   drawChart(app);
   drawDistanceChart(app);
+  drawTemporalChart(app);
   if (renderCallback) renderCallback();
 }
