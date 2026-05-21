@@ -1,4 +1,5 @@
 import type { AppStateFull } from '../types';
+import { getTemporalVelocity, getShutterTime } from './temporalChart';
 
 let lastHash = '';
 
@@ -6,7 +7,9 @@ export function drawChart(app: AppStateFull): void {
   const canvas = document.getElementById('mtf-chart') as HTMLCanvasElement | null;
   if (!canvas) return;
 
-  const hash = JSON.stringify(app.results);
+  const v = getTemporalVelocity();
+  const shutterTime = getShutterTime();
+  const hash = JSON.stringify(app.results) + String(v) + String(shutterTime);
   if (hash === lastHash) return;
   lastHash = hash;
 
@@ -33,6 +36,11 @@ export function drawChart(app: AppStateFull): void {
   const { fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency } = results;
 
   const xMax = Math.max(fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, 200) * 1.15;
+
+  const vImg = v * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const fMotionNull = vImg > 1e-6 && shutterTime > 0 ? 1 / (vImg * shutterTime) : Infinity;
+  const fMotionMTF50 = vImg > 1e-6 && shutterTime > 0 ? 0.603 / (vImg * shutterTime) : Infinity;
+
   const pad = { top: 36, right: 40, bottom: 54, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
@@ -41,6 +49,12 @@ export function drawChart(app: AppStateFull): void {
 
   ctx.fillStyle = '#020617';
   ctx.fillRect(0, 0, cssW, cssH);
+
+  // Title
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Spatial Resolution', cssW / 2, 20);
 
   // Grid lines
   ctx.strokeStyle = '#1e293b';
@@ -123,6 +137,19 @@ export function drawChart(app: AppStateFull): void {
   }
   ctx.stroke();
 
+  // Temporal MTF curve (amber — motion blur low-pass)
+  if (vImg > 1e-6 && fMotionNull < xMax * 4) {
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    let firstPoint = true;
+    for (let f = 0; f <= xMax; f += 0.5) {
+      const mtf = temporalMtf(f, vImg, shutterTime);
+      if (firstPoint) { ctx.moveTo(px(f), py(mtf)); firstPoint = false; } else { ctx.lineTo(px(f), py(mtf)); }
+    }
+    ctx.stroke();
+  }
+
   // Native Nyquist marker (thin grey)
   ctx.strokeStyle = 'rgba(148, 163, 184, 0.4)';
   ctx.lineWidth = 1;
@@ -162,6 +189,37 @@ export function drawChart(app: AppStateFull): void {
   }
   ctx.stroke();
 
+  // Total system curve (cyan — lens × sensor × temporal)
+  if (vImg > 1e-6 && fMotionNull < xMax * 4) {
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 4]);
+    ctx.beginPath();
+    let firstSys = true;
+    for (let f = 0; f <= fNyquistSkipped; f += 0.5) {
+      const mtf = lensMtf(f, fcAberrated) * formatEfficiency * temporalMtf(f, vImg, shutterTime);
+      if (firstSys) { ctx.moveTo(px(f), py(mtf)); firstSys = false; } else { ctx.lineTo(px(f), py(mtf)); }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Motion MTF50 marker (amber dashed)
+  if (vImg > 1e-6 && fMotionMTF50 > 0 && fMotionMTF50 <= xMax) {
+    ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 5]);
+    ctx.beginPath();
+    ctx.moveTo(px(fMotionMTF50), pad.top);
+    ctx.lineTo(px(fMotionMTF50), cssH - pad.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Motion MTF50', px(fMotionMTF50), pad.top - 20);
+  }
+
   // Effective cutoff marker (red dotted)
   ctx.strokeStyle = 'rgba(248, 113, 113, 0.9)';
   ctx.lineWidth = 1.5;
@@ -177,21 +235,36 @@ export function drawChart(app: AppStateFull): void {
   ctx.fillText('Effective', px(fEffective), pad.top - 26);
 
   // Legend
-  const lx = cssW - pad.right - 160;
+  const lx = cssW - pad.right - 180;
   const ly = pad.top + 8;
   ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
   ctx.fillText('\u2500\u2500 Lens MTF', lx, ly);
+  ctx.fillStyle = 'rgba(251, 191, 36, 0.9)';
+  ctx.fillText('\u2500\u2500 Temporal MTF', lx, ly + 15);
   ctx.fillStyle = 'rgba(251, 146, 60, 0.9)';
-  ctx.fillText('- - Sensor Limit', lx, ly + 15);
+  ctx.fillText('- - Sensor Limit', lx, ly + 30);
   ctx.fillStyle = 'rgba(248, 250, 252, 0.9)';
-  ctx.fillText('\u2500\u2500 System', lx, ly + 30);
+  ctx.fillText('\u2500\u2500 System', lx, ly + 45);
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
+  ctx.fillText('- - System + Motion', lx, ly + 60);
   ctx.fillStyle = 'rgba(248, 113, 113, 0.9)';
-  ctx.fillText('\u00b7\u00b7 Effective', lx, ly + 45);
+  ctx.fillText('\u00b7\u00b7 Effective', lx, ly + 75);
 }
 
 function lensMtf(f: number, fcAberrated: number): number {
   if (f >= fcAberrated) return 0;
   const ratio = f / fcAberrated;
   return Math.max(0, 1 - ratio * ratio);
+}
+
+function sinc(x: number): number {
+  if (Math.abs(x) < 1e-10) return 1;
+  return Math.sin(Math.PI * x) / (Math.PI * x);
+}
+
+function temporalMtf(f: number, vImg: number, shutterS: number): number {
+  if (vImg < 1e-9 || shutterS < 1e-9) return 1;
+  return Math.abs(sinc(f * vImg * shutterS));
 }

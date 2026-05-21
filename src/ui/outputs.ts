@@ -53,6 +53,11 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
       icon: '\u25a7',
       text: `Compression-throttled: MJPG Q=${state.mjpgQuality} + chroma subsampling erase fine detail. Switch to UYVY/NV12 or raise JPEG quality.`,
     },
+    'motion-limited': {
+      color: 'border-yellow-800 bg-yellow-950/30 text-yellow-300',
+      icon: '\u27f3',
+      text: `Motion-limited: subject velocity + frame rate blur fine detail (MTF50 at ${app.results.fTemporal50.toFixed(1)} lp/mm). Increase frame rate, slow the subject, or use a shorter focal length.`,
+    },
     balanced: {
       color: 'border-emerald-800 bg-emerald-950/30 text-emerald-300',
       icon: '\u2713',

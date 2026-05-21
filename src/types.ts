@@ -1,5 +1,5 @@
 export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg';
-export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'balanced';
+export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'luma' | 'chroma';
 export type SubsamplingMethod = 'line-skip' | 'binning-average';
@@ -45,6 +45,7 @@ export interface Results {
   olpfPenalty: number;
   formatEfficiency: number;
   fEffective: number;
+  fTemporal50: number;
   bottleneckType: BottleneckType;
   minFeatureSize: number;
   featureSizeAtDistance: number;

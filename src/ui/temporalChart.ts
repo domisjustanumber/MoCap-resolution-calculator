@@ -13,21 +13,35 @@ let appRef: AppStateFull | null = null;
 
 // Chart inputs
 let zoomMax = 200;
-let targetVelocity = 5;   // m/s
-const FRAME_RATE = 30;     // fps (fixed)
+let targetVelocity = 0;   // m/s
+let frameRate = 30;        // fps
+let shutterDenom = 60;     // 1/N seconds
 let phaseOffset = 16.6;   // ms
 let jitterMs = 10.0;      // ms
+
+export function getTemporalVelocity(): number { return targetVelocity; }
+export function getFrameRate(): number { return frameRate; }
+export function getShutterTime(): number { return 1 / shutterDenom; }
+export function getShutterDenom(): number { return shutterDenom; }
 
 export function setTemporalZoom(max: number): void {
   zoomMax = Math.max(10, Math.min(500, Math.round(max)));
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setTemporalVelocity(v: number): void {
-  targetVelocity = Math.max(1, Math.min(15, v));
+  targetVelocity = Math.max(0, Math.min(20, v));
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setTemporalPhase(ms: number): void {
   phaseOffset = Math.max(0, Math.min(300, ms));
+  if (appRef) drawTemporalChart(appRef, true);
+}
+export function setFrameRate(fps: number): void {
+  frameRate = Math.max(1, Math.min(240, Math.round(fps)));
+  if (appRef) drawTemporalChart(appRef, true);
+}
+export function setShutterDenom(d: number): void {
+  shutterDenom = Math.max(1, Math.min(8000, Math.round(d)));
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setTemporalJitter(ms: number): void {
@@ -70,7 +84,7 @@ interface SimResult {
 
 function runSimulation(): SimResult {
   const v = targetVelocity;       // m/s = mm/ms
-  const fps = FRAME_RATE;
+  const fps = frameRate;
   const phaseMs = phaseOffset;
   const jitMs = jitterMs;
 
@@ -154,7 +168,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   const hash =
     String(zoomMax) +
     String(targetVelocity) +
-    String(FRAME_RATE) +
+    String(frameRate) +
     String(phaseOffset) +
     String(jitterMs);
   if (hash === lastHash && !force) return;

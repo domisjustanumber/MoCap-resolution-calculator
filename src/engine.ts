@@ -1,4 +1,5 @@
 import type { AppState, DerivedState, Results, BottleneckType, LensTier } from './types';
+import { getTemporalVelocity, getShutterTime } from './ui/temporalChart';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const pixelPitch = state.pixelPitch;
@@ -65,7 +66,12 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     }
   }
 
-  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped);
+  const v = getTemporalVelocity();
+  const shutterTime = getShutterTime();
+  const vImg = v * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const fTemporal50 = vImg > 1e-6 ? 0.603 / (vImg * shutterTime) : Infinity;
+
+  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped, fTemporal50);
   const fEffective = limitingFrequency * formatEfficiency;
   const minFeatureSize = (1 / (2 * fEffective)) * 1000;
 
@@ -81,6 +87,9 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
   } else if (fcAberrated < fNyquistSkipped * 0.85) {
     bottleneckType = 'lens-limited';
   }
+  if (fTemporal50 < fcAberrated * 0.85 && fTemporal50 < fNyquistSkipped * 0.85) {
+    bottleneckType = 'motion-limited';
+  }
 
   return {
     fc,
@@ -91,6 +100,7 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     olpfPenalty,
     formatEfficiency,
     fEffective,
+    fTemporal50,
     bottleneckType,
     minFeatureSize,
     featureSizeAtDistance,
