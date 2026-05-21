@@ -5,7 +5,7 @@ let mouseX = -1;
 let mouseY = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
-let maxDistance = 5;
+let maxDistance = 3;
 
 export interface Pin {
   distance: number;

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kinematic Motion Resolution Calculator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 30px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .calc-container {
+            max-width: 850px;
+            margin: 0 auto;
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: #38bdf8;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 14px;
+        }
+
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+            background-color: #0f172a;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+            font-family: monospace;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .val-stream {
+            color: #38bdf8;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #38bdf8;
+            cursor: pointer;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .card {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: border-color 0.2s ease;
+        }
+
+        .card:hover {
+            border-color: #38bdf8;
+        }
+
+        .card-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        .card-unit {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .context-box {
+            margin-top: 24px;
+            padding: 16px;
+            background-color: rgba(56, 189, 248, 0.06);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+
+<div class="calc-container">
+    <h2>Kinematic Motion Resolution Limits</h2>
+    
+    <!-- User Input Control Block -->
+    <div class="input-section">
+        <div class="control-group">
+            <label>Camera Frame Rate: <span id="lbl-fps" class="val-stream">60</span> FPS</label>
+            <input type="range" id="param-fps" min="15" max="240" step="1" value="60">
+        </div>
+        <div class="control-group">
+            <label>Spatial Error Budget: <span id="lbl-budget" class="val-stream">5.0</span> mm</label>
+            <input type="range" id="param-budget" min="0.5" max="25" step="0.5" value="5">
+        </div>
+    </div>
+
+    <!-- Output Processing Metrics Matrix -->
+    <div class="results-grid">
+        <div class="card">
+            <div class="card-title">Max Resolvable Acceleration</div>
+            <div id="out-accel" class="card-value">--</div>
+            <div id="out-g" class="card-unit">--</div>
+        </div>
+        <div class="card">
+            <div class="card-title">Directional Nyquist Boundary</div>
+            <div id="out-turn" class="card-value">--</div>
+            <div class="card-unit">Max Turn Rate before Aliasing</div>
+        </div>
+        <div class="card">
+            <div class="card-title">State Change Latency</div>
+            <div id="out-latency" class="card-value">--</div>
+            <div class="card-unit">Minimum 2-Frame Window</div>
+        </div>
+    </div>
+
+    <div class="context-box">
+        <strong>Tracking Takeaway:</strong> Because acceleration error scales <em>quadratically</em> with frame rate ($a \propto \text{FPS}^2$), doubling your frame rate gives you <strong>four times</strong> the tracking protection against sudden direction changes, spikes in velocity, or erratic mechanical vibrations.
+    </div>
+</div>
+
+<script>
+    const inputFps = document.getElementById('param-fps');
+    const inputBudget = document.getElementById('param-budget');
+    
+    const lblFps = document.getElementById('lbl-fps');
+    const lblBudget = document.getElementById('lbl-budget');
+
+    const outAccel = document.getElementById('out-accel');
+    const outG = document.getElementById('out-g');
+    const outTurn = document.getElementById('out-turn');
+    const outLatency = document.getElementById('out-latency');
+
+    function calculateLimits() {
+        const fps = parseInt(inputFps.value);
+        const budgetMm = parseFloat(inputBudget.value);
+        
+        // Update UI dynamic labels
+        lblFps.innerText = fps;
+        lblBudget.innerText = budgetMm.toFixed(1);
+
+        // Convert spatial tracking budget to meters
+        const epsilon = budgetMm / 1000;
+
+        // 1. Max Acceleration: a = 8 * epsilon * FPS^2
+        const maxAccelMetersS2 = 8 * epsilon * (fps * fps);
+        const gForce = maxAccelMetersS2 / 9.80665;
+
+        // 2. Max Rotational Turn Rate: 180 degrees per frame window
+        const maxTurnDegS = fps * 180;
+
+        // 3. Minimum State Change Verification Latency (2 Frames)
+        const frameTimeMs = 1000 / fps;
+        const trackingLatencyMs = frameTimeMs * 2;
+
+        // Populate Results Matrix
+        outAccel.innerText = `${maxAccelMetersS2.toLocaleString(undefined, {maximumFractionDigits: 0})} m/s²`;
+        outG.innerText = `≈ ${gForce.toFixed(1)} G (Earth Gravity Baseline)`;
+        outTurn.innerText = `${maxTurnDegS.toLocaleString()}°/s`;
+        outLatency.innerText = `${trackingLatencyMs.toFixed(1)} ms`;
+    }
+
+    // Bind event dynamic bindings
+    inputFps.addEventListener('input', calculateLimits);
+    inputBudget.addEventListener('input', calculateLimits);
+
+    // Initial evaluation lifecycle trigger
+    calculateLimits();
+</script>
+
+</body>
+</html>
