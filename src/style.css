@@ -30,10 +30,47 @@ html {
   .preset-chip.active {
     @apply border-blue-500 bg-blue-900/30 text-blue-300;
   }
+
+  .vel-preset {
+    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
+  }
+
+  .vel-preset.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
+
+  .fps-preset {
+    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
+  }
+
+  .fps-preset.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
+
+  .vel-input-active {
+    @apply border-blue-500 ring-1 ring-blue-500/50;
+  }
+
+  .shutter-preset {
+    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
+  }
+
+  .shutter-preset.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
 }
 
 /* Number input spinner styling */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.4;
+}
+
+input[type="number"].no-spinner::-webkit-inner-spin-button,
+input[type="number"].no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].no-spinner {
+  -moz-appearance: textfield;
 }
