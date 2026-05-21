@@ -14,7 +14,7 @@
     </h1>
     <div class="flex gap-1">
       <button id="tab-spatial" class="chart-tab rounded-md border px-4 py-1.5 text-xs font-medium transition active">Spatial Resolution</button>
-      <button id="tab-temporal" class="chart-tab rounded-md border px-4 py-1.5 text-xs font-medium transition">Camera Sync Error</button>
+      <button id="tab-temporal" class="chart-tab rounded-md border px-4 py-1.5 text-xs font-medium transition">Camera sync</button>
       <button id="tab-acceleration" class="chart-tab rounded-md border px-4 py-1.5 text-xs font-medium transition">Acceleration</button>
     </div>
   </header>
@@ -105,26 +105,26 @@
               <span id="temporal-fps-label" class="text-[10px] text-slate-600">Kinematic @ 30 fps</span>
             </div>
             <canvas id="temporal-chart"></canvas>
-            <div class="mt-2 grid grid-cols-4 gap-2">
+            <div class="mt-2">
+              <label class="text-[10px] font-medium text-slate-500" for="temporal-zoom">X-axis scale</label>
+              <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
+              <span id="temporal-zoom-label" class="text-[10px] font-mono text-slate-400">200 mm</span>
+            </div>
+            <div class="mt-2 grid grid-cols-3 gap-2">
               <div>
-                <label class="text-[10px] font-medium text-slate-500" for="temporal-velocity">Velocity</label>
+                <label class="text-[10px] font-medium text-slate-500" for="temporal-velocity">Velocity of tracked object</label>
                 <input id="temporal-velocity" class="w-full" type="range" min="0" max="20" step="0.1" value="0" />
                 <span id="temporal-velocity-label" class="text-[10px] font-mono text-slate-400">0 m/s</span>
               </div>
               <div>
-                <label class="text-[10px] font-medium text-slate-500" for="temporal-phase">Timing offset</label>
+                <label class="text-[10px] font-medium text-slate-500" for="temporal-phase">Camera timing offset</label>
                 <input id="temporal-phase" class="w-full" type="range" min="0" max="100" step="0.1" value="16.6" />
                 <span id="temporal-phase-label" class="text-[10px] font-mono text-slate-400">16.6 ms</span>
               </div>
               <div>
-                <label class="text-[10px] font-medium text-slate-500" for="temporal-jitter">Timing jitter</label>
+                <label class="text-[10px] font-medium text-slate-500" for="temporal-jitter">Camera timing jitter</label>
                 <input id="temporal-jitter" class="w-full" type="range" min="0" max="100" step="0.1" value="10" />
                 <span id="temporal-jitter-label" class="text-[10px] font-mono text-slate-400">10.0 ms</span>
-              </div>
-              <div>
-                <label class="text-[10px] font-medium text-slate-500" for="temporal-zoom">X scale</label>
-                <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
-                <span id="temporal-zoom-label" class="text-[10px] font-mono text-slate-400">200 mm</span>
               </div>
             </div>
           </div>
@@ -174,7 +174,7 @@
         </div>
 
         <!-- Quick controls -->
-        <div class="mt-3 flex gap-1.5">
+        <div id="quick-controls" class="mt-3 flex gap-1.5">
           <!-- Velocity of tracked object -->
           <div class="flex-1 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Velocity of tracked object</p>

@@ -57,12 +57,20 @@ function switchTab(tab: string): void {
   const spatialTab = document.getElementById('tab-spatial');
   const temporalTab = document.getElementById('tab-temporal');
   const accelTab = document.getElementById('tab-acceleration');
+  const presetBar = document.getElementById('preset-bar');
+  const quickControls = document.getElementById('quick-controls');
+  const bottleneckBanner = document.getElementById('bottleneck-banner');
 
   document.querySelectorAll('.chart-tab').forEach((t) => t.classList.remove('active'));
 
   if (spatialPanel) spatialPanel.classList.toggle('hidden', tab !== 'spatial');
   if (temporalPanel) temporalPanel.classList.toggle('hidden', tab !== 'temporal');
   if (accelPanel) accelPanel.classList.toggle('hidden', tab !== 'acceleration');
+
+  // Hide sidebar, quick controls, and bottleneck on Camera sync tab
+  if (presetBar) presetBar.classList.toggle('hidden', tab === 'temporal');
+  if (quickControls) quickControls.classList.toggle('hidden', tab === 'temporal');
+  if (bottleneckBanner) bottleneckBanner.classList.toggle('hidden', tab === 'temporal');
 
   if (tab === 'spatial' && spatialTab) spatialTab.classList.add('active');
   if (tab === 'temporal' && temporalTab) temporalTab.classList.add('active');
