@@ -11,6 +11,7 @@ export const PRESETS: Preset[] = [
       focalLength: 3.60,
       aperture: 2.0,
       olpfPresent: true,
+      lensTier: 'cheap-plastic',
     },
   },
   {
@@ -23,6 +24,7 @@ export const PRESETS: Preset[] = [
       focalLength: 3.04,
       aperture: 2.0,
       olpfPresent: true,
+      lensTier: 'cheap-plastic',
     },
   },
   {
@@ -35,6 +37,7 @@ export const PRESETS: Preset[] = [
       focalLength: 4.74,
       aperture: 1.8,
       olpfPresent: true,
+      lensTier: 'cheap-plastic',
     },
   },
   {
@@ -64,6 +67,7 @@ export const PRESETS: Preset[] = [
       extractedHeight: 3040,
       outputFormat: 'nv12',
       measurementMode: 'luma',
+      lensTier: 'mid-glass',
     },
   },
   {
@@ -83,6 +87,7 @@ export const PRESETS: Preset[] = [
       outputFormat: 'mjpg',
       mjpgQuality: 60,
       measurementMode: 'luma',
+      lensTier: 'cheap-plastic',
     },
   },
   {
@@ -121,6 +126,7 @@ export const PRESETS: Preset[] = [
       extractedHeight: 1200,
       outputFormat: 'nv12',
       measurementMode: 'luma',
+      lensTier: 'cheap-plastic',
     },
   },
 ];

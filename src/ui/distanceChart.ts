@@ -132,14 +132,20 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
-  const py = (f: number) => {
-    return pad.top + (1 - f / 20) * plotH;
-  };
-
   const featureMm = (d: number) => (minFeatureSize * d) / focalLength;
 
-  const yMax = 20;
-  const yStep = 5;
+  const maxFeature = featureMm(dMax);
+  const rawStep = maxFeature / 6;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(Math.max(rawStep, 1))));
+  const normalized = rawStep / magnitude;
+  let yStep: number;
+  if (normalized <= 1.5) yStep = magnitude;
+  else if (normalized <= 3) yStep = 2 * magnitude;
+  else if (normalized <= 7) yStep = 5 * magnitude;
+  else yStep = 10 * magnitude;
+  if (yStep < 5) yStep = 5;
+  const yMax = Math.max(20, Math.ceil(maxFeature * 1.15 / yStep) * yStep);
+  const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
 
   // Background
   ctx.fillStyle = '#020617';
