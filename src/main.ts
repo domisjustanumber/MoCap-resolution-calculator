@@ -1,4 +1,4 @@
-import { createState, recalculate } from './state';
+import { createState, recalculate, setField } from './state';
 import { initInputs } from './ui/inputs';
 import { updateOutputs } from './ui/outputs';
 import { drawChart } from './ui/chart';
@@ -120,6 +120,8 @@ document.querySelectorAll('.dr-preset').forEach((el) => {
     const db = parseInt((el as HTMLButtonElement).dataset.dr || '66', 10);
     activeDrDb = db;
     updateDrPresetStyles();
+    setField(app, 'dynamicRangeDb', db);
+    refreshAll();
   });
 });
 updateDrPresetStyles();

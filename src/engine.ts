@@ -71,7 +71,11 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
   const vImg = v * state.focalLength / Math.max(0.1, state.distanceToSubject);
   const fTemporal50 = vImg > 1e-6 ? 0.603 / (vImg * shutterTime) : Infinity;
 
-  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped, fTemporal50);
+  // Dynamic Range: minimum detectable contrast from noise floor
+  const contrastFloor = 1 / Math.pow(10, state.dynamicRangeDb / 20);
+  const fDRLimited = fcAberrated * Math.sqrt(Math.max(0, 1 - contrastFloor / Math.max(0.01, formatEfficiency)));
+
+  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped, fTemporal50, fDRLimited);
   const fEffective = limitingFrequency * formatEfficiency;
   const minFeatureSize = (1 / (2 * fEffective)) * 1000;
 
@@ -82,12 +86,15 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
   if (formatEfficiency < 0.85 && state.outputFormat === 'mjpg') {
     bottleneckType = 'compression-throttled';
   }
-  if (fNyquistSkipped < fcAberrated * 0.85) {
+  if (fDRLimited < fcAberrated * 0.85 && fDRLimited < fNyquistSkipped * 0.85) {
+    bottleneckType = 'dr-limited';
+  }
+  if (fNyquistSkipped < fcAberrated * 0.85 && fNyquistSkipped < fDRLimited * 0.85) {
     bottleneckType = 'sensor-limited';
-  } else if (fcAberrated < fNyquistSkipped * 0.85) {
+  } else if (fcAberrated < fNyquistSkipped * 0.85 && fcAberrated < fDRLimited * 0.85) {
     bottleneckType = 'lens-limited';
   }
-  if (fTemporal50 < fcAberrated * 0.85 && fTemporal50 < fNyquistSkipped * 0.85) {
+  if (fTemporal50 < fcAberrated * 0.85 && fTemporal50 < fNyquistSkipped * 0.85 && fTemporal50 < fDRLimited * 0.85) {
     bottleneckType = 'motion-limited';
   }
 
@@ -104,6 +111,8 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     bottleneckType,
     minFeatureSize,
     featureSizeAtDistance,
+    fDRLimited,
+    contrastFloor,
   };
 }
 

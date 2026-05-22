@@ -58,6 +58,11 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
       icon: '\u27f3',
       text: `Motion-limited: subject velocity blurs detail (MTF50 at ${app.results.fTemporal50.toFixed(1)} lp/mm). Software: faster shutter speed, increase frame rate, reduce resolution to raise FPS. Hardware: wider-aperture lens for shorter exposures, then higher-sensitivity sensor.`,
     },
+    'dr-limited': {
+      color: 'border-purple-800 bg-purple-950/30 text-purple-300',
+      icon: '\u25d8',
+      text: `DR-limited: ${state.dynamicRangeDb}\u00a0dB dynamic range sets noise floor at ${(app.results.contrastFloor * 100).toFixed(3)}% contrast. Software: raise exposure, reduce noise (lower ISO/gain). Hardware: sensor with higher dynamic range, then wider-aperture lens for more light.`,
+    },
     balanced: {
       color: 'border-emerald-800 bg-emerald-950/30 text-emerald-300',
       icon: '\u2713',
@@ -119,6 +124,13 @@ function updateConditionalNotes(app: AppStateFull): void {
         'Binning / averaging preserves field of view but reduces spatial resolution.',
       );
     }
+  }
+
+  if (state.dynamicRangeDb < 70) {
+    const contrastFloor = app.results.contrastFloor;
+    notes.push(
+      `Low DR (${state.dynamicRangeDb} dB): noise floor at ${(contrastFloor * 100).toFixed(2)}% contrast — fine tonal detail may be lost in shadows.`,
+    );
   }
 
   container.innerHTML = notes

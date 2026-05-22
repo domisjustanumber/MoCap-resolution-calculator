@@ -33,9 +33,9 @@ export function drawChart(app: AppStateFull): void {
   ctx.clearRect(0, 0, cssW, cssH);
 
   const { results, state } = app;
-  const { fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency } = results;
+  const { fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency, fDRLimited } = results;
 
-  const xMax = Math.max(fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, 200) * 1.15;
+  const xMax = Math.max(fc, fcAberrated, fNyquistNative, fNyquistSkipped, fDRLimited, fEffective, 200) * 1.15;
 
   const vImg = v * state.focalLength / Math.max(0.1, state.distanceToSubject);
   const fMotionNull = vImg > 1e-6 && shutterTime > 0 ? 1 / (vImg * shutterTime) : Infinity;
@@ -206,6 +206,19 @@ export function drawChart(app: AppStateFull): void {
     ctx.stroke();
     ctx.setLineDash([]);
     topLabels.push({ x: px(fMotionMTF50), text: 'Motion MTF50', color: '#fbbf24', font: '11px monospace' });
+  }
+
+  // DR-limited marker (purple dotted)
+  if (fDRLimited < fcAberrated * 0.99) {
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 5]);
+    ctx.beginPath();
+    ctx.moveTo(px(fDRLimited), pad.top);
+    ctx.lineTo(px(fDRLimited), cssH - pad.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    topLabels.push({ x: px(fDRLimited), text: 'DR Limit', color: '#a855f7', font: '11px monospace' });
   }
 
   // Effective cutoff marker (red dotted)

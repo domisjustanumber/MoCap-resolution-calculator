@@ -25,6 +25,7 @@ export const DEFAULT_STATE: AppState = {
   measurementMode: 'luma',
   lensTier: 'cheap-plastic',
   distanceToSubject: 1,
+  dynamicRangeDb: 66,
 };
 
 export function createState(): AppStateFull {
