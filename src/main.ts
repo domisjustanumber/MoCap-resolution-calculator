@@ -7,6 +7,7 @@ import {
   drawTemporalChart,
   setTemporalZoom,
   setTemporalVelocity,
+  getTemporalVelocity,
   setTemporalPhase,
   setTemporalJitter,
   setFrameRate,
@@ -27,7 +28,7 @@ function refreshAll(): void {
   updateAccelOutputs();
 }
 
-initInputs(app, () => {});
+initInputs(app);
 
 updateOutputs(app);
 drawChart(app);
@@ -106,26 +107,22 @@ function bindDistYRange(): void {
 }
 bindDistYRange();
 
-// --- Dynamic Range presets ---
-let activeDrDb = 66;
+function updatePresetStyles(selector: string, getValue: () => number, dataAttr: string): void {
+  const current = getValue();
+  document.querySelectorAll(selector).forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    const btnVal = parseInt(btn.dataset[dataAttr] || '0', 10);
+    btn.classList.toggle('active', btnVal === current);
+  });
+}
 
 function updateDrPresetStyles(): void {
-  document.querySelectorAll('.dr-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const btnDb = parseInt(btn.dataset.dr || '0', 10);
-    if (btnDb === activeDrDb) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  updatePresetStyles('.dr-preset', () => app.state.dynamicRangeDb, 'dr');
 }
 
 document.querySelectorAll('.dr-preset').forEach((el) => {
   el.addEventListener('click', () => {
     const db = parseInt((el as HTMLButtonElement).dataset.dr || '66', 10);
-    activeDrDb = db;
-    updateDrPresetStyles();
     setField(app, 'dynamicRangeDb', db);
     refreshAll();
   });
@@ -160,35 +157,19 @@ function detectVelocityPreset(v: number): string {
 }
 
 function updateVelocityPresetStyles(): void {
-  document.querySelectorAll('.vel-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    if (btn.dataset.velocity === activeVelocityPreset) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  updatePresetStyles('.vel-preset', () => {
+    const v = getTemporalVelocity();
+    const preset = VELOCITY_PRESETS[activeVelocityPreset];
+    return preset !== undefined ? preset : v;
+  }, 'velocity');
   const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
   if (customInput) {
-    if (activeVelocityPreset === 'custom') {
-      customInput.classList.add('vel-input-active');
-    } else {
-      customInput.classList.remove('vel-input-active');
-    }
+    customInput.classList.toggle('vel-input-active', activeVelocityPreset === 'custom');
   }
 }
 
 function updateFpsPresetStyles(): void {
-  const fps = getFrameRate();
-  document.querySelectorAll('.fps-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const btnFps = parseInt(btn.dataset.fps || '0', 10);
-    if (btnFps === fps) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  updatePresetStyles('.fps-preset', () => getFrameRate(), 'fps');
 }
 
 function updateFpsLabel(): void {
@@ -270,16 +251,7 @@ document.querySelectorAll('.shutter-preset').forEach((el) => {
 });
 
 function updateShutterPresetStyles(): void {
-  const denom = getShutterDenom();
-  document.querySelectorAll('.shutter-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const btnDenom = parseInt(btn.dataset.shutter || '0', 10);
-    if (btnDenom === denom) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
+  updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
 }
 
 updateShutterPresetStyles();

@@ -164,9 +164,8 @@ function computeStats(data: Float32Array): { avg: number; median: number; p95: n
   return { avg, median, p95 };
 }
 
-// Need AppStateFull for the signature — import at top would cause circular issues,
-// so we use a loose reference via appRef
 import type { AppStateFull } from '../types';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 export function drawTemporalChart(app: AppStateFull, force = false): void {
   const canvas = document.getElementById('temporal-chart') as HTMLCanvasElement | null;
@@ -198,33 +197,21 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
     cachedMaxStats = computeStats(maxErrors);
   }
 
-  const dpr = window.devicePixelRatio || 1;
   const parent = canvas.parentElement;
   if (!parent) return;
-  const parentStyle = getComputedStyle(parent);
-  const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
+  const cssW = getCssWidth(parent);
   const cssH = cssW * (180 / 600);
-  const bufW = Math.round(cssW * dpr);
-  const bufH = Math.round(cssH * dpr);
-  canvas.width = bufW;
-  canvas.height = bufH;
-  canvas.style.width = `${bufW / dpr}px`;
-  canvas.style.height = `${bufH / dpr}px`;
+  sizeCanvas(canvas, cssW, cssH);
 
-  const ctx = canvas.getContext('2d');
+  const ctx = getCanvasContext(canvas, cssW, cssH);
   if (!ctx) return;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, cssW, cssH);
 
   const pad = { top: 36, right: 40, bottom: 52, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const yFloorPixel = cssH - pad.bottom;
 
-  // Background
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, cssW, cssH);
+  drawBackground(ctx, cssW, cssH);
 
   // Use cached simulation results (stable across mouse moves)
   const maxDensity = cachedMaxDensity ?? new Float32Array(300);
@@ -238,31 +225,10 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   const py = (density: number) =>
     mapZoomedMetricsToPixels(0, density, zoomMax, yFloorPixel, plotH, pad.left, plotW).y;
 
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 0.5;
-  for (let x = 0; x <= zoomMax; x += xStep) {
-    const xp = px(x);
-    ctx.beginPath();
-    ctx.moveTo(xp, pad.top);
-    ctx.lineTo(xp, cssH - pad.bottom);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= 1.0; y += 0.1) {
-    const yp = py(y);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, yp);
-    ctx.lineTo(cssW - pad.right, yp);
-    ctx.stroke();
-  }
+  drawGrid(ctx, pad, cssW, cssH, zoomMax, xStep, 1.0, 0.1, px, py);
 
   // Axes
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left, cssH - pad.bottom);
-  ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
-  ctx.stroke();
+  drawAxes(ctx, pad, cssW, cssH);
 
   // Y-axis labels
   ctx.fillStyle = '#64748b';

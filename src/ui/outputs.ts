@@ -23,7 +23,7 @@ export function updateOutputs(app: AppStateFull): void {
   updateConditionalNotes(app);
 }
 
-function setText(id: string, text: string): void {
+export function setText(id: string, text: string): void {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
 }

@@ -1,5 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getTemporalVelocity, getShutterTime } from './temporalChart';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 let lastHash = '';
 
@@ -13,24 +14,14 @@ export function drawChart(app: AppStateFull): void {
   if (hash === lastHash) return;
   lastHash = hash;
 
-  const dpr = window.devicePixelRatio || 1;
   const parent = canvas.parentElement;
   if (!parent) return;
-  const parentStyle = getComputedStyle(parent);
-  const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
+  const cssW = getCssWidth(parent);
   const cssH = cssW * (400 / 600);
-  const bufW = Math.round(cssW * dpr);
-  const bufH = Math.round(cssH * dpr);
-  canvas.width = bufW;
-  canvas.height = bufH;
-  canvas.style.width = `${bufW / dpr}px`;
-  canvas.style.height = `${bufH / dpr}px`;
+  sizeCanvas(canvas, cssW, cssH);
 
-  const ctx = canvas.getContext('2d');
+  const ctx = getCanvasContext(canvas, cssW, cssH);
   if (!ctx) return;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, cssW, cssH);
 
   const { results, state } = app;
   const { fc, fcAberrated, fNyquistNative, fNyquistSkipped, fEffective, formatEfficiency, fDRLimited } = results;
@@ -47,36 +38,14 @@ export function drawChart(app: AppStateFull): void {
   const px = (x: number) => pad.left + (x / xMax) * plotW;
   const py = (y: number) => pad.top + (1 - y) * plotH;
 
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, cssW, cssH);
+  drawBackground(ctx, cssW, cssH);
 
   // Grid lines
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 0.5;
-  for (let y = 0; y <= 1.0; y += 0.1) {
-    const yp = py(y);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, yp);
-    ctx.lineTo(cssW - pad.right, yp);
-    ctx.stroke();
-  }
   const xStep = Math.max(10, Math.ceil(xMax / 8 / 50) * 50);
-  for (let x = 0; x <= xMax; x += xStep) {
-    const xp = px(x);
-    ctx.beginPath();
-    ctx.moveTo(xp, pad.top);
-    ctx.lineTo(xp, cssH - pad.bottom);
-    ctx.stroke();
-  }
+  drawGrid(ctx, pad, cssW, cssH, xMax, xStep, 1.0, 0.1, px, py);
 
   // Axes
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left, cssH - pad.bottom);
-  ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
-  ctx.stroke();
+  drawAxes(ctx, pad, cssW, cssH);
 
   // Y-axis labels
   ctx.fillStyle = '#64748b';

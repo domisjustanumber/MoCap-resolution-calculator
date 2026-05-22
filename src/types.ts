@@ -32,6 +32,7 @@ export interface DerivedState {
   sensorHeight: number;
   pixelPitch: number;
   effectivePixelPitch: number;
+  skippingFactor: number;
   diagonalFov: number;
   horizontalFov: number;
   verticalFov: number;

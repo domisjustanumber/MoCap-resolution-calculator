@@ -4,11 +4,10 @@ import { PRESETS } from '../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
-import { drawDistanceChart } from './distanceChart';
+import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { drawTemporalChart } from './temporalChart';
 
 let app: AppStateFull;
-let renderCallback: (() => void) | null = null;
 
 const RES_PRESETS: Record<string, { w: number; h: number; fmt: string }> = {
   'sd-mjpg': { w: 640, h: 480, fmt: 'mjpg' },
@@ -19,9 +18,8 @@ const RES_PRESETS: Record<string, { w: number; h: number; fmt: string }> = {
   '1080p-nv12': { w: 1920, h: 1080, fmt: 'nv12' },
 };
 
-export function initInputs(state: AppStateFull, onUpdate: () => void): void {
+export function initInputs(state: AppStateFull): void {
   app = state;
-  renderCallback = onUpdate;
 
   bindNumberInput('focalLength', 'focalLength');
   bindFovInput();
@@ -187,10 +185,8 @@ function bindDistanceRange(): void {
   el.addEventListener('input', () => {
     const v = parseInt(el.value, 10);
     if (label) label.textContent = v + 'm';
-    import('../ui/distanceChart').then(({ setMaxDistance, drawDistanceChart }) => {
-      setMaxDistance(v);
-      drawDistanceChart(app, true);
-    });
+    setMaxDistance(v);
+    drawDistanceChart(app, true);
   });
 }
 
@@ -404,5 +400,4 @@ function refresh(): void {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
-  if (renderCallback) renderCallback();
 }

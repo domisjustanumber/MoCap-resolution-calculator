@@ -53,3 +53,13 @@ export const APERTURE_MIN = 1.0;
 export const APERTURE_MAX = 32;
 export const SENSOR_DENOMINATOR_MIN = 0.1;
 export const MJPG_BLOCK_SIZE_PX = 8;
+
+// Engine computation constants
+export const OLPF_PENALTY = 0.85;
+export const MOTION_MTF50_CONST = 0.603;
+export const FORMAT_EFFICIENCY_MJPG_BASE = 0.4;
+export const FORMAT_EFFICIENCY_MJPG_RANGE = 0.6;
+export const CHROMA_UYVY_PENALTY = 0.5;
+export const CHROMA_OTHER_PENALTY = 0.25;
+export const BOTTLENECK_RATIO = 0.85;
+export const BINNING_VALUES = [1, 2, 4] as const;

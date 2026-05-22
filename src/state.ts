@@ -5,7 +5,9 @@ import {
   APERTURE_MAX,
   WAVELENGTH_MIN,
   WAVELENGTH_MAX,
+  BINNING_VALUES,
 } from './constants';
+import { getTemporalVelocity, getShutterTime } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -31,7 +33,7 @@ export const DEFAULT_STATE: AppState = {
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
-  const results = calculateResults(state, derived);
+  const results = calculateResults(state, derived, getTemporalVelocity(), getShutterTime());
   return { state, activePreset: 'ov5647', derived, results };
 }
 
@@ -68,7 +70,7 @@ export function validateState(state: AppState): string[] {
 
   state.mjpgQuality = clamped(state.mjpgQuality, 1, 100);
 
-  if (![1, 2, 4].includes(state.pixelBinning)) {
+  if (!(BINNING_VALUES as readonly number[]).includes(state.pixelBinning)) {
     state.pixelBinning = 1;
   }
 
@@ -86,7 +88,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   }
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
-  app.results = calculateResults(state, app.derived);
+  app.results = calculateResults(state, app.derived, getTemporalVelocity(), getShutterTime());
   return app;
 }
 
@@ -101,9 +103,9 @@ export function applyPreset(app: AppStateFull, presetValues: Partial<AppState>, 
 }
 
 export function setField<K extends keyof AppState>(app: AppStateFull, key: K, value: AppState[K]): AppStateFull {
-  (app.state as unknown as Record<string, unknown>)[key] = value;
+  app.state[key] = value;
   if (key === 'focalLength') {
-    (app.state as unknown as Record<string, unknown>).diagonalFov = 0;
+    app.state.diagonalFov = 0;
   }
   if (key !== 'lensTier') {
     app.activePreset = 'custom';

@@ -1,5 +1,6 @@
 // Kinematic Motion Resolution Limits — based on temporal_acceleration_chart.html
 import { getFrameRate, setFrameRate } from './temporalChart';
+import { setText } from './outputs';
 
 let errorBudgetMm = 5;
 
@@ -23,11 +24,6 @@ export function updateAccelOutputs(): void {
   setText('accel-g', '≈ ' + gForce.toFixed(1) + ' G');
   setText('accel-turn', maxTurn.toLocaleString() + '°/s');
   setText('accel-latency', latency.toFixed(1) + ' ms');
-}
-
-function setText(id: string, text: string): void {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
 }
 
 export function initAcceleration(): void {

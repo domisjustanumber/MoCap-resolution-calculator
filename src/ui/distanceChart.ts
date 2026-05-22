@@ -1,4 +1,5 @@
 import type { AppStateFull } from '../types';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 let lastHash = '';
 let mouseX = -1;
@@ -48,9 +49,8 @@ function setupEvents(canvas: HTMLCanvasElement): void {
 
   const onMove = (e: MouseEvent) => {
     const rect = canvas.getBoundingClientRect();
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    mouseX = (e.clientX - rect.left) / zoom;
-    mouseY = (e.clientY - rect.top) / zoom;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
     mouseInCanvas = true;
     if (appRef) drawDistanceChart(appRef, true);
   };
@@ -68,10 +68,9 @@ function setupEvents(canvas: HTMLCanvasElement): void {
   const onClick = () => {
     if (!mouseInCanvas) return;
     const rect = canvas.getBoundingClientRect();
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const clickX = mouseX;
     const pad = { top: 36, right: 40, bottom: 52, left: 60 };
-    const plotW = (rect.width / zoom) - pad.left - pad.right;
+    const plotW = rect.width - pad.left - pad.right;
     const dClicked = ((clickX - pad.left) / plotW) * maxDistance;
     if (dClicked < 0 || dClicked > maxDistance) return;
 
@@ -115,26 +114,16 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const { focalLength } = state;
   const dMax = maxDistance;
 
-  const dpr = window.devicePixelRatio || 1;
   const parent = canvas.parentElement;
   if (!parent) return;
-  const parentStyle = getComputedStyle(parent);
-  const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
+  const cssW = getCssWidth(parent);
   const refCanvas = document.getElementById('mtf-chart') as HTMLCanvasElement | null;
   const refH = refCanvas ? parseFloat(refCanvas.style.height) : cssW * (400 / 600);
   const cssH = refH;
-  const bufW = Math.round(cssW * dpr);
-  const bufH = Math.round(cssH * dpr);
-  canvas.width = bufW;
-  canvas.height = bufH;
-  canvas.style.width = `${bufW / dpr}px`;
-  canvas.style.height = `${bufH / dpr}px`;
+  sizeCanvas(canvas, cssW, cssH);
 
-  const ctx = canvas.getContext('2d');
+  const ctx = getCanvasContext(canvas, cssW, cssH);
   if (!ctx) return;
-  ctx.scale(dpr, dpr);
-
-  ctx.clearRect(0, 0, cssW, cssH);
 
   const pad = { top: 36, right: 40, bottom: 52, left: 60 };
   const plotW = cssW - pad.left - pad.right;
@@ -146,37 +135,14 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const yStep = yMax / 5;
   const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
 
-  // Background
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, cssW, cssH);
+  drawBackground(ctx, cssW, cssH);
 
   // Grid lines
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 0.5;
   const xStep = Math.max(0.5, Math.ceil(dMax / 6));
-  for (let d = 0; d <= dMax; d += xStep) {
-    const xp = px(d);
-    ctx.beginPath();
-    ctx.moveTo(xp, pad.top);
-    ctx.lineTo(xp, cssH - pad.bottom);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= yMax; y += yStep) {
-    const yp = py(y);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, yp);
-    ctx.lineTo(cssW - pad.right, yp);
-    ctx.stroke();
-  }
+  drawGrid(ctx, pad, cssW, cssH, dMax, xStep, yMax, yStep, px, py);
 
   // Axes
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left, cssH - pad.bottom);
-  ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
-  ctx.stroke();
+  drawAxes(ctx, pad, cssW, cssH);
 
   // Y-axis labels
   ctx.fillStyle = '#64748b';

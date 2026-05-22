@@ -1,5 +1,13 @@
 import type { AppState, DerivedState, Results, BottleneckType, LensTier } from './types';
-import { getTemporalVelocity, getShutterTime } from './ui/temporalChart';
+import {
+  OLPF_PENALTY,
+  MOTION_MTF50_CONST,
+  FORMAT_EFFICIENCY_MJPG_BASE,
+  FORMAT_EFFICIENCY_MJPG_RANGE,
+  CHROMA_UYVY_PENALTY,
+  CHROMA_OTHER_PENALTY,
+  BOTTLENECK_RATIO,
+} from './constants';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const pixelPitch = state.pixelPitch;
@@ -23,6 +31,7 @@ export function calculateDerived(state: Readonly<AppState>): DerivedState {
     sensorHeight,
     pixelPitch,
     effectivePixelPitch,
+    skippingFactor,
     diagonalFov,
     horizontalFov,
     verticalFov,
@@ -38,15 +47,16 @@ function lensTierScalar(tier: LensTier): number {
   return tier === 'cheap-plastic' ? 0.6 : tier === 'mid-glass' ? 0.8 : 0.95;
 }
 
-export function calculateResults(state: Readonly<AppState>, derived: Readonly<DerivedState>): Results {
+export function calculateResults(
+  state: Readonly<AppState>,
+  derived: Readonly<DerivedState>,
+  velocity: number,
+  shutterTime: number,
+): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
   const fcAberrated = fc * lensTierScalar(state.lensTier);
 
-  const skipH = Math.max(1, state.nativeWidth / state.extractedWidth);
-  const skipV = Math.max(1, state.nativeHeight / state.extractedHeight);
-  const skippingFactor = Math.max(skipH, skipV);
-
-  const olpfPenalty = state.olpfPresent ? 0.85 : 1.0;
+  const olpfPenalty = state.olpfPresent ? OLPF_PENALTY : 1.0;
 
   const nativePitchMm = (derived.pixelPitch * state.pixelBinning) / 1000;
   const fNyquistNative = (1 / (2 * nativePitchMm)) * olpfPenalty;
@@ -56,20 +66,14 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
 
   let formatEfficiency = 1.0;
   if (state.outputFormat === 'mjpg') {
-    formatEfficiency = 0.4 + 0.6 * (state.mjpgQuality / 100);
+    formatEfficiency = FORMAT_EFFICIENCY_MJPG_BASE + FORMAT_EFFICIENCY_MJPG_RANGE * (state.mjpgQuality / 100);
   }
   if (state.measurementMode === 'chroma') {
-    if (state.outputFormat === 'uyuv') {
-      formatEfficiency *= 0.5;
-    } else {
-      formatEfficiency *= 0.25;
-    }
+    formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
   }
 
-  const v = getTemporalVelocity();
-  const shutterTime = getShutterTime();
-  const vImg = v * state.focalLength / Math.max(0.1, state.distanceToSubject);
-  const fTemporal50 = vImg > 1e-6 ? 0.603 / (vImg * shutterTime) : Infinity;
+  const vImg = velocity * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const fTemporal50 = vImg > 1e-6 ? MOTION_MTF50_CONST / (vImg * shutterTime) : Infinity;
 
   // Dynamic Range: minimum detectable contrast from noise floor
   const contrastFloor = 1 / Math.pow(10, state.dynamicRangeDb / 20);
@@ -83,18 +87,18 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     (1 / (2 * fEffective) / state.focalLength) * (state.distanceToSubject * 1000);
 
   let bottleneckType: BottleneckType = 'balanced';
-  if (formatEfficiency < 0.85 && state.outputFormat === 'mjpg') {
+  if (formatEfficiency < BOTTLENECK_RATIO && state.outputFormat === 'mjpg') {
     bottleneckType = 'compression-throttled';
   }
-  if (fDRLimited < fcAberrated * 0.85 && fDRLimited < fNyquistSkipped * 0.85) {
+  if (fDRLimited < fcAberrated * BOTTLENECK_RATIO && fDRLimited < fNyquistSkipped * BOTTLENECK_RATIO) {
     bottleneckType = 'dr-limited';
   }
-  if (fNyquistSkipped < fcAberrated * 0.85 && fNyquistSkipped < fDRLimited * 0.85) {
+  if (fNyquistSkipped < fcAberrated * BOTTLENECK_RATIO && fNyquistSkipped < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'sensor-limited';
-  } else if (fcAberrated < fNyquistSkipped * 0.85 && fcAberrated < fDRLimited * 0.85) {
+  } else if (fcAberrated < fNyquistSkipped * BOTTLENECK_RATIO && fcAberrated < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'lens-limited';
   }
-  if (fTemporal50 < fcAberrated * 0.85 && fTemporal50 < fNyquistSkipped * 0.85 && fTemporal50 < fDRLimited * 0.85) {
+  if (fTemporal50 < fcAberrated * BOTTLENECK_RATIO && fTemporal50 < fNyquistSkipped * BOTTLENECK_RATIO && fTemporal50 < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'motion-limited';
   }
 
@@ -103,7 +107,7 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     fcAberrated,
     fNyquistNative,
     fNyquistSkipped,
-    skippingFactor,
+    skippingFactor: derived.skippingFactor,
     olpfPenalty,
     formatEfficiency,
     fEffective,
