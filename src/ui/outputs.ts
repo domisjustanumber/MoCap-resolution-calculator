@@ -76,7 +76,7 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
 }
 
 function updateConditionalNotes(app: AppStateFull): void {
-  const container = document.getElementById('conditional-notes');
+  const container = document.getElementById('processing-notes');
   if (!container) return;
   const notes: string[] = [];
 

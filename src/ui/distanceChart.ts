@@ -120,7 +120,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   if (!parent) return;
   const parentStyle = getComputedStyle(parent);
   const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
-  const cssH = cssW * (300 / 600);
+  const cssH = cssW * (400 / 600);
   const bufW = Math.round(cssW * dpr);
   const bufH = Math.round(cssH * dpr);
   canvas.width = bufW;
