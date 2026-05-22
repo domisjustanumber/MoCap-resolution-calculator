@@ -1,4 +1,4 @@
-export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg';
+export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'raw8' | 'raw10';
 export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'luma' | 'chroma';

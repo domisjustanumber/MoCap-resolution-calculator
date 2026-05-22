@@ -7,7 +7,7 @@ import {
   WAVELENGTH_MAX,
   BINNING_VALUES,
 } from './constants';
-import { getTemporalVelocity, getShutterTime } from './ui/temporalChart';
+import { getSpatialVelocity, getShutterTime } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -33,7 +33,7 @@ export const DEFAULT_STATE: AppState = {
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
-  const results = calculateResults(state, derived, getTemporalVelocity(), getShutterTime());
+  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime());
   return { state, activePreset: 'ov5647', derived, results };
 }
 
@@ -88,7 +88,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   }
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
-  app.results = calculateResults(state, app.derived, getTemporalVelocity(), getShutterTime());
+  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime());
   return app;
 }
 

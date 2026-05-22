@@ -1,6 +1,7 @@
-import type { AppStateFull, BottleneckType } from '../types';
+import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatUm, formatFov, formatFeatureMm, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX } from '../constants';
+import { MJPG_BLOCK_SIZE_PX, RAW_FORMATS } from '../constants';
+import { getFrameRate } from './temporalChart';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -19,6 +20,7 @@ export function updateOutputs(app: AppStateFull): void {
   setText('derived-size', formatSensorSize(d.sensorDiagonal));
   setText('derived-nyquist', formatLpMm(r.fNyquistNative) + ' lp/mm');
 
+  updateBitrate(app);
   updateBottleneckBanner(r.bottleneckType, app);
   updateConditionalNotes(app);
 }
@@ -28,9 +30,35 @@ export function setText(id: string, text: string): void {
   if (el) el.textContent = text;
 }
 
+const BITS_PER_PIXEL: Record<OutputFormat, (quality?: number) => number> = {
+  raw8: () => 8,
+  raw10: () => 10,
+  uyuv: () => 16,
+  nv12: () => 12,
+  mjpg: (q = 50) => q / 100 * 16,
+};
+
+function updateBitrate(app: AppStateFull): void {
+  const fps = getFrameRate();
+  const w = app.state.extractedWidth;
+  const h = app.state.extractedHeight;
+  const fmt = app.state.outputFormat;
+  const quality = app.state.mjpgQuality;
+  const bpp = BITS_PER_PIXEL[fmt](quality);
+  const bitrateMbps = (w * h * fps * bpp) / 1_000_000;
+  const el = document.getElementById('bitrate-display');
+  if (el) {
+    el.textContent = bitrateMbps >= 100
+      ? Math.round(bitrateMbps) + ' Mbps'
+      : bitrateMbps.toFixed(1) + ' Mbps';
+  }
+}
+
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
   const banner = document.getElementById('bottleneck-banner');
   if (!banner) return;
+  // Preserve hidden state (set by tab switching) — className assignment clears it
+  const wasHidden = banner.classList.contains('hidden');
 
   const state = app.state;
 
@@ -72,6 +100,7 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
 
   const c = config[type];
   banner.className = `mt-3 mb-3 rounded-lg border ${c.color} p-3 text-xs`;
+  if (wasHidden) banner.classList.add('hidden');
   banner.textContent = `${c.icon} ${c.text}`;
 }
 

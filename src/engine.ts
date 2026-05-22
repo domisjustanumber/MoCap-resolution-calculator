@@ -7,6 +7,7 @@ import {
   CHROMA_UYVY_PENALTY,
   CHROMA_OTHER_PENALTY,
   BOTTLENECK_RATIO,
+  RAW_FORMATS,
 } from './constants';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
@@ -68,7 +69,7 @@ export function calculateResults(
   if (state.outputFormat === 'mjpg') {
     formatEfficiency = FORMAT_EFFICIENCY_MJPG_BASE + FORMAT_EFFICIENCY_MJPG_RANGE * (state.mjpgQuality / 100);
   }
-  if (state.measurementMode === 'chroma') {
+  if (state.measurementMode === 'chroma' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
     formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
   }
 

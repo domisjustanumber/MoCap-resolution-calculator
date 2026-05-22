@@ -74,6 +74,10 @@ html {
   .dr-preset.active {
     @apply border-blue-500 bg-blue-900/30 text-blue-300;
   }
+
+  .disabled-preset {
+    @apply opacity-30 cursor-not-allowed;
+  }
 }
 
 /* Number input spinner styling */

@@ -21,13 +21,16 @@ let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
 
 // Chart inputs
 let zoomMax = 200;
-let targetVelocity = 0;   // m/s
+let targetVelocity = 0;   // m/s — used for temporal Monte Carlo simulation
+let spatialVelocity = 1.5; // m/s — used for spatial chart motion curves
 let frameRate = 30;        // fps
 let shutterDenom = 60;     // 1/N seconds
 let phaseOffset = 16.6;   // ms
 let jitterMs = 10.0;      // ms
 
 export function getTemporalVelocity(): number { return targetVelocity; }
+export function getSpatialVelocity(): number { return spatialVelocity; }
+export function setSpatialVelocity(v: number): void { spatialVelocity = Math.max(0, Math.min(20, v)); }
 export function getFrameRate(): number { return frameRate; }
 export function getShutterTime(): number { return 1 / shutterDenom; }
 export function getShutterDenom(): number { return shutterDenom; }
@@ -46,10 +49,14 @@ export function setTemporalPhase(ms: number): void {
 }
 export function setFrameRate(fps: number): void {
   frameRate = Math.max(1, Math.min(240, Math.round(fps)));
+  if (shutterDenom < frameRate) {
+    shutterDenom = frameRate;
+  }
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setShutterDenom(d: number): void {
-  shutterDenom = Math.max(1, Math.min(8000, Math.round(d)));
+  const minDenom = frameRate;
+  shutterDenom = Math.max(minDenom, Math.min(8000, Math.round(d)));
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setTemporalJitter(ms: number): void {

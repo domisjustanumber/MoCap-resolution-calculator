@@ -7,7 +7,8 @@ import {
   drawTemporalChart,
   setTemporalZoom,
   setTemporalVelocity,
-  getTemporalVelocity,
+  getSpatialVelocity,
+  setSpatialVelocity,
   setTemporalPhase,
   setTemporalJitter,
   setFrameRate,
@@ -107,11 +108,11 @@ function bindDistYRange(): void {
 }
 bindDistYRange();
 
-function updatePresetStyles(selector: string, getValue: () => number, dataAttr: string): void {
-  const current = getValue();
+function updatePresetStyles(selector: string, getValue: () => string | number, dataAttr: string): void {
+  const current = String(getValue());
   document.querySelectorAll(selector).forEach((el) => {
     const btn = el as HTMLButtonElement;
-    const btnVal = parseInt(btn.dataset[dataAttr] || '0', 10);
+    const btnVal = String(btn.dataset[dataAttr] ?? '');
     btn.classList.toggle('active', btnVal === current);
   });
 }
@@ -138,7 +139,7 @@ const VELOCITY_PRESETS: Record<string, number> = {
 
 let activeVelocityPreset = 'walking';
 
-// Initialize velocity to walking
+setSpatialVelocity(VELOCITY_PRESETS.walking);
 setTemporalVelocity(VELOCITY_PRESETS.walking);
 const initVelSlider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
 const initVelLabel = document.getElementById('temporal-velocity-label');
@@ -157,11 +158,7 @@ function detectVelocityPreset(v: number): string {
 }
 
 function updateVelocityPresetStyles(): void {
-  updatePresetStyles('.vel-preset', () => {
-    const v = getTemporalVelocity();
-    const preset = VELOCITY_PRESETS[activeVelocityPreset];
-    return preset !== undefined ? preset : v;
-  }, 'velocity');
+  updatePresetStyles('.vel-preset', () => activeVelocityPreset, 'velocity');
   const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
   if (customInput) {
     customInput.classList.toggle('vel-input-active', activeVelocityPreset === 'custom');
@@ -180,6 +177,7 @@ function updateFpsLabel(): void {
 function applyVelocityPreset(preset: string): void {
   activeVelocityPreset = preset;
   const v = VELOCITY_PRESETS[preset] ?? parseFloat((document.getElementById('velocity-custom') as HTMLInputElement)?.value || '0');
+  setSpatialVelocity(v);
   setTemporalVelocity(v);
 
   const slider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
@@ -217,6 +215,7 @@ if (customVelInput) {
     const v = parseFloat(customVelInput.value);
     if (isNaN(v) || v < 0) return;
     activeVelocityPreset = 'custom';
+    setSpatialVelocity(v);
     setTemporalVelocity(v);
     const slider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
     const label = document.getElementById('temporal-velocity-label');
@@ -251,24 +250,29 @@ document.querySelectorAll('.shutter-preset').forEach((el) => {
 });
 
 function updateShutterPresetStyles(): void {
+  const minDenom = getFrameRate();
   updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
+  document.querySelectorAll('.shutter-preset').forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    const denom = parseInt(btn.dataset.shutter || '0', 10);
+    if (denom < minDenom) {
+      btn.classList.add('disabled-preset');
+    } else {
+      btn.classList.remove('disabled-preset');
+    }
+  });
 }
 
 updateShutterPresetStyles();
 
 bindSlider('temporal-velocity', (v) => {
   setTemporalVelocity(v);
-  activeVelocityPreset = 'custom';
-  const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
-  if (customInput) {
-    customInput.value = String(v);
-  }
-  updateVelocityPresetStyles();
-  refreshAll();
+  const canvas = document.getElementById('temporal-chart') as HTMLCanvasElement | null;
+  if (canvas) drawTemporalChart(app, true);
 }, 'temporal-velocity-label', ' m/s');
-bindSlider('temporal-phase', (v) => { setTemporalPhase(v); refreshAll(); }, 'temporal-phase-label', ' ms');
-bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); refreshAll(); }, 'temporal-jitter-label', ' ms');
-bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, 'temporal-zoom-label', ' mm');
+bindSlider('temporal-phase', (v) => { setTemporalPhase(v); drawTemporalChart(app, true); }, 'temporal-phase-label', ' ms');
+bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawTemporalChart(app, true); }, 'temporal-jitter-label', ' ms');
+bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, 'temporal-zoom-label', ' mm');
 
 updateVelocityPresetStyles();
 
