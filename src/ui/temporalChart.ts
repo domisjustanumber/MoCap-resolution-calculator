@@ -7,9 +7,17 @@ const CANVAS_Y_MIN = 0.0;
 const CANVAS_Y_MAX = 1.0;
 
 let lastHash = '';
+let simHash = '';
 let mouseX = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
+
+// Cached simulation results — only regenerate when inputs change
+let cachedMaxErrors: Float32Array | null = null;
+let cachedRmseErrors: Float32Array | null = null;
+let cachedMaxDensity: Float32Array | null = null;
+let cachedRmseDensity: Float32Array | null = null;
+let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
 
 // Chart inputs
 let zoomMax = 200;
@@ -174,12 +182,28 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   if (hash === lastHash && !force) return;
   lastHash = hash;
 
+  // Only re-run the Monte Carlo simulation when input values change
+  const inputHash =
+    String(targetVelocity) +
+    String(frameRate) +
+    String(phaseOffset) +
+    String(jitterMs);
+  if (inputHash !== simHash) {
+    simHash = inputHash;
+    const { maxErrors, rmseErrors } = runSimulation();
+    cachedMaxErrors = maxErrors;
+    cachedRmseErrors = rmseErrors;
+    cachedMaxDensity = calculateDensityCurve(maxErrors, zoomMax);
+    cachedRmseDensity = calculateDensityCurve(rmseErrors, zoomMax);
+    cachedMaxStats = computeStats(maxErrors);
+  }
+
   const dpr = window.devicePixelRatio || 1;
   const parent = canvas.parentElement;
   if (!parent) return;
   const parentStyle = getComputedStyle(parent);
   const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
-  const cssH = cssW * (240 / 600);
+  const cssH = cssW * (180 / 600);
   const bufW = Math.round(cssW * dpr);
   const bufH = Math.round(cssH * dpr);
   canvas.width = bufW;
@@ -202,11 +226,10 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   ctx.fillStyle = '#020617';
   ctx.fillRect(0, 0, cssW, cssH);
 
-  // Run Monte Carlo simulation
-  const { maxErrors, rmseErrors } = runSimulation();
-  const maxDensity = calculateDensityCurve(maxErrors, zoomMax);
-  const rmseDensity = calculateDensityCurve(rmseErrors, zoomMax);
-  const maxStats = computeStats(maxErrors);
+  // Use cached simulation results (stable across mouse moves)
+  const maxDensity = cachedMaxDensity ?? new Float32Array(300);
+  const rmseDensity = cachedRmseDensity ?? new Float32Array(300);
+  const maxStats = cachedMaxStats ?? { avg: 0, median: 0, p95: 0 };
 
   // Grid lines
   const xStep = niceStep(zoomMax, 8);
@@ -279,13 +302,13 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   // Legend
   const lx = pad.left + 10;
   const ly = pad.top + 16;
-  ctx.font = '11px monospace';
+  ctx.font = '12px monospace';
   ctx.textAlign = 'left';
 
   ctx.fillStyle = '#ef4444';
   ctx.fillText('── Max Error', lx, ly);
   ctx.fillStyle = '#3b82f6';
-  ctx.fillText('── RMSE', lx, ly + 14);
+  ctx.fillText('── RMSE', lx, ly + 16);
 
   // Hover cursor + tooltip
   if (mouseInCanvas && mouseX >= pad.left && mouseX <= cssW - pad.right) {
@@ -397,7 +420,7 @@ function drawMarkers(
     { val: stats.p95, label: '95%', clr: '#f59e0b' },
   ];
 
-  ctx.font = '10px monospace';
+  ctx.font = '12px monospace';
   ctx.textAlign = 'left';
 
   let labelY = pad.top + 8;
@@ -416,7 +439,7 @@ function drawMarkers(
 
     ctx.fillStyle = m.clr;
     ctx.fillText(`${m.label}:${m.val.toFixed(1)}mm`, xPixel + 4, labelY);
-    labelY += 14;
+    labelY += 16;
   }
 }
 

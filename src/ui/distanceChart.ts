@@ -120,7 +120,9 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   if (!parent) return;
   const parentStyle = getComputedStyle(parent);
   const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
-  const cssH = cssW * (400 / 600);
+  const refCanvas = document.getElementById('mtf-chart') as HTMLCanvasElement | null;
+  const refH = refCanvas ? parseFloat(refCanvas.style.height) : cssW * (400 / 600);
+  const cssH = refH;
   const bufW = Math.round(cssW * dpr);
   const bufH = Math.round(cssH * dpr);
   canvas.width = bufW;

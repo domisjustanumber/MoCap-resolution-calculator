@@ -71,7 +71,7 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
   };
 
   const c = config[type];
-  banner.className = `rounded-lg border ${c.color} p-3 text-xs`;
+  banner.className = `mt-3 mb-3 rounded-lg border ${c.color} p-3 text-xs`;
   banner.textContent = `${c.icon} ${c.text}`;
 }
 
