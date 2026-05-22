@@ -110,11 +110,16 @@
               <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
               <span id="temporal-zoom-label" class="text-xs font-mono text-slate-400">200 mm</span>
             </div>
-            <div class="mt-1.5 grid grid-cols-3 gap-1.5">
+            <div class="mt-1.5 grid grid-cols-4 gap-1.5">
               <div>
                 <label class="text-xs font-medium text-slate-500" for="temporal-velocity">Velocity of tracked object</label>
                 <input id="temporal-velocity" class="w-full" type="range" min="0" max="20" step="0.1" value="0" />
                 <span id="temporal-velocity-label" class="text-xs font-mono text-slate-400">0 m/s</span>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-500" for="temporal-distance">Distance from camera</label>
+                <input id="temporal-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="2" />
+                <span id="temporal-distance-label" class="text-xs font-mono text-slate-400">2.0 m</span>
               </div>
               <div>
                 <label class="text-xs font-medium text-slate-500" for="temporal-phase">Camera timing offset</label>
@@ -415,6 +420,7 @@
                   <option value="mjpg">MJPG (Motion JPEG)</option>
                   <option value="uyuv">UYVY (YUV 4:2:2)</option>
                   <option value="nv12">NV12 (YUV 4:2:0)</option>
+                  <option value="h264">H.264 (AVC)</option>
                   <option value="raw8">RAW8 (Bayer 8-bit)</option>
                   <option value="raw10">RAW10 (Bayer 10-bit)</option>
                 </select>
@@ -426,6 +432,19 @@
                   <span id="mjpg-quality-value" class="ml-1 font-mono text-slate-300">60</span>
                 </label>
                 <input id="mjpgQuality" class="calc-input w-full" type="range" min="1" max="100" value="60" />
+              </div>
+
+              <div id="h264-qp-group">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="h264Qp">
+                  H.264 QP
+                  <span id="h264-qp-value" class="ml-1 font-mono text-slate-300">23</span>
+                </label>
+                <input id="h264Qp" class="calc-input w-full" type="range" min="0" max="51" value="23" />
+                <label class="mb-1 mt-2 block text-xs font-medium text-slate-400" for="h264BitrateMbps">
+                  Target Bitrate
+                  <span id="h264-bitrate-value" class="ml-1 font-mono text-slate-300">4.0 Mbps</span>
+                </label>
+                <input id="h264BitrateMbps" class="calc-input w-full" type="range" min="0.5" max="50" step="0.5" value="4.0" />
               </div>
 
               <div>

@@ -39,6 +39,7 @@ export const FORMAT_LABELS: Record<OutputFormat, string> = {
   uyuv: 'UYVY (YUV 4:2:2)',
   nv12: 'NV12 (YUV 4:2:0)',
   mjpg: 'MJPG (Motion JPEG)',
+  h264: 'H.264 (AVC)',
   raw8: 'RAW8 (Bayer 8-bit)',
   raw10: 'RAW10 (Bayer 10-bit)',
 };
@@ -55,6 +56,12 @@ export const APERTURE_MIN = 1.0;
 export const APERTURE_MAX = 32;
 export const SENSOR_DENOMINATOR_MIN = 0.1;
 export const MJPG_BLOCK_SIZE_PX = 8;
+export const H264_MB_SIZE_PX = 16;
+export const H264_QP_MIN = 0;
+export const H264_QP_MAX = 51;
+export const H264_BITRATE_MIN_MBPS = 0.5;
+export const H264_BITRATE_MAX_MBPS = 50;
+export const H264_BITRATE_REF_BPP = 0.25;
 
 export const RAW_FORMATS: readonly OutputFormat[] = ['raw8', 'raw10'];
 
@@ -63,6 +70,8 @@ export const OLPF_PENALTY = 0.85;
 export const MOTION_MTF50_CONST = 0.603;
 export const FORMAT_EFFICIENCY_MJPG_BASE = 0.4;
 export const FORMAT_EFFICIENCY_MJPG_RANGE = 0.6;
+export const FORMAT_EFFICIENCY_H264_BASE = 0.30;
+export const FORMAT_EFFICIENCY_H264_RANGE = 0.70;
 export const CHROMA_UYVY_PENALTY = 0.5;
 export const CHROMA_OTHER_PENALTY = 0.25;
 export const BOTTLENECK_RATIO = 0.85;

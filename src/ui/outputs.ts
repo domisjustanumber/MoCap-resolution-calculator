@@ -1,6 +1,6 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatUm, formatFov, formatFeatureMm, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, RAW_FORMATS } from '../constants';
+import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS } from '../constants';
 import { getFrameRate } from './temporalChart';
 
 export function updateOutputs(app: AppStateFull): void {
@@ -36,9 +36,18 @@ const BITS_PER_PIXEL: Record<OutputFormat, (quality?: number) => number> = {
   uyuv: () => 16,
   nv12: () => 12,
   mjpg: (q = 50) => q / 100 * 16,
+  h264: () => 2,
 };
 
 function updateBitrate(app: AppStateFull): void {
+  const el = document.getElementById('bitrate-display');
+  if (!el) return;
+
+  if (app.state.outputFormat === 'h264') {
+    el.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
+    return;
+  }
+
   const fps = getFrameRate();
   const w = app.state.extractedWidth;
   const h = app.state.extractedHeight;
@@ -46,12 +55,9 @@ function updateBitrate(app: AppStateFull): void {
   const quality = app.state.mjpgQuality;
   const bpp = BITS_PER_PIXEL[fmt](quality);
   const bitrateMbps = (w * h * fps * bpp) / 1_000_000;
-  const el = document.getElementById('bitrate-display');
-  if (el) {
-    el.textContent = bitrateMbps >= 100
-      ? Math.round(bitrateMbps) + ' Mbps'
-      : bitrateMbps.toFixed(1) + ' Mbps';
-  }
+  el.textContent = bitrateMbps >= 100
+    ? Math.round(bitrateMbps) + ' Mbps'
+    : bitrateMbps.toFixed(1) + ' Mbps';
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
@@ -79,7 +85,9 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
     'compression-throttled': {
       color: 'border-red-800 bg-red-950/30 text-red-300',
       icon: '\u25a7',
-      text: `Compression-throttled: MJPG Q=${state.mjpgQuality} + chroma subsampling erase fine detail. Software: switch to NV12/UYVY, raise JPEG quality, increase resolution. Hardware: camera with better codec or lower-compression pipeline.`,
+      text: state.outputFormat === 'h264'
+        ? `Compression-throttled: H.264 QP=${state.h264Qp} + chroma subsampling erase fine detail. Software: lower QP, switch to NV12/UYVY, increase resolution. Hardware: camera with better codec or lower-compression pipeline.`
+        : `Compression-throttled: MJPG Q=${state.mjpgQuality} + chroma subsampling erase fine detail. Software: switch to NV12/UYVY, raise JPEG quality, increase resolution. Hardware: camera with better codec or lower-compression pipeline.`,
     },
     'motion-limited': {
       color: 'border-yellow-800 bg-yellow-950/30 text-yellow-300',
@@ -117,14 +125,22 @@ function updateConditionalNotes(app: AppStateFull): void {
     );
   }
 
+  if (state.outputFormat === 'h264') {
+    notes.push(
+      `Features should span \u2265 ${H264_MB_SIZE_PX} px for 16\u00d716 macroblock alignment. P-frames have lower quality than I-frames at the same QP.`,
+    );
+  }
+
   if (state.measurementMode === 'chroma') {
     if (state.outputFormat === 'uyuv') {
       notes.push('Chroma mode: UYVY halves horizontal color resolution (4:2:2).');
-    } else {
+    } else if (state.outputFormat === 'h264') {
+      notes.push('Chroma mode: H.264 quartes color resolution (4:2:0 \u2014 half H \u00d7 half V).');
+    } else if (!(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
       notes.push(
         'Chroma mode: ' +
           (state.outputFormat === 'mjpg' ? 'MJPG' : 'NV12') +
-          ' quarters color resolution (4:2:0 — half H \u00d7 half V).',
+          ' quarters color resolution (4:2:0 \u2014 half H \u00d7 half V).',
       );
     }
   }

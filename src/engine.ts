@@ -4,6 +4,10 @@ import {
   MOTION_MTF50_CONST,
   FORMAT_EFFICIENCY_MJPG_BASE,
   FORMAT_EFFICIENCY_MJPG_RANGE,
+  FORMAT_EFFICIENCY_H264_BASE,
+  FORMAT_EFFICIENCY_H264_RANGE,
+  H264_QP_MAX,
+  H264_BITRATE_REF_BPP,
   CHROMA_UYVY_PENALTY,
   CHROMA_OTHER_PENALTY,
   BOTTLENECK_RATIO,
@@ -53,6 +57,7 @@ export function calculateResults(
   derived: Readonly<DerivedState>,
   velocity: number,
   shutterTime: number,
+  fps: number,
 ): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
   const fcAberrated = fc * lensTierScalar(state.lensTier);
@@ -68,6 +73,13 @@ export function calculateResults(
   let formatEfficiency = 1.0;
   if (state.outputFormat === 'mjpg') {
     formatEfficiency = FORMAT_EFFICIENCY_MJPG_BASE + FORMAT_EFFICIENCY_MJPG_RANGE * (state.mjpgQuality / 100);
+  }
+  if (state.outputFormat === 'h264') {
+    const qpEfficiency = FORMAT_EFFICIENCY_H264_BASE + FORMAT_EFFICIENCY_H264_RANGE * (1 - state.h264Qp / H264_QP_MAX);
+    const pixelsPerFrame = state.extractedWidth * state.extractedHeight;
+    const bpp = pixelsPerFrame > 0 ? (state.h264BitrateMbps * 1_000_000) / (pixelsPerFrame * Math.max(1, fps)) : 0;
+    const bitrateEfficiency = Math.min(1, bpp / H264_BITRATE_REF_BPP);
+    formatEfficiency = Math.min(qpEfficiency, bitrateEfficiency);
   }
   if (state.measurementMode === 'chroma' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
     formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
@@ -88,7 +100,7 @@ export function calculateResults(
     (1 / (2 * fEffective) / state.focalLength) * (state.distanceToSubject * 1000);
 
   let bottleneckType: BottleneckType = 'balanced';
-  if (formatEfficiency < BOTTLENECK_RATIO && state.outputFormat === 'mjpg') {
+  if (formatEfficiency < BOTTLENECK_RATIO && (state.outputFormat === 'mjpg' || state.outputFormat === 'h264')) {
     bottleneckType = 'compression-throttled';
   }
   if (fDRLimited < fcAberrated * BOTTLENECK_RATIO && fDRLimited < fNyquistSkipped * BOTTLENECK_RATIO) {

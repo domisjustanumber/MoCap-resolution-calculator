@@ -6,8 +6,12 @@ import {
   WAVELENGTH_MIN,
   WAVELENGTH_MAX,
   BINNING_VALUES,
+  H264_QP_MIN,
+  H264_QP_MAX,
+  H264_BITRATE_MIN_MBPS,
+  H264_BITRATE_MAX_MBPS,
 } from './constants';
-import { getSpatialVelocity, getShutterTime } from './ui/temporalChart';
+import { getSpatialVelocity, getShutterTime, getFrameRate } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -23,6 +27,8 @@ export const DEFAULT_STATE: AppState = {
   extractedHeight: 480,
   outputFormat: 'mjpg',
   mjpgQuality: 60,
+  h264Qp: 23,
+  h264BitrateMbps: 4,
   subsamplingMethod: 'line-skip',
   measurementMode: 'luma',
   lensTier: 'cheap-plastic',
@@ -33,7 +39,7 @@ export const DEFAULT_STATE: AppState = {
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
-  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime());
+  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate());
   return { state, activePreset: 'ov5647', derived, results };
 }
 
@@ -69,6 +75,8 @@ export function validateState(state: AppState): string[] {
   if (state.extractedHeight < 1) state.extractedHeight = 1;
 
   state.mjpgQuality = clamped(state.mjpgQuality, 1, 100);
+  state.h264Qp = clamped(state.h264Qp, H264_QP_MIN, H264_QP_MAX);
+  state.h264BitrateMbps = clamped(state.h264BitrateMbps, H264_BITRATE_MIN_MBPS, H264_BITRATE_MAX_MBPS);
 
   if (!(BINNING_VALUES as readonly number[]).includes(state.pixelBinning)) {
     state.pixelBinning = 1;
@@ -88,7 +96,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   }
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
-  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime());
+  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime(), getFrameRate());
   return app;
 }
 

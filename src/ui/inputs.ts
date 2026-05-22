@@ -34,6 +34,8 @@ export function initInputs(state: AppStateFull): void {
   bindSelectInput('subsamplingMethod', 'subsamplingMethod');
   bindSelectInput('outputFormat', 'outputFormat');
   bindRangeInput('mjpgQuality', 'mjpgQuality');
+  bindH264QpInput();
+  bindH264BitrateInput();
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
   bindLensTierChips();
@@ -43,7 +45,7 @@ export function initInputs(state: AppStateFull): void {
 
   syncInputsFromState();
   updateLensTierChipStyles();
-  updateMjpgQualityState();
+  updateCompressionControlsState();
 }
 
 function bindNumberInput(id: string, key: keyof AppState): void {
@@ -53,7 +55,7 @@ function bindNumberInput(id: string, key: keyof AppState): void {
     setField(app, key, parseFloat(el.value) || 0);
     handleExtractedClamp();
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
   el.addEventListener('blur', () => {
@@ -67,7 +69,7 @@ function bindSelectInput(id: string, key: keyof AppState): void {
   el.addEventListener('change', () => {
     setField(app, key, el.value as AppState[typeof key]);
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
 }
@@ -89,6 +91,30 @@ function bindRangeInput(id: string, key: keyof AppState): void {
     const v = parseInt(el.value, 10);
     setField(app, key, v);
     if (valueSpan) valueSpan.textContent = String(v);
+    refresh();
+  });
+}
+
+function bindH264QpInput(): void {
+  const el = document.getElementById('h264Qp') as HTMLInputElement | null;
+  if (!el) return;
+  const valueSpan = document.getElementById('h264-qp-value');
+  el.addEventListener('input', () => {
+    const v = parseInt(el.value, 10);
+    setField(app, 'h264Qp', v);
+    if (valueSpan) valueSpan.textContent = String(v);
+    refresh();
+  });
+}
+
+function bindH264BitrateInput(): void {
+  const el = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  if (!el) return;
+  const valueSpan = document.getElementById('h264-bitrate-value');
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    setField(app, 'h264BitrateMbps', v);
+    if (valueSpan) valueSpan.textContent = v.toFixed(1) + ' Mbps';
     refresh();
   });
 }
@@ -123,7 +149,7 @@ function bindFovInput(): void {
       setField(app, 'diagonalFov', fov);
     }
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
   el.addEventListener('blur', () => {
@@ -139,7 +165,7 @@ function bindLensTierChips(): void {
     chip.addEventListener('click', () => {
       setField(app, 'lensTier', tier as AppState['lensTier']);
       syncInputsFromState();
-      updateMjpgQualityState();
+      updateCompressionControlsState();
       refresh();
     });
   });
@@ -156,7 +182,7 @@ function bindProcessingChips(): void {
       app.state.outputFormat = fmt as AppState['outputFormat'];
       recalculate(app);
       syncInputsFromState();
-      updateMjpgQualityState();
+      updateCompressionControlsState();
       refresh();
 
       document.querySelectorAll('[data-res]').forEach((el) => el.classList.remove('active'));
@@ -227,7 +253,7 @@ function bindPresetChips(): void {
       if (!preset) return;
       applyPreset(app, preset.values, preset.name);
       syncInputsFromState();
-      updateMjpgQualityState();
+      updateCompressionControlsState();
       refresh();
     });
   });
@@ -316,20 +342,45 @@ export function updateIrBadge(): void {
   }
 }
 
-export function updateMjpgQualityState(): void {
-  const group = document.getElementById('mjpg-quality-group');
-  const slider = document.getElementById('mjpgQuality') as HTMLInputElement | null;
-  const valueSpan = document.getElementById('mjpg-quality-value');
+export function updateCompressionControlsState(): void {
+  const mjpqGroup = document.getElementById('mjpg-quality-group');
+  const mjpqSlider = document.getElementById('mjpgQuality') as HTMLInputElement | null;
+  const mjpqValueSpan = document.getElementById('mjpg-quality-value');
   const isMjpg = app.state.outputFormat === 'mjpg';
 
-  if (group) group.style.opacity = isMjpg ? '1' : '0.4';
-  if (slider) {
-    slider.disabled = !isMjpg;
-    slider.value = String(app.state.mjpgQuality);
+  if (mjpqGroup) mjpqGroup.style.opacity = isMjpg ? '1' : '0.4';
+  if (mjpqSlider) {
+    mjpqSlider.disabled = !isMjpg;
+    mjpqSlider.value = String(app.state.mjpgQuality);
   }
-  if (valueSpan) {
-    valueSpan.textContent = isMjpg ? String(app.state.mjpgQuality) : 'N/A';
-    valueSpan.style.opacity = isMjpg ? '1' : '0.4';
+  if (mjpqValueSpan) {
+    mjpqValueSpan.textContent = isMjpg ? String(app.state.mjpgQuality) : 'N/A';
+    mjpqValueSpan.style.opacity = isMjpg ? '1' : '0.4';
+  }
+
+  const h264Group = document.getElementById('h264-qp-group');
+  const h264Slider = document.getElementById('h264Qp') as HTMLInputElement | null;
+  const h264ValueSpan = document.getElementById('h264-qp-value');
+  const isH264 = app.state.outputFormat === 'h264';
+
+  if (h264Group) h264Group.style.opacity = isH264 ? '1' : '0.4';
+  if (h264Slider) {
+    h264Slider.disabled = !isH264;
+    h264Slider.value = String(app.state.h264Qp);
+  }
+  if (h264ValueSpan) {
+    h264ValueSpan.textContent = isH264 ? String(app.state.h264Qp) : 'N/A';
+    h264ValueSpan.style.opacity = isH264 ? '1' : '0.4';
+  }
+  const h264BrSlider = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  const h264BrValueSpan = document.getElementById('h264-bitrate-value');
+  if (h264BrSlider) {
+    h264BrSlider.disabled = !isH264;
+    h264BrSlider.value = String(app.state.h264BitrateMbps);
+  }
+  if (h264BrValueSpan) {
+    h264BrValueSpan.textContent = isH264 ? app.state.h264BitrateMbps.toFixed(1) + ' Mbps' : 'N/A';
+    h264BrValueSpan.style.opacity = isH264 ? '1' : '0.4';
   }
 }
 
@@ -372,6 +423,24 @@ export function syncInputsFromState(): void {
   const mjpgValueSpan = document.getElementById('mjpg-quality-value');
   if (mjpgValueSpan && app.state.outputFormat === 'mjpg') {
     mjpgValueSpan.textContent = String(app.state.mjpgQuality);
+  }
+
+  const h264Slider = document.getElementById('h264Qp') as HTMLInputElement | null;
+  if (h264Slider && h264Slider !== document.activeElement) {
+    h264Slider.value = String(app.state.h264Qp);
+  }
+  const h264ValueSpan = document.getElementById('h264-qp-value');
+  if (h264ValueSpan && app.state.outputFormat === 'h264') {
+    h264ValueSpan.textContent = String(app.state.h264Qp);
+  }
+
+  const h264BrSlider = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  if (h264BrSlider && h264BrSlider !== document.activeElement) {
+    h264BrSlider.value = String(app.state.h264BitrateMbps);
+  }
+  const h264BrValueSpan = document.getElementById('h264-bitrate-value');
+  if (h264BrValueSpan && app.state.outputFormat === 'h264') {
+    h264BrValueSpan.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
   }
 
   const lumaEl = document.getElementById('mode-luma') as HTMLInputElement | null;

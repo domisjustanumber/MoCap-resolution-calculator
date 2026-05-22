@@ -270,6 +270,10 @@ bindSlider('temporal-velocity', (v) => {
   const canvas = document.getElementById('temporal-chart') as HTMLCanvasElement | null;
   if (canvas) drawTemporalChart(app, true);
 }, 'temporal-velocity-label', ' m/s');
+bindSlider('temporal-distance', (v) => {
+  setField(app, 'distanceToSubject', v);
+  refreshAll();
+}, 'temporal-distance-label', ' m');
 bindSlider('temporal-phase', (v) => { setTemporalPhase(v); drawTemporalChart(app, true); }, 'temporal-phase-label', ' ms');
 bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawTemporalChart(app, true); }, 'temporal-jitter-label', ' ms');
 bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, 'temporal-zoom-label', ' mm');

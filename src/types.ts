@@ -1,4 +1,4 @@
-export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'raw8' | 'raw10';
+export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'h264' | 'raw8' | 'raw10';
 export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'luma' | 'chroma';
@@ -19,6 +19,8 @@ export interface AppState {
   extractedHeight: number;
   outputFormat: OutputFormat;
   mjpgQuality: number;
+  h264Qp: number;
+  h264BitrateMbps: number;
   subsamplingMethod: SubsamplingMethod;
   measurementMode: MeasurementMode;
   lensTier: LensTier;
