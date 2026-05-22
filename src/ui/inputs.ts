@@ -29,6 +29,7 @@ export function initInputs(state: AppStateFull): void {
   bindNumberInput('nativeWidth', 'nativeWidth');
   bindNumberInput('nativeHeight', 'nativeHeight');
   bindCheckboxInput('olpfPresent', 'olpfPresent');
+  bindNumberInput('dynamicRangeDb', 'dynamicRangeDb');
   bindNumberInput('extractedWidth', 'extractedWidth');
   bindNumberInput('extractedHeight', 'extractedHeight');
   bindSelectInput('subsamplingMethod', 'subsamplingMethod');
@@ -393,6 +394,7 @@ export function syncInputsFromState(): void {
     'nativeHeight',
     'extractedWidth',
     'extractedHeight',
+    'dynamicRangeDb',
   ];
   numberFields.forEach((key) => {
     const el = document.getElementById(key) as HTMLInputElement | null;
@@ -461,6 +463,12 @@ export function syncInputsFromState(): void {
   updateLensTierChipStyles();
 
   handleExtractedClamp();
+
+  const drStr = String(app.state.dynamicRangeDb);
+  document.querySelectorAll('.dr-preset').forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    btn.classList.toggle('active', String(btn.dataset.dr) === drStr);
+  });
 }
 
 function refresh(): void {

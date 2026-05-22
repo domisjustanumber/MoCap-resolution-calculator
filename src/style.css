@@ -59,6 +59,14 @@ html {
     @apply border-blue-500 bg-blue-900/30 text-blue-300;
   }
 
+  .sync-toggle {
+    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-pink-500 hover:text-pink-300;
+  }
+
+  .sync-toggle.active {
+    @apply border-pink-500 bg-pink-900/30 text-pink-300;
+  }
+
   .chart-tab {
     @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
   }

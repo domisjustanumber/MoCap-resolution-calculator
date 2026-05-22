@@ -11,7 +11,7 @@ import {
   H264_BITRATE_MIN_MBPS,
   H264_BITRATE_MAX_MBPS,
 } from './constants';
-import { getSpatialVelocity, getShutterTime, getFrameRate } from './ui/temporalChart';
+import { getSpatialVelocity, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -39,7 +39,7 @@ export const DEFAULT_STATE: AppState = {
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
-  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate());
+  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
   return { state, activePreset: 'ov5647', derived, results };
 }
 
@@ -96,7 +96,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   }
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
-  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime(), getFrameRate());
+  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
   return app;
 }
 

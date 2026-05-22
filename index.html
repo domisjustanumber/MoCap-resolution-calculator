@@ -235,6 +235,12 @@
               <button data-shutter="1000" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/1000</button>
             </div>
           </div>
+
+          <!-- Sync Error Toggle -->
+          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sync Errors</p>
+            <button id="sync-toggle" class="sync-toggle rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-pink-500 leading-none whitespace-nowrap">Off</button>
+          </div>
         </div>
 
       </div>
@@ -360,10 +366,14 @@
 
               <div>
                 <label class="mb-1 block text-xs font-medium text-slate-400">Dynamic Range</label>
-                <div class="flex flex-wrap gap-1.5" id="dr-presets">
-                  <button data-dr="66" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Consumer</button>
-                  <button data-dr="78" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Industrial</button>
-                  <button data-dr="96" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Scientific</button>
+                <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap gap-1.5" id="dr-presets">
+                    <button data-dr="66" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Consumer</button>
+                    <button data-dr="78" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Industrial</button>
+                    <button data-dr="96" class="dr-preset rounded border px-2 py-1 text-[11px] font-medium transition">Scientific</button>
+                  </div>
+                  <input id="dynamicRangeDb" class="calc-input input-field w-16" type="number" step="1" min="20" max="140" value="66" />
+                  <span class="text-xs text-slate-500">dB</span>
                 </div>
               </div>
 

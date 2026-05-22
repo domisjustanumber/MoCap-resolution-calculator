@@ -28,6 +28,34 @@ let shutterDenom = 60;     // 1/N seconds
 let phaseOffset = 16.6;   // ms
 let jitterMs = 10.0;      // ms
 
+let syncToggle = false;
+export function isSyncToggleOn(): boolean { return syncToggle; }
+export function setSyncToggle(on: boolean): void { syncToggle = on; }
+
+function makeSimHash(): string {
+  return String(targetVelocity) + String(frameRate) + String(phaseOffset) + String(jitterMs);
+}
+
+function runAndCacheSimulation(): void {
+  const inputHash = makeSimHash();
+  if (inputHash === simHash && cachedMaxErrors && cachedRmseErrors) return;
+  simHash = inputHash;
+  const { maxErrors, rmseErrors } = runSimulation();
+  cachedMaxErrors = maxErrors;
+  cachedRmseErrors = rmseErrors;
+  cachedMaxDensity = calculateDensityCurve(maxErrors, zoomMax);
+  cachedRmseDensity = calculateDensityCurve(rmseErrors, zoomMax);
+  cachedMaxStats = computeStats(maxErrors);
+}
+
+export function getSyncErrorP95(): number {
+  runAndCacheSimulation();
+  return cachedMaxStats!.p95;
+}
+export function getSyncInputsHash(): string {
+  return makeSimHash();
+}
+
 export function getTemporalVelocity(): number { return targetVelocity; }
 export function getSpatialVelocity(): number { return spatialVelocity; }
 export function setSpatialVelocity(v: number): void { spatialVelocity = Math.max(0, Math.min(20, v)); }
@@ -189,20 +217,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   lastHash = hash;
 
   // Only re-run the Monte Carlo simulation when input values change
-  const inputHash =
-    String(targetVelocity) +
-    String(frameRate) +
-    String(phaseOffset) +
-    String(jitterMs);
-  if (inputHash !== simHash) {
-    simHash = inputHash;
-    const { maxErrors, rmseErrors } = runSimulation();
-    cachedMaxErrors = maxErrors;
-    cachedRmseErrors = rmseErrors;
-    cachedMaxDensity = calculateDensityCurve(maxErrors, zoomMax);
-    cachedRmseDensity = calculateDensityCurve(rmseErrors, zoomMax);
-    cachedMaxStats = computeStats(maxErrors);
-  }
+  runAndCacheSimulation();
 
   const parent = canvas.parentElement;
   if (!parent) return;

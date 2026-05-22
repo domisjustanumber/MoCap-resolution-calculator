@@ -1,5 +1,5 @@
 export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'h264' | 'raw8' | 'raw10';
-export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'balanced';
+export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'sync-limited' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'luma' | 'chroma';
 export type SubsamplingMethod = 'line-skip' | 'binning-average';
@@ -55,6 +55,8 @@ export interface Results {
   featureSizeAtDistance: number;
   fDRLimited: number;
   contrastFloor: number;
+  fSyncMTF50: number;
+  syncErrorP95: number;
 }
 
 export interface AppStateFull {

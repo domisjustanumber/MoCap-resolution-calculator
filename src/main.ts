@@ -1,5 +1,5 @@
 import { createState, recalculate, setField } from './state';
-import { initInputs } from './ui/inputs';
+import { initInputs, syncInputsFromState } from './ui/inputs';
 import { updateOutputs } from './ui/outputs';
 import { drawChart } from './ui/chart';
 import { drawDistanceChart, setYMax } from './ui/distanceChart';
@@ -15,6 +15,8 @@ import {
   getFrameRate,
   setShutterDenom,
   getShutterDenom,
+  isSyncToggleOn,
+  setSyncToggle,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
 
@@ -22,6 +24,7 @@ const app = createState();
 
 function refreshAll(): void {
   recalculate(app);
+  syncInputsFromState();
   updateOutputs(app);
   drawChart(app);
   drawDistanceChart(app);
@@ -125,6 +128,7 @@ document.querySelectorAll('.dr-preset').forEach((el) => {
   el.addEventListener('click', () => {
     const db = parseInt((el as HTMLButtonElement).dataset.dr || '66', 10);
     setField(app, 'dynamicRangeDb', db);
+    updateDrPresetStyles();
     refreshAll();
   });
 });
@@ -264,6 +268,18 @@ function updateShutterPresetStyles(): void {
 }
 
 updateShutterPresetStyles();
+
+// Sync error toggle
+const syncToggleBtn = document.getElementById('sync-toggle');
+if (syncToggleBtn) {
+  syncToggleBtn.addEventListener('click', () => {
+    const on = !isSyncToggleOn();
+    setSyncToggle(on);
+    syncToggleBtn.textContent = on ? 'On' : 'Off';
+    syncToggleBtn.classList.toggle('active', on);
+    refreshAll();
+  });
+}
 
 bindSlider('temporal-velocity', (v) => {
   setTemporalVelocity(v);

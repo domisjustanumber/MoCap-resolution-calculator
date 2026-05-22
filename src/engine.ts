@@ -58,6 +58,8 @@ export function calculateResults(
   velocity: number,
   shutterTime: number,
   fps: number,
+  syncErrorP95: number,
+  syncEnabled: boolean,
 ): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
   const fcAberrated = fc * lensTierScalar(state.lensTier);
@@ -92,12 +94,18 @@ export function calculateResults(
   const contrastFloor = 1 / Math.pow(10, state.dynamicRangeDb / 20);
   const fDRLimited = fcAberrated * Math.sqrt(Math.max(0, 1 - contrastFloor / Math.max(0.01, formatEfficiency)));
 
+  const fSyncMTF50 = syncErrorP95 > 0.001 ? 0.1874 / syncErrorP95 : Infinity;
+
   const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped, fTemporal50, fDRLimited);
   const fEffective = limitingFrequency * formatEfficiency;
   const minFeatureSize = (1 / (2 * fEffective)) * 1000;
 
-  const featureSizeAtDistance =
+  const featureBase =
     (1 / (2 * fEffective) / state.focalLength) * (state.distanceToSubject * 1000);
+
+  const featureSizeAtDistance = syncEnabled && syncErrorP95 > 0
+    ? Math.hypot(featureBase, syncErrorP95)
+    : featureBase;
 
   let bottleneckType: BottleneckType = 'balanced';
   if (formatEfficiency < BOTTLENECK_RATIO && (state.outputFormat === 'mjpg' || state.outputFormat === 'h264')) {
@@ -113,6 +121,9 @@ export function calculateResults(
   }
   if (fTemporal50 < fcAberrated * BOTTLENECK_RATIO && fTemporal50 < fNyquistSkipped * BOTTLENECK_RATIO && fTemporal50 < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'motion-limited';
+  }
+  if (syncEnabled && fSyncMTF50 < fcAberrated * BOTTLENECK_RATIO && fSyncMTF50 < fNyquistSkipped * BOTTLENECK_RATIO && fSyncMTF50 < fDRLimited * BOTTLENECK_RATIO && fSyncMTF50 < fTemporal50 * BOTTLENECK_RATIO) {
+    bottleneckType = 'sync-limited';
   }
 
   return {
@@ -130,6 +141,8 @@ export function calculateResults(
     featureSizeAtDistance,
     fDRLimited,
     contrastFloor,
+    fSyncMTF50,
+    syncErrorP95,
   };
 }
 

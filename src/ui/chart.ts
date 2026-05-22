@@ -1,5 +1,5 @@
 import type { AppStateFull } from '../types';
-import { getTemporalVelocity, getShutterTime } from './temporalChart';
+import { getTemporalVelocity, getShutterTime, isSyncToggleOn, getSyncErrorP95, getSyncInputsHash } from './temporalChart';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 let lastHash = '';
@@ -10,7 +10,9 @@ export function drawChart(app: AppStateFull): void {
 
   const v = getTemporalVelocity();
   const shutterTime = getShutterTime();
-  const hash = JSON.stringify(app.results) + String(v) + String(shutterTime);
+  const syncOn = isSyncToggleOn();
+  const syncHash = syncOn ? getSyncInputsHash() : '';
+  const hash = JSON.stringify(app.results) + String(v) + String(shutterTime) + String(syncOn) + syncHash;
   if (hash === lastHash) return;
   lastHash = hash;
 
@@ -164,6 +166,50 @@ export function drawChart(app: AppStateFull): void {
     ctx.setLineDash([]);
   }
 
+  // Sync error MTF curve (pink — camera sync positional uncertainty)
+  const syncErrorP95 = getSyncErrorP95();
+  if (syncOn && syncErrorP95 > 0.01) {
+    ctx.strokeStyle = 'rgba(244, 114, 182, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    let firstSync = true;
+    for (let f = 0; f <= xMax; f += 0.5) {
+      const mtf = syncGaussianMtf(f, syncErrorP95);
+      if (firstSync) { ctx.moveTo(px(f), py(mtf)); firstSync = false; } else { ctx.lineTo(px(f), py(mtf)); }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // System + Motion + Sync combined curve (hot pink — total cascade)
+    ctx.strokeStyle = 'rgba(244, 114, 182, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let firstTotalSync = true;
+    for (let f = 0; f <= fNyquistSkipped; f += 0.5) {
+      const lens = lensMtf(f, fcAberrated) * formatEfficiency;
+      const tm = vImg > 1e-6 ? temporalMtf(f, vImg, shutterTime) : 1;
+      const sm = syncGaussianMtf(f, syncErrorP95);
+      const mtf = lens * tm * sm;
+      if (firstTotalSync) { ctx.moveTo(px(f), py(mtf)); firstTotalSync = false; } else { ctx.lineTo(px(f), py(mtf)); }
+    }
+    ctx.stroke();
+
+    // Sync MTF50 marker (pink dashed)
+    const fSyncMTF50 = 0.1874 / syncErrorP95;
+    if (fSyncMTF50 > 0 && fSyncMTF50 <= xMax) {
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.6)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px(fSyncMTF50), pad.top);
+      ctx.lineTo(px(fSyncMTF50), cssH - pad.bottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      topLabels.push({ x: px(fSyncMTF50), text: 'Sync MTF50', color: '#f472b6', font: '11px monospace' });
+    }
+  }
+
   // Motion MTF50 marker (amber dashed)
   if (vImg > 1e-6 && fMotionMTF50 > 0 && fMotionMTF50 <= xMax) {
     ctx.strokeStyle = 'rgba(251, 191, 36, 0.7)';
@@ -220,21 +266,26 @@ export function drawChart(app: AppStateFull): void {
 
   // Legend
   const lx = cssW - pad.right - 180;
-  const ly = pad.top + 8;
+  let ly = pad.top + 8;
   ctx.font = '11px monospace';
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(59, 130, 246, 0.9)';
-  ctx.fillText('\u2500\u2500 Lens MTF', lx, ly);
+  ctx.fillText('\u2500\u2500 Lens MTF', lx, ly); ly += 15;
   ctx.fillStyle = 'rgba(251, 191, 36, 0.9)';
-  ctx.fillText('\u2500\u2500 Temporal MTF', lx, ly + 15);
+  ctx.fillText('\u2500\u2500 Temporal MTF', lx, ly); ly += 15;
   ctx.fillStyle = 'rgba(251, 146, 60, 0.9)';
-  ctx.fillText('- - Sensor Limit', lx, ly + 30);
+  ctx.fillText('- - Sensor Limit', lx, ly); ly += 15;
   ctx.fillStyle = 'rgba(248, 250, 252, 0.9)';
-  ctx.fillText('\u2500\u2500 System', lx, ly + 45);
+  ctx.fillText('\u2500\u2500 System', lx, ly); ly += 15;
   ctx.fillStyle = 'rgba(34, 211, 238, 0.9)';
-  ctx.fillText('- - System + Motion', lx, ly + 60);
+  ctx.fillText('- - System + Motion', lx, ly); ly += 15;
   ctx.fillStyle = 'rgba(248, 113, 113, 0.9)';
-  ctx.fillText('\u00b7\u00b7 Effective', lx, ly + 75);
+  ctx.fillText('\u00b7\u00b7 Effective', lx, ly); ly += 15;
+  if (syncOn && syncErrorP95 > 0.01) {
+    ctx.fillStyle = 'rgba(244, 114, 182, 0.9)';
+    ctx.fillText('- - Sync MTF', lx, ly); ly += 15;
+    ctx.fillText('\u2500\u2500 Sys + Motion + Sync', lx, ly);
+  }
 }
 
 function lensMtf(f: number, fcAberrated: number): number {
@@ -251,4 +302,9 @@ function sinc(x: number): number {
 function temporalMtf(f: number, vImg: number, shutterS: number): number {
   if (vImg < 1e-9 || shutterS < 1e-9) return 1;
   return Math.abs(sinc(f * vImg * shutterS));
+}
+
+function syncGaussianMtf(f: number, sigmaMm: number): number {
+  if (sigmaMm < 1e-9) return 1;
+  return Math.exp(-2 * Math.pow(Math.PI * f * sigmaMm, 2));
 }

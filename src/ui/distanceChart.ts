@@ -1,5 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
+import { isSyncToggleOn, getSyncErrorP95 } from './temporalChart';
 
 let lastHash = '';
 let mouseX = -1;
@@ -105,14 +106,11 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     String(app.state.focalLength) +
     String(maxDistance) +
     String(yMaxOverride) +
-    pins.map((p) => p.distance.toFixed(2) + p.color).join('|');
+    pins.map((p) => p.distance.toFixed(2) + p.color).join('|') +
+    String(isSyncToggleOn()) +
+    String(getSyncErrorP95());
   if (hash === lastHash && !force) return;
   lastHash = hash;
-
-  const { results, state } = app;
-  const { minFeatureSize } = results;
-  const { focalLength } = state;
-  const dMax = maxDistance;
 
   const parent = canvas.parentElement;
   if (!parent) return;
@@ -125,13 +123,25 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const ctx = getCanvasContext(canvas, cssW, cssH);
   if (!ctx) return;
 
+  const { results, state } = app;
+  const { minFeatureSize } = results;
+  const { focalLength } = state;
+  const dMax = maxDistance;
+
+  const syncEnabled = isSyncToggleOn();
+  const syncErrP95 = getSyncErrorP95();
+
+  const yMax = yMaxOverride;
+
   const pad = { top: 36, right: 40, bottom: 52, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
-  const featureMm = (d: number) => (minFeatureSize * d) / focalLength;
+  const featureMm = (d: number) => {
+    const optical = (minFeatureSize * d) / focalLength;
+    return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
+  };
 
-  const yMax = yMaxOverride;
   const yStep = yMax / 5;
   const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
 

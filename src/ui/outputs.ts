@@ -99,6 +99,11 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
       icon: '\u25d8',
       text: `DR-limited: ${state.dynamicRangeDb}\u00a0dB dynamic range sets noise floor at ${(app.results.contrastFloor * 100).toFixed(3)}% contrast. Software: raise exposure, reduce noise (lower ISO/gain). Hardware: sensor with higher dynamic range, then wider-aperture lens for more light.`,
     },
+    'sync-limited': {
+      color: 'border-pink-800 bg-pink-950/30 text-pink-300',
+      icon: '\u27f7',
+      text: `Sync-limited: camera timing errors cause ${app.results.syncErrorP95.toFixed(1)}\u00a0mm positional uncertainty (MTF50 at ${app.results.fSyncMTF50 < 1000 ? app.results.fSyncMTF50.toFixed(1) : '\u221e'} lp/mm). Software: synchronize cameras tightly, reduce timing jitter. Hardware: genlock-capable cameras, hardware trigger sync.`,
+    },
     balanced: {
       color: 'border-emerald-800 bg-emerald-950/30 text-emerald-300',
       icon: '\u2713',
