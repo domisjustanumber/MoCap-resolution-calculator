@@ -126,13 +126,6 @@ function updateConditionalNotes(app: AppStateFull): void {
     }
   }
 
-  if (state.dynamicRangeDb < 70) {
-    const contrastFloor = app.results.contrastFloor;
-    notes.push(
-      `Low DR (${state.dynamicRangeDb} dB): noise floor at ${(contrastFloor * 100).toFixed(2)}% contrast — fine tonal detail may be lost in shadows.`,
-    );
-  }
-
   container.innerHTML = notes
     .map(
       (n) =>
