@@ -1,4 +1,4 @@
-import type { OutputFormat } from './types';
+import type { OutputFormat, SensorRadiometry } from './types';
 
 export const WAVELENGTH_PRESETS: Array<{
   label: string;
@@ -44,11 +44,6 @@ export const FORMAT_LABELS: Record<OutputFormat, string> = {
   raw10: 'RAW10 (Bayer 10-bit)',
 };
 
-export const SUBSAMPLING_LABELS: Record<string, string> = {
-  'line-skip': 'Line Skip',
-  'binning-average': 'Binning / Averaging',
-};
-
 export const VISIBLE_MAX_NM = 780;
 export const WAVELENGTH_MIN = 380;
 export const WAVELENGTH_MAX = 2500;
@@ -74,8 +69,9 @@ export const FORMAT_EFFICIENCY_H264_BASE = 0.30;
 export const FORMAT_EFFICIENCY_H264_RANGE = 0.70;
 export const CHROMA_UYVY_PENALTY = 0.5;
 export const CHROMA_OTHER_PENALTY = 0.25;
+export const CHROMA_UYVY_SNR_DB = 3;
+export const CHROMA_OTHER_SNR_DB = 6;
 export const BOTTLENECK_RATIO = 0.85;
-export const BINNING_VALUES = [1, 2, 4] as const;
 
 export const PHOTONS_PER_UM2_PER_LUX_SEC = 4130;
 export const DEFAULT_LENS_TRANSMISSION = 0.85;
@@ -95,30 +91,15 @@ export const LUX_MAX = 110000;
 export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
 
-export const SENSOR_RADIOMETRY: Record<string, import('./types').SensorRadiometry> = {
-  ov5647: {
-    qePercent: 55, fullWellCapacity: 3500, readNoiseE: 4.0, darkCurrentE: 25,
-    conversionGainUvPerE: 150, adcBits: 10, readoutTimeUs: 32, lensTransmission: 0.85,
-    cfaFactor: 0.55, hasDualCG: false,
-  },
-  imx219: {
-    qePercent: 72, fullWellCapacity: 2200, readNoiseE: 3.5, darkCurrentE: 15,
-    conversionGainUvPerE: 180, adcBits: 10, readoutTimeUs: 28, lensTransmission: 0.85,
-    cfaFactor: 0.58, hasDualCG: false,
-  },
-  imx477: {
-    qePercent: 75, fullWellCapacity: 4300, readNoiseE: 3.0, darkCurrentE: 10,
-    conversionGainUvPerE: 110, adcBits: 12, readoutTimeUs: 20, lensTransmission: 0.85,
-    cfaFactor: 0.60, hasDualCG: false,
-  },
-  ov9281: {
-    qePercent: 85, fullWellCapacity: 8500, readNoiseE: 6.0, darkCurrentE: 35,
-    conversionGainUvPerE: 50, adcBits: 10, readoutTimeUs: 15, lensTransmission: 0.85,
-    cfaFactor: 1.0, hasDualCG: false,
-  },
-  custom: {
-    qePercent: 60, fullWellCapacity: 5000, readNoiseE: 4.0, darkCurrentE: 20,
-    conversionGainUvPerE: 100, adcBits: 12, readoutTimeUs: 25, lensTransmission: 0.85,
-    cfaFactor: 0.55, hasDualCG: false,
-  },
+export const DEFAULT_RADIOMETRY: SensorRadiometry = {
+  qePercent: 60,
+  fullWellCapacity: 5000,
+  readNoiseE: 4.0,
+  darkCurrentE: 20,
+  conversionGainUvPerE: 100,
+  adcBits: 12,
+  readoutTimeUs: 25,
+  lensTransmission: 0.85,
+  cfaFactor: 0.55,
+  hasDualCG: false,
 };

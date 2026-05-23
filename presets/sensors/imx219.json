@@ -1,0 +1,43 @@
+{
+  "name": "imx219",
+  "label": "Sony IMX219",
+  "pixelPitch": 1.12,
+  "nativeWidth": 3280,
+  "nativeHeight": 2464,
+  "olpfPresent": true,
+  "dynamicRangeDb": 56,
+  "radiometry": {
+    "qePercent": 72,
+    "fullWellCapacity": 2200,
+    "readNoiseE": 3.5,
+    "darkCurrentE": 15,
+    "conversionGainUvPerE": 180,
+    "adcBits": 10,
+    "readoutTimeUs": 28,
+    "lensTransmission": 0.85,
+    "cfaFactor": 0.58,
+    "hasDualCG": false
+  },
+  "v4l2": {
+    "chipId": 537,
+    "nativeSize": { "width": 3296, "height": 2480 },
+    "activeArray": { "left": 8, "top": 8, "width": 3280, "height": 2464 },
+    "pixelRates": [182400000, 281600000],
+    "linkFreqs": [456000000, 364000000],
+    "mipiLanes": 2,
+    "xclk": 24000000,
+    "busFormats": ["SRGGB10_1X10", "SRGGB8_1X8"],
+    "supplies": ["VANA", "VDIG", "VDDL"],
+    "modes": [
+      { "width": 3280, "height": 2464, "maxFps": 15, "pixelRateIndex": 0, "hts": 3448, "vts": 3526, "readoutType": "native", "pitchMultiplier": 1.0, "fullFoV": true },
+      { "width": 1920, "height": 1080, "maxFps": 30, "pixelRateIndex": 0, "hts": 3448, "vts": 1763, "readoutType": "cropping", "pitchMultiplier": 1.0, "fullFoV": false },
+      { "width": 1640, "height": 1232, "maxFps": 60, "pixelRateIndex": 0, "hts": 3448, "vts": 1707, "readoutType": "binning", "pitchMultiplier": 2.0, "fullFoV": true },
+      { "width": 640, "height": 480, "maxFps": 60, "pixelRateIndex": 0, "hts": 3448, "vts": 1707, "readoutType": "binning+cropping", "pitchMultiplier": 2.0, "fullFoV": false }
+    ],
+    "exposure": { "min": 4, "max": 65535, "step": 1, "default": 1600 },
+    "analogueGain": { "min": 0, "max": 232, "step": 1, "default": 0 },
+    "digitalGain": { "min": 256, "max": 4095, "step": 1, "default": 256 },
+    "hblank": { "min": 168, "max": 32496, "default": 168 },
+    "vblank": { "min": 32, "max": 65535, "default": 1062 }
+  }
+}

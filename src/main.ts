@@ -21,7 +21,7 @@ import {
   getMaxShutterLimit,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
-import { SENSOR_RADIOMETRY } from './constants';
+import { SENSOR_RADIOMETRY } from '../presets';
 import type { ExposureMode } from './types';
 
 const app = createState();
@@ -44,6 +44,7 @@ drawDistanceChart(app);
 drawTemporalChart(app);
 initAcceleration();
 updateOptimizerLockedControls(true);
+updateAdvancedSensorSpecs();
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
   const slider = document.getElementById(id) as HTMLInputElement | null;
@@ -124,20 +125,6 @@ function updatePresetStyles(selector: string, getValue: () => string | number, d
     btn.classList.toggle('active', btnVal === current);
   });
 }
-
-function updateDrPresetStyles(): void {
-  updatePresetStyles('.dr-preset', () => app.state.dynamicRangeDb, 'dr');
-}
-
-document.querySelectorAll('.dr-preset').forEach((el) => {
-  el.addEventListener('click', () => {
-    const db = parseInt((el as HTMLButtonElement).dataset.dr || '66', 10);
-    setField(app, 'dynamicRangeDb', db);
-    updateDrPresetStyles();
-    refreshAll();
-  });
-});
-updateDrPresetStyles();
 
 // --- Velocity presets ---
 const VELOCITY_PRESETS: Record<string, number> = {
@@ -425,15 +412,6 @@ function updateLuxPresetStyles(): void {
   });
 }
 updateLuxPresetStyles();
-
-// Advanced sensor specs toggle
-const sensorAdvToggle = document.getElementById('sensor-advanced-toggle');
-const sensorAdv = document.getElementById('sensor-advanced');
-if (sensorAdvToggle && sensorAdv) {
-  sensorAdvToggle.addEventListener('click', () => {
-    sensorAdv.classList.toggle('hidden');
-  });
-}
 
 // Update advanced sensor specs display on every refresh
 const prevRefreshAll = refreshAll;

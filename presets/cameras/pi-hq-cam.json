@@ -1,0 +1,6 @@
+{
+  "name": "pi-hq-cam",
+  "label": "Pi HQ Cam (IMX477)",
+  "sensorName": "imx477",
+  "lensName": "mid-glass"
+}

@@ -1,0 +1,41 @@
+{
+  "name": "ov9281",
+  "label": "Omnivision OV9281",
+  "pixelPitch": 3.0,
+  "nativeWidth": 1280,
+  "nativeHeight": 800,
+  "olpfPresent": true,
+  "dynamicRangeDb": 63,
+  "radiometry": {
+    "qePercent": 85,
+    "fullWellCapacity": 8500,
+    "readNoiseE": 6.0,
+    "darkCurrentE": 35,
+    "conversionGainUvPerE": 50,
+    "adcBits": 10,
+    "readoutTimeUs": 15,
+    "lensTransmission": 0.85,
+    "cfaFactor": 1.0,
+    "hasDualCG": false
+  },
+  "v4l2": {
+    "chipId": 37505,
+    "nativeSize": { "width": 1280, "height": 800 },
+    "activeArray": { "left": 0, "top": 0, "width": 1280, "height": 800 },
+    "pixelRates": [160000000, 200000000],
+    "linkFreqs": [400000000],
+    "mipiLanes": 2,
+    "xclk": 24000000,
+    "busFormats": ["Y10_1X10", "Y8_1X8"],
+    "supplies": ["avdd", "dovdd", "dvdd"],
+    "modes": [
+      { "width": 1280, "height": 800, "maxFps": 120, "pixelRateIndex": 0, "hts": 1456, "vts": 910, "readoutType": "native", "pitchMultiplier": 1.0, "fullFoV": true },
+      { "width": 1280, "height": 720, "maxFps": 144, "pixelRateIndex": 0, "hts": 1456, "vts": 761, "readoutType": "cropping", "pitchMultiplier": 1.0, "fullFoV": false },
+      { "width": 640, "height": 400, "maxFps": 230, "pixelRateIndex": 0, "hts": 1456, "vts": 421, "readoutType": "binning", "pitchMultiplier": 2.0, "fullFoV": true }
+    ],
+    "exposure": { "min": 4, "max": 885, "step": 1, "default": 800 },
+    "analogueGain": { "min": 16, "max": 248, "step": 1, "default": 16 },
+    "hblank": { "min": 176, "max": 176, "default": 176 },
+    "vblank": { "min": 110, "max": 31727, "default": 110 }
+  }
+}

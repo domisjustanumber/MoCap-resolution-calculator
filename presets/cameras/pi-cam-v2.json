@@ -1,0 +1,6 @@
+{
+  "name": "pi-cam-v2",
+  "label": "Pi Cam v2 (IMX219)",
+  "sensorName": "imx219",
+  "lensName": "cheap-plastic"
+}

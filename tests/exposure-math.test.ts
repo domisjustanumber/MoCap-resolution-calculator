@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { calculateDerived, calculateResults } from '../src/engine';
-import { SENSOR_RADIOMETRY, DEFAULT_TEMPERATURE_C, DARK_CURRENT_DOUBLING_C } from '../src/constants';
+import { SENSOR_RADIOMETRY } from '../presets';
+import { DEFAULT_TEMPERATURE_C, DARK_CURRENT_DOUBLING_C } from '../src/constants';
 import type { AppState, SensorRadiometry } from '../src/types';
 
 function makeState(overrides: Partial<AppState> = {}): AppState {
@@ -14,15 +15,17 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     nativeWidth: 3280,
     nativeHeight: 2464,
     olpfPresent: true,
-    pixelBinning: 1,
     extractedWidth: 3280,
     extractedHeight: 2464,
     outputFormat: 'nv12',
     mjpgQuality: 80,
     h264Qp: 23,
     h264BitrateMbps: 4,
-    subsamplingMethod: 'line-skip',
-    measurementMode: 'luma',
+    readoutMethod: 'binning',
+    selectedV4l2Mode: -1,
+    readoutPitchMultiplier: 1,
+    readoutFullFoV: true,
+    measurementMode: 'monochrome',
     lensTier: 'mid-glass',
     distanceToSubject: 2,
     dynamicRangeDb: 66,

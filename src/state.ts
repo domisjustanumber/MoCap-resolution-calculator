@@ -1,18 +1,16 @@
 import type { AppState, PresetName, AppStateFull, ExposureMode } from './types';
 import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
-import { PRESETS } from './presets';
+import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY, findCameraPreset, LENS_PRESETS, PRESETS } from '../presets';
 import {
   APERTURE_MIN,
   APERTURE_MAX,
   WAVELENGTH_MIN,
   WAVELENGTH_MAX,
-  BINNING_VALUES,
   H264_QP_MIN,
   H264_QP_MAX,
   H264_BITRATE_MIN_MBPS,
   H264_BITRATE_MAX_MBPS,
-  SENSOR_RADIOMETRY,
   DEFAULT_LUX_SUBJECT,
   DEFAULT_REFLECTANCE,
   DEFAULT_SNR_TARGET_DB,
@@ -23,6 +21,7 @@ import {
   LUX_MAX,
   SNR_DB_MIN,
   SNR_DB_MAX,
+  DEFAULT_RADIOMETRY,
 } from './constants';
 import { getSpatialVelocity, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
 
@@ -35,15 +34,17 @@ export const DEFAULT_STATE: AppState = {
   nativeWidth: 2592,
   nativeHeight: 1944,
   olpfPresent: true,
-  pixelBinning: 1,
   extractedWidth: 640,
   extractedHeight: 480,
   outputFormat: 'mjpg',
   mjpgQuality: 60,
   h264Qp: 23,
   h264BitrateMbps: 4,
-  subsamplingMethod: 'line-skip',
-  measurementMode: 'luma',
+  readoutMethod: 'native',
+  selectedV4l2Mode: -1,
+  readoutPitchMultiplier: 1,
+  readoutFullFoV: true,
+  measurementMode: 'monochrome',
   lensTier: 'cheap-plastic',
   distanceToSubject: 1,
   dynamicRangeDb: 66,
@@ -58,7 +59,8 @@ export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
   const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
-  return { state, activePreset: 'ov5647', activeSensorPreset: 'ov5647', derived, results };
+  const app: AppStateFull = { state, activePreset: 'pi-cam-v1', activeSensorPreset: 'ov5647', activeLensPreset: 'cheap-plastic', derived, results };
+  return applyPreset(app, {}, 'pi-cam-v1');
 }
 
 export function clamped(value: number, min: number, max: number): number {
@@ -96,10 +98,6 @@ export function validateState(state: AppState): string[] {
   state.h264Qp = clamped(state.h264Qp, H264_QP_MIN, H264_QP_MAX);
   state.h264BitrateMbps = clamped(state.h264BitrateMbps, H264_BITRATE_MIN_MBPS, H264_BITRATE_MAX_MBPS);
 
-  if (!(BINNING_VALUES as readonly number[]).includes(state.pixelBinning)) {
-    state.pixelBinning = 1;
-  }
-
   state.luxAtSubject = clamped(state.luxAtSubject, LUX_MIN, LUX_MAX);
   state.subjectReflectance = clamped(state.subjectReflectance, 0.01, 1);
   state.desiredSnrDb = clamped(state.desiredSnrDb, SNR_DB_MIN, SNR_DB_MAX);
@@ -126,7 +124,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   const syncErr = getSyncErrorP95();
   const syncOn = isSyncToggleOn();
 
-  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
   const readoutTimeS = (radiometry.readoutTimeUs * state.nativeHeight) / 1_000_000;
   const sensorMaxFps = readoutTimeS > 0 ? Math.round(1 / readoutTimeS) : 240;
   const sensorMaxShutterDenom = Math.min(8000, Math.round(1_000_000 / (radiometry.readoutTimeUs * 2)));
@@ -151,14 +149,31 @@ export function recalculate(app: AppStateFull): AppStateFull {
   return app;
 }
 
-export function applyPreset(app: AppStateFull, presetValues: Partial<AppState>, name: PresetName): AppStateFull {
-  const prevLensTier = app.state.lensTier;
-  Object.assign(app.state, { ...DEFAULT_STATE }, presetValues);
-  if (!('lensTier' in presetValues)) {
-    app.state.lensTier = prevLensTier;
+export function applyPreset(app: AppStateFull, _presetValues: Partial<AppState>, name: PresetName): AppStateFull {
+  app.state.lensTier = 'cheap-plastic';
+  const cameraPreset = findCameraPreset(name);
+  if (cameraPreset) {
+    const sensorPreset = SENSOR_GEOMETRY[cameraPreset.sensorName];
+    if (sensorPreset) {
+      app.state.pixelPitch = sensorPreset.pixelPitch;
+      app.state.nativeWidth = sensorPreset.nativeWidth;
+      app.state.nativeHeight = sensorPreset.nativeHeight;
+      app.state.olpfPresent = sensorPreset.olpfPresent;
+      app.state.dynamicRangeDb = sensorPreset.dynamicRangeDb;
+    }
+    const lensPreset = LENS_PRESETS[cameraPreset.lensName];
+    if (lensPreset) {
+      app.state.lensTier = lensPreset.name as AppState['lensTier'];
+      app.state.focalLength = lensPreset.focalLength;
+      app.state.aperture = lensPreset.aperture;
+    }
   }
   app.activePreset = name;
-  app.activeSensorPreset = name;
+  app.activeSensorPreset = cameraPreset ? cameraPreset.sensorName : name;
+  app.activeLensPreset = cameraPreset ? cameraPreset.lensName : 'custom';
+  app.state.selectedV4l2Mode = -1;
+  app.state.readoutPitchMultiplier = 1;
+  app.state.readoutFullFoV = true;
   return recalculate(app);
 }
 
@@ -171,22 +186,44 @@ export function setField<K extends keyof AppState>(app: AppStateFull, key: K, va
     app.activePreset = 'custom';
   }
   app.activeSensorPreset = detectSensorPreset(app);
+  app.activeLensPreset = detectLensPreset(app);
   return recalculate(app);
 }
 
 export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
   app.activeSensorPreset = name;
+  app.activeLensPreset = detectLensPreset(app);
+  const geom = SENSOR_GEOMETRY[name];
+  if (geom) {
+    app.state.pixelPitch = geom.pixelPitch;
+    app.state.nativeWidth = geom.nativeWidth;
+    app.state.nativeHeight = geom.nativeHeight;
+    app.state.olpfPresent = geom.olpfPresent;
+    app.state.dynamicRangeDb = geom.dynamicRangeDb;
+  }
+  app.state.selectedV4l2Mode = -1;
+  app.state.readoutPitchMultiplier = 1;
+  app.state.readoutFullFoV = true;
   return recalculate(app);
 }
 
 function detectSensorPreset(app: AppStateFull): string {
-  for (const preset of PRESETS) {
-    if (preset.name === 'custom') continue;
-    const { pixelPitch, nativeWidth, nativeHeight } = preset.values;
-    if (pixelPitch === app.state.pixelPitch &&
-        nativeWidth === app.state.nativeWidth &&
-        nativeHeight === app.state.nativeHeight) {
-      return preset.name;
+  for (const [name, geom] of Object.entries(SENSOR_GEOMETRY)) {
+    if (geom.pixelPitch === app.state.pixelPitch &&
+        geom.nativeWidth === app.state.nativeWidth &&
+        geom.nativeHeight === app.state.nativeHeight) {
+      return name;
+    }
+  }
+  return 'custom';
+}
+
+function detectLensPreset(app: AppStateFull): string {
+  for (const [name, lens] of Object.entries(LENS_PRESETS)) {
+    if (lens.focalLength === app.state.focalLength &&
+        lens.aperture === app.state.aperture &&
+        lens.name === app.state.lensTier) {
+      return name;
     }
   }
   return 'custom';

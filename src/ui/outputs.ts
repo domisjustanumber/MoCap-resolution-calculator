@@ -153,68 +153,78 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
 }
 
 function updateConditionalNotes(app: AppStateFull): void {
-  const container = document.getElementById('processing-notes');
-  if (!container) return;
-  const notes: string[] = [];
+  const procContainer = document.getElementById('processing-notes');
+  const compContainer = document.getElementById('compression-notes');
+  const procNotes: string[] = [];
+  const compNotes: string[] = [];
 
   const state = app.state;
 
   if (state.outputFormat === 'mjpg') {
-    notes.push(
+    compNotes.push(
       `CV features should span \u2265 ${MJPG_BLOCK_SIZE_PX} px to avoid 8\u00d78 macroblock distortion.`,
     );
   }
 
   if (state.outputFormat === 'h264') {
-    notes.push(
+    compNotes.push(
       `Features should span \u2265 ${H264_MB_SIZE_PX} px for 16\u00d716 macroblock alignment. P-frames have lower quality than I-frames at the same QP.`,
     );
   }
 
-  if (state.measurementMode === 'chroma') {
+  if (state.measurementMode === 'colour') {
     if (state.outputFormat === 'uyuv') {
-      notes.push('Chroma mode: UYVY halves horizontal color resolution (4:2:2).');
+      compNotes.push('Colour mode: UYVY halves horizontal color resolution (4:2:2).');
     } else if (state.outputFormat === 'h264') {
-      notes.push('Chroma mode: H.264 quartes color resolution (4:2:0 \u2014 half H \u00d7 half V).');
+      compNotes.push('Colour mode: H.264 quarters color resolution (4:2:0 \u2014 half H \u00d7 half V).');
     } else if (!(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-      notes.push(
-        'Chroma mode: ' +
+      compNotes.push(
+        'Colour mode: ' +
           (state.outputFormat === 'mjpg' ? 'MJPG' : 'NV12') +
           ' quarters color resolution (4:2:0 \u2014 half H \u00d7 half V).',
       );
     }
   }
 
-  if (state.subsamplingMethod === 'line-skip') {
-    notes.push(
-      'Line skip subsampling introduces severe aliasing & moir\u00e9 from unsampled rows/columns.',
-    );
+  if (state.selectedV4l2Mode >= 0) {
+    if (state.readoutMethod === 'subsampling') {
+      procNotes.push(
+        'Subsampling (line-skip / average) preserves field of view but reduces spatial resolution via pixel decimation.',
+      );
+    }
+  } else {
+    if (state.readoutMethod === 'subsampling') {
+      procNotes.push(
+        'Subsampling (line-skip / averaging) introduces aliasing from unsampled rows/columns.',
+      );
+    }
+    if (state.readoutMethod === 'cropping') {
+      procNotes.push(
+        'Cropping uses a smaller region of the sensor — field of view is reduced but pixel pitch is unchanged.',
+      );
+    }
+    if (state.readoutMethod === 'binning') {
+      procNotes.push(
+        'Binning averages adjacent pixels — field of view is preserved, effective pixel pitch increases.',
+      );
+    }
   }
 
   if (state.wavelength > 780) {
-    notes.push(
+    procNotes.push(
       `IR wavelength (${state.wavelength} nm): longer \u03bb means more diffraction blur — lower diffraction cutoff.`,
     );
   }
 
   if (state.wavelength < 400) {
-    notes.push(
+    procNotes.push(
       `UV wavelength (${state.wavelength} nm): near the edge of the visible spectrum. Ensure your optics transmit at this \u03bb.`,
     );
   }
 
-  if (state.extractedWidth < state.nativeWidth || state.extractedHeight < state.nativeHeight) {
-    if (state.subsamplingMethod === 'binning-average') {
-      notes.push(
-        'Binning / averaging preserves field of view but reduces spatial resolution.',
-      );
-    }
-  }
+  const noteHtml = (n: string) =>
+    `<p class="rounded border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-[11px] leading-relaxed text-slate-400">${n}</p>`;
 
-  container.innerHTML = notes
-    .map(
-      (n) =>
-        `<p class="rounded border border-slate-800 bg-slate-900/40 px-3 py-1.5 text-[11px] leading-relaxed text-slate-400">${n}</p>`,
-    )
-    .join('');
+  if (procContainer) procContainer.innerHTML = procNotes.map(noteHtml).join('');
+  if (compContainer) compContainer.innerHTML = compNotes.map(noteHtml).join('');
 }

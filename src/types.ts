@@ -1,9 +1,9 @@
 export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'h264' | 'raw8' | 'raw10';
 export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'sync-limited' | 'photon-starved' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
-export type MeasurementMode = 'luma' | 'chroma';
-export type SubsamplingMethod = 'line-skip' | 'binning-average';
-export type PresetName = 'ov5647' | 'imx219' | 'imx477' | 'ov9281' | 'custom';
+export type MeasurementMode = 'monochrome' | 'colour';
+export type ReadoutMethod = 'native' | 'cropping' | 'binning' | 'subsampling';
+export type PresetName = 'pi-cam-v1' | 'pi-cam-v2' | 'pi-hq-cam' | 'ov9281-module' | 'custom';
 export type ExposureMode = 'manual' | 'optimized';
 
 export interface SensorRadiometry {
@@ -45,15 +45,17 @@ export interface AppState {
   nativeWidth: number;
   nativeHeight: number;
   olpfPresent: boolean;
-  pixelBinning: number;
   extractedWidth: number;
   extractedHeight: number;
   outputFormat: OutputFormat;
   mjpgQuality: number;
   h264Qp: number;
   h264BitrateMbps: number;
-  subsamplingMethod: SubsamplingMethod;
   measurementMode: MeasurementMode;
+  selectedV4l2Mode: number;
+  readoutMethod: ReadoutMethod;
+  readoutPitchMultiplier: number;
+  readoutFullFoV: boolean;
   lensTier: LensTier;
   distanceToSubject: number;
   dynamicRangeDb: number;
@@ -100,6 +102,7 @@ export interface AppStateFull {
   state: AppState;
   activePreset: PresetName;
   activeSensorPreset: string;
+  activeLensPreset: string;
   derived: DerivedState;
   results: Results;
 }

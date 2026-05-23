@@ -1,6 +1,6 @@
-import type { AppStateFull, AppState, Preset } from '../types';
+import type { AppStateFull, AppState, ReadoutMethod } from '../types';
 import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
-import { PRESETS } from '../presets';
+import { PRESETS, SENSOR_GEOMETRY, SENSOR_RADIOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
@@ -12,15 +12,7 @@ import { updateShutterPresetStyles } from '../main';
 import { updateFpsPresetStyles } from '../main';
 
 let app: AppStateFull;
-
-const RES_PRESETS: Record<string, { w: number; h: number; fmt: string }> = {
-  'sd-mjpg': { w: 640, h: 480, fmt: 'mjpg' },
-  'sd-nv12': { w: 640, h: 480, fmt: 'nv12' },
-  '720p-mjpg': { w: 1280, h: 720, fmt: 'mjpg' },
-  '720p-nv12': { w: 1280, h: 720, fmt: 'nv12' },
-  '1080p-mjpg': { w: 1920, h: 1080, fmt: 'mjpg' },
-  '1080p-nv12': { w: 1920, h: 1080, fmt: 'nv12' },
-};
+let lastSensorWasMonochrome = true;
 
 export function initInputs(state: AppStateFull): void {
   app = state;
@@ -34,10 +26,12 @@ export function initInputs(state: AppStateFull): void {
   bindNumberInput('nativeHeight', 'nativeHeight');
   bindCheckboxInput('olpfPresent', 'olpfPresent');
   bindNumberInput('dynamicRangeDb', 'dynamicRangeDb');
+  bindDrSlider();
   bindNumberInput('extractedWidth', 'extractedWidth');
   bindNumberInput('extractedHeight', 'extractedHeight');
-  bindSelectInput('subsamplingMethod', 'subsamplingMethod');
+  bindSelectInput('readoutMethod', 'readoutMethod');
   bindSelectInput('outputFormat', 'outputFormat');
+  bindV4l2ModeSelect();
   bindNumberInput('luxAtSubject', 'luxAtSubject');
   bindNumberInput('subjectReflectance', 'subjectReflectance');
   bindNumberInput('desiredSnrDb', 'desiredSnrDb');
@@ -48,7 +42,6 @@ export function initInputs(state: AppStateFull): void {
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
   bindLensTierChips();
-  bindProcessingChips();
   bindPresetChips();
   bindSensorModelChips();
   buildWavelengthChips();
@@ -130,20 +123,20 @@ function bindH264BitrateInput(): void {
 }
 
 function bindRadioGroup(_name: string, key: keyof AppState): void {
-  const luma = document.getElementById('mode-luma') as HTMLInputElement | null;
-  const chroma = document.getElementById('mode-chroma') as HTMLInputElement | null;
-  if (luma) {
-    luma.addEventListener('change', () => {
-      if (luma.checked) {
-        setField(app, key, 'luma');
+  const monochrome = document.getElementById('mode-monochrome') as HTMLInputElement | null;
+  const colour = document.getElementById('mode-colour') as HTMLInputElement | null;
+  if (monochrome) {
+    monochrome.addEventListener('change', () => {
+      if (monochrome.checked) {
+        setField(app, key, 'monochrome');
         refresh();
       }
     });
   }
-  if (chroma) {
-    chroma.addEventListener('change', () => {
-      if (chroma.checked) {
-        setField(app, key, 'chroma');
+  if (colour) {
+    colour.addEventListener('change', () => {
+      if (colour.checked) {
+        setField(app, key, 'colour');
         refresh();
       }
     });
@@ -179,39 +172,8 @@ function bindLensTierChips(): void {
       refresh();
     });
   });
-}
-
-function bindProcessingChips(): void {
-  Object.keys(RES_PRESETS).forEach((key) => {
-    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
-    if (!chip) return;
-    chip.addEventListener('click', () => {
-      const { w, h, fmt } = RES_PRESETS[key];
-      app.state.extractedWidth = w;
-      app.state.extractedHeight = h;
-      app.state.outputFormat = fmt as AppState['outputFormat'];
-      recalculate(app);
-      syncInputsFromState();
-      updateCompressionControlsState();
-      refresh();
-
-      document.querySelectorAll('[data-res]').forEach((el) => el.classList.remove('active'));
-      chip.classList.add('active');
-    });
-  });
-}
-
-function updateResChipStyles(): void {
-  Object.keys(RES_PRESETS).forEach((key) => {
-    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
-    if (!chip) return;
-    const { w, h, fmt } = RES_PRESETS[key];
-    if (app.state.extractedWidth === w && app.state.extractedHeight === h && app.state.outputFormat === fmt) {
-      chip.classList.add('active');
-    } else {
-      chip.classList.remove('active');
-    }
-  });
+  const customChip = document.querySelector('[data-preset="lens-custom"]') as HTMLButtonElement | null;
+  if (customChip) customChip.disabled = true;
 }
 
 function bindDistanceRange(): void {
@@ -259,9 +221,9 @@ function bindPresetChips(): void {
     chip.addEventListener('click', () => {
       const name = chip.dataset.preset;
       if (!name || name === 'custom') return;
-      const preset: Preset | undefined = PRESETS.find((p) => p.name === name);
+      const preset = PRESETS.find((p) => p.name === name);
       if (!preset) return;
-      applyPreset(app, preset.values, preset.name);
+      applyPreset(app, preset.values, preset.name as import('../types').PresetName);
       syncInputsFromState();
       updateCompressionControlsState();
       refresh();
@@ -274,12 +236,94 @@ function bindSensorModelChips(): void {
   chips.forEach((chip) => {
     chip.addEventListener('click', () => {
       const name = chip.dataset.preset;
-      if (!name) return;
+      if (!name || name === 'custom') return;
       setSensorPreset(app, name);
       syncInputsFromState();
       refresh();
     });
   });
+}
+
+function populateV4l2Modes(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  const group = document.getElementById('v4l2-mode-group');
+  if (!select || !group) return;
+
+  const sensor = SENSOR_GEOMETRY[app.activeSensorPreset];
+  const hasModes = sensor?.v4l2?.modes && sensor.v4l2.modes.length > 0;
+
+  if (!hasModes) {
+    group.classList.add('hidden');
+    return;
+  }
+
+  group.classList.remove('hidden');
+  const modes = sensor.v4l2!.modes;
+  select.innerHTML = '';
+  modes.forEach((mode, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `${mode.width}x${mode.height} — ${mode.readoutType || `mode ${i}`}`;
+    select.appendChild(opt);
+  });
+  select.value = String(Math.max(0, app.state.selectedV4l2Mode));
+
+  if (app.state.selectedV4l2Mode < 0 && modes.length > 0) {
+    onV4l2ModeChange();
+  }
+}
+
+function onV4l2ModeChange(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  if (!select) return;
+  const index = parseInt(select.value, 10);
+  if (isNaN(index) || index < 0) return;
+
+  const sensor = SENSOR_GEOMETRY[app.activeSensorPreset];
+  if (!sensor?.v4l2?.modes) return;
+  const mode = sensor.v4l2.modes[index];
+  if (!mode) return;
+
+  app.state.selectedV4l2Mode = index;
+  app.state.readoutPitchMultiplier = mode.pitchMultiplier ?? 1;
+  app.state.readoutFullFoV = mode.fullFoV ?? true;
+  app.state.extractedWidth = mode.width;
+  app.state.extractedHeight = mode.height;
+  app.state.readoutMethod = readoutTypeToMethod(mode.readoutType);
+  recalculate(app);
+  syncInputsFromState();
+  refresh();
+}
+
+function bindV4l2ModeSelect(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  if (!select) return;
+  select.addEventListener('change', onV4l2ModeChange);
+}
+
+function readoutTypeToMethod(readoutType?: string): ReadoutMethod {
+  if (!readoutType) return 'native';
+  if (readoutType.includes('native')) return 'native';
+  if (readoutType.includes('subsampling')) return 'subsampling';
+  if (readoutType.includes('binning')) return 'binning';
+  if (readoutType.includes('cropping')) return 'cropping';
+  return 'native';
+}
+
+function bindDrSlider(): void {
+  const slider = document.getElementById('dr-slider') as HTMLInputElement | null;
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const v = parseInt(slider.value, 10);
+    setField(app, 'dynamicRangeDb', v);
+    syncInputsFromState();
+    refresh();
+  });
+}
+
+function updateDrBar(): void {
+  const slider = document.getElementById('dr-slider') as HTMLInputElement | null;
+  if (slider) slider.value = String(app.state.dynamicRangeDb);
 }
 
 export function updatePresetChipStyles(): void {
@@ -312,6 +356,13 @@ function updateLensTierChipStyles(): void {
       chip.classList.remove('active');
     }
   });
+  const customChip = document.querySelector('[data-preset="lens-custom"]') as HTMLButtonElement | null;
+  if (!customChip) return;
+  if (app.activeLensPreset === 'custom') {
+    customChip.classList.add('active');
+  } else {
+    customChip.classList.remove('active');
+  }
 }
 
 function buildWavelengthChips(): void {
@@ -441,13 +492,15 @@ export function syncInputsFromState(): void {
   });
 
   const selectFields: Array<[string, keyof AppState]> = [
-    ['subsamplingMethod', 'subsamplingMethod'],
+    ['readoutMethod', 'readoutMethod'],
     ['outputFormat', 'outputFormat'],
   ];
   selectFields.forEach(([id, key]) => {
     const el = document.getElementById(id) as HTMLSelectElement | null;
     if (el) el.value = String(app.state[key]);
   });
+
+  populateV4l2Modes();
 
   const olpfEl = document.getElementById('olpfPresent') as HTMLInputElement | null;
   if (olpfEl) olpfEl.checked = app.state.olpfPresent;
@@ -479,10 +532,29 @@ export function syncInputsFromState(): void {
     h264BrValueSpan.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
   }
 
-  const lumaEl = document.getElementById('mode-luma') as HTMLInputElement | null;
-  const chromaEl = document.getElementById('mode-chroma') as HTMLInputElement | null;
-  if (lumaEl) lumaEl.checked = app.state.measurementMode === 'luma';
-  if (chromaEl) chromaEl.checked = app.state.measurementMode === 'chroma';
+  const monochromeEl = document.getElementById('mode-monochrome') as HTMLInputElement | null;
+  const colourEl = document.getElementById('mode-colour') as HTMLInputElement | null;
+  if (monochromeEl) monochromeEl.checked = app.state.measurementMode === 'monochrome';
+  if (colourEl) {
+    const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+    const isMonoSensor = radiometry.cfaFactor >= 0.95;
+    if (isMonoSensor) {
+      colourEl.disabled = true;
+      colourEl.checked = false;
+      if (app.state.measurementMode === 'colour') {
+        app.state.measurementMode = 'monochrome';
+        if (monochromeEl) monochromeEl.checked = true;
+      }
+    } else {
+      colourEl.disabled = false;
+      if (lastSensorWasMonochrome) {
+        app.state.measurementMode = 'colour';
+        if (monochromeEl) monochromeEl.checked = false;
+      }
+      colourEl.checked = app.state.measurementMode === 'colour';
+    }
+    lastSensorWasMonochrome = isMonoSensor;
+  }
 
   const fovEl = document.getElementById('diagonalFov') as HTMLInputElement | null;
   if (fovEl && fovEl !== document.activeElement) {
@@ -490,7 +562,6 @@ export function syncInputsFromState(): void {
   }
 
   updatePresetChipStyles();
-  updateResChipStyles();
   updateWavelengthChipStyles();
   updateWavelengthColorIndicator();
   updateIrBadge();
@@ -501,11 +572,7 @@ export function syncInputsFromState(): void {
   updateFpsPresetStyles();
   updateShutterPresetStyles();
 
-  const drStr = String(app.state.dynamicRangeDb);
-  document.querySelectorAll('.dr-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    btn.classList.toggle('active', String(btn.dataset.dr) === drStr);
-  });
+  updateDrBar();
 }
 
 function refresh(): void {

@@ -13,6 +13,34 @@ html {
 }
 
 @layer components {
+  .preset-chip,
+  .vel-preset,
+  .fps-preset,
+  .shutter-preset,
+  .chart-tab,
+  .lux-preset,
+  .sensor-model-chip {
+    @apply border border-slate-700 bg-slate-800/50 text-slate-400 transition hover:border-slate-500 hover:text-slate-300;
+  }
+
+  .preset-chip.active,
+  .vel-preset.active,
+  .fps-preset.active,
+  .shutter-preset.active,
+  .chart-tab.active,
+  .lux-preset.active,
+  .sensor-model-chip.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
+
+  .sync-toggle {
+    @apply border border-slate-700 bg-slate-800/50 text-slate-400 transition hover:border-pink-500 hover:text-pink-300;
+  }
+
+  .sync-toggle.active {
+    @apply border-pink-500 bg-pink-900/30 text-pink-300;
+  }
+
   .input-field {
     @apply rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-200
            placeholder-slate-500 transition-colors
@@ -27,68 +55,8 @@ html {
     @apply cursor-not-allowed opacity-40;
   }
 
-  .preset-chip.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
-  .vel-preset {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .vel-preset.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
-  .fps-preset {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .fps-preset.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
   .vel-input-active {
     @apply border-blue-500 ring-1 ring-blue-500/50;
-  }
-
-  .shutter-preset {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .shutter-preset.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
-  .sync-toggle {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-pink-500 hover:text-pink-300;
-  }
-
-  .sync-toggle.active {
-    @apply border-pink-500 bg-pink-900/30 text-pink-300;
-  }
-
-  .chart-tab {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .chart-tab.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
-  .dr-preset {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .dr-preset.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
-  }
-
-  .lux-preset {
-    @apply border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-500 hover:text-slate-300;
-  }
-
-  .lux-preset.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
   }
 
   .disabled-preset {
@@ -116,5 +84,31 @@ input[type="number"].no-spinner {
   direction: rtl;
   width: 20px;
   accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.dr-slider {
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 4px;
+  background: #334155;
+  outline: none;
+  cursor: pointer;
+}
+.dr-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #3b82f6;
+  cursor: pointer;
+}
+.dr-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  border: 2px solid #3b82f6;
   cursor: pointer;
 }

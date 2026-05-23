@@ -1,0 +1,43 @@
+{
+  "name": "imx477",
+  "label": "Sony IMX477",
+  "pixelPitch": 1.55,
+  "nativeWidth": 4056,
+  "nativeHeight": 3040,
+  "olpfPresent": false,
+  "dynamicRangeDb": 63,
+  "radiometry": {
+    "qePercent": 75,
+    "fullWellCapacity": 4300,
+    "readNoiseE": 3.0,
+    "darkCurrentE": 10,
+    "conversionGainUvPerE": 110,
+    "adcBits": 12,
+    "readoutTimeUs": 20,
+    "lensTransmission": 0.85,
+    "cfaFactor": 0.60,
+    "hasDualCG": false
+  },
+  "v4l2": {
+    "chipId": 1143,
+    "nativeSize": { "width": 4072, "height": 3176 },
+    "activeArray": { "left": 8, "top": 16, "width": 4056, "height": 3040 },
+    "pixelRates": [840000000],
+    "linkFreqs": [450000000, 453000000, 456000000, 459000000, 462000000, 498000000],
+    "mipiLanes": 4,
+    "xclk": 24000000,
+    "busFormats": ["SRGGB12_1X12", "SRGGB10_1X10"],
+    "supplies": ["VANA", "VDIG", "VDDL"],
+    "modes": [
+      { "width": 4056, "height": 3040, "maxFps": 10, "pixelRateIndex": 0, "hts": 24000, "vts": 3526, "readoutType": "native", "pitchMultiplier": 1.0, "fullFoV": true },
+      { "width": 2028, "height": 1520, "maxFps": 40, "pixelRateIndex": 0, "hts": 12740, "vts": 1726, "readoutType": "binning", "pitchMultiplier": 2.0, "fullFoV": true },
+      { "width": 2028, "height": 1080, "maxFps": 50, "pixelRateIndex": 0, "hts": 12740, "vts": 1726, "readoutType": "binning+cropping", "pitchMultiplier": 2.0, "fullFoV": false },
+      { "width": 1332, "height": 990, "maxFps": 120, "pixelRateIndex": 0, "hts": 6664, "vts": 1050, "readoutType": "subsampling+cropping", "pitchMultiplier": 3.05, "fullFoV": false }
+    ],
+    "exposure": { "min": 4, "max": 65442, "step": 1, "default": 1600 },
+    "analogueGain": { "min": 0, "max": 978, "step": 1, "default": 0 },
+    "digitalGain": { "min": 256, "max": 65535, "step": 1, "default": 256 },
+    "hblank": { "min": 19944, "max": 61464, "default": 19944 },
+    "vblank": { "min": 460, "max": 65500, "default": 460 }
+  }
+}
