@@ -1,4 +1,4 @@
-import type { AppState, DerivedState, Results, BottleneckType, LensTier } from './types';
+import type { AppState, DerivedState, Results, ExposureOptimization, BottleneckType, LensTier } from './types';
 import {
   OLPF_PENALTY,
   MOTION_MTF50_CONST,
@@ -12,7 +12,9 @@ import {
   CHROMA_OTHER_PENALTY,
   BOTTLENECK_RATIO,
   RAW_FORMATS,
+  SENSOR_RADIOMETRY,
 } from './constants';
+import { calculateExposureOptimizer } from './exposure';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const pixelPitch = state.pixelPitch;
@@ -60,6 +62,7 @@ export function calculateResults(
   fps: number,
   syncErrorP95: number,
   syncEnabled: boolean,
+  exposure?: ExposureOptimization,
 ): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
   const fcAberrated = fc * lensTierScalar(state.lensTier);
@@ -125,6 +128,9 @@ export function calculateResults(
   if (syncEnabled && fSyncMTF50 < fcAberrated * BOTTLENECK_RATIO && fSyncMTF50 < fNyquistSkipped * BOTTLENECK_RATIO && fSyncMTF50 < fDRLimited * BOTTLENECK_RATIO && fSyncMTF50 < fTemporal50 * BOTTLENECK_RATIO) {
     bottleneckType = 'sync-limited';
   }
+  if (exposure?.photonStarved) {
+    bottleneckType = 'photon-starved';
+  }
 
   return {
     fc,
@@ -143,6 +149,21 @@ export function calculateResults(
     contrastFloor,
     fSyncMTF50,
     syncErrorP95,
+    exposure: exposure ?? {
+      illuminanceSensorLux: 0,
+      photonsPerPxPerSec: 0,
+      electronsPerPxPerSec: 0,
+      tMinusSnr: 0,
+      tMotionMax: 0,
+      tSaturation: 0,
+      tOptimal: shutterTime,
+      optimalGain: 1,
+      optimalFps: fps,
+      snrAtOptimalDb: 0,
+      photonStarved: false,
+      signalPercentFwc: 0,
+      headroomStops: 0,
+    },
   };
 }
 

@@ -75,16 +75,27 @@ export function setTemporalPhase(ms: number): void {
   phaseOffset = Math.max(0, Math.min(300, ms));
   if (appRef) drawTemporalChart(appRef, true);
 }
+let maxFps = 240;
+export function setMaxFpsLimit(max: number): void { maxFps = max; }
+export function getMaxFpsLimit(): number { return maxFps; }
+
+let maxShutterDenom = 8000;
+export function setMaxShutterLimit(max: number): void { maxShutterDenom = max; }
+export function getMaxShutterLimit(): number { return maxShutterDenom; }
+
+const SHUTTER_PRESETS = [30, 60, 120, 250, 500, 1000];
 export function setFrameRate(fps: number): void {
-  frameRate = Math.max(1, Math.min(240, Math.round(fps)));
+  frameRate = Math.max(1, Math.min(maxFps, Math.round(fps)));
   if (shutterDenom < frameRate) {
-    shutterDenom = frameRate;
+    const valid = SHUTTER_PRESETS.filter(p => p >= frameRate);
+    shutterDenom = valid.length > 0 ? valid[0] : frameRate;
   }
   if (appRef) drawTemporalChart(appRef, true);
 }
+
 export function setShutterDenom(d: number): void {
   const minDenom = frameRate;
-  shutterDenom = Math.max(minDenom, Math.min(8000, Math.round(d)));
+  shutterDenom = Math.max(minDenom, Math.min(maxShutterDenom, Math.round(d)));
   if (appRef) drawTemporalChart(appRef, true);
 }
 export function setTemporalJitter(ms: number): void {

@@ -1,5 +1,5 @@
 import { createState, recalculate, setField } from './state';
-import { initInputs, syncInputsFromState } from './ui/inputs';
+import { initInputs, syncInputsFromState, updateCompressionControlsState } from './ui/inputs';
 import { updateOutputs } from './ui/outputs';
 import { drawChart } from './ui/chart';
 import { drawDistanceChart, setYMax } from './ui/distanceChart';
@@ -17,12 +17,16 @@ import {
   getShutterDenom,
   isSyncToggleOn,
   setSyncToggle,
+  getMaxFpsLimit,
+  getMaxShutterLimit,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
+import { SENSOR_RADIOMETRY } from './constants';
+import type { ExposureMode } from './types';
 
 const app = createState();
 
-function refreshAll(): void {
+let refreshAll = function(): void {
   recalculate(app);
   syncInputsFromState();
   updateOutputs(app);
@@ -30,7 +34,7 @@ function refreshAll(): void {
   drawDistanceChart(app);
   drawTemporalChart(app);
   updateAccelOutputs();
-}
+};
 
 initInputs(app);
 
@@ -39,6 +43,7 @@ drawChart(app);
 drawDistanceChart(app);
 drawTemporalChart(app);
 initAcceleration();
+updateOptimizerLockedControls(true);
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
   const slider = document.getElementById(id) as HTMLInputElement | null;
@@ -169,8 +174,25 @@ function updateVelocityPresetStyles(): void {
   }
 }
 
-function updateFpsPresetStyles(): void {
+export function updateFpsPresetStyles(): void {
   updatePresetStyles('.fps-preset', () => getFrameRate(), 'fps');
+  const max = getMaxFpsLimit();
+  document.querySelectorAll('.fps-preset').forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    const fps = parseInt(btn.dataset.fps || '0', 10);
+    if (fps > max) {
+      btn.classList.add('disabled-preset');
+    } else {
+      btn.classList.remove('disabled-preset');
+    }
+  });
+  const fpsCustom = document.getElementById('fps-custom') as HTMLInputElement | null;
+  if (fpsCustom) {
+    fpsCustom.max = String(max);
+    if (fpsCustom !== document.activeElement) {
+      fpsCustom.value = String(getFrameRate());
+    }
+  }
 }
 
 function updateFpsLabel(): void {
@@ -231,17 +253,33 @@ if (customVelInput) {
 }
 
 // FPS preset buttons
-document.querySelectorAll('.fps-preset').forEach((el) => {
+  document.querySelectorAll('.fps-preset').forEach((el) => {
   el.addEventListener('click', () => {
     const fps = parseInt((el as HTMLButtonElement).dataset.fps || '30', 10);
+    if (fps > getMaxFpsLimit()) return;
     setFrameRate(fps);
     updateFpsPresetStyles();
     updateFpsLabel();
+    updateShutterPresetStyles();
     refreshAll();
   });
 });
 
 updateFpsPresetStyles();
+
+// Custom FPS number input
+const customFpsInput = document.getElementById('fps-custom') as HTMLInputElement | null;
+if (customFpsInput) {
+  customFpsInput.addEventListener('input', () => {
+    const fps = parseInt(customFpsInput.value, 10);
+    if (isNaN(fps) || fps < 1) return;
+    setFrameRate(fps);
+    updateFpsPresetStyles();
+    updateFpsLabel();
+    updateShutterPresetStyles();
+    refreshAll();
+  });
+}
 
 // Shutter speed preset buttons
 document.querySelectorAll('.shutter-preset').forEach((el) => {
@@ -253,7 +291,19 @@ document.querySelectorAll('.shutter-preset').forEach((el) => {
   });
 });
 
-function updateShutterPresetStyles(): void {
+// Custom shutter speed number input
+const customShutterInput = document.getElementById('shutter-custom') as HTMLInputElement | null;
+if (customShutterInput) {
+  customShutterInput.addEventListener('input', () => {
+    const d = parseInt(customShutterInput.value, 10);
+    if (isNaN(d) || d < 1) return;
+    setShutterDenom(d);
+    updateShutterPresetStyles();
+    refreshAll();
+  });
+}
+
+export function updateShutterPresetStyles(): void {
   const minDenom = getFrameRate();
   updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
   document.querySelectorAll('.shutter-preset').forEach((el) => {
@@ -265,6 +315,14 @@ function updateShutterPresetStyles(): void {
       btn.classList.remove('disabled-preset');
     }
   });
+  const shutterMax = getMaxShutterLimit();
+  const shutterCustom = document.getElementById('shutter-custom') as HTMLInputElement | null;
+  if (shutterCustom) {
+    shutterCustom.max = String(shutterMax);
+    if (shutterCustom !== document.activeElement) {
+      shutterCustom.value = String(getShutterDenom());
+    }
+  }
 }
 
 updateShutterPresetStyles();
@@ -295,6 +353,112 @@ bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawTemporalChart(a
 bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, 'temporal-zoom-label', ' mm');
 
 updateVelocityPresetStyles();
+
+// Exposure mode toggle
+const exposureModeBtn = document.getElementById('exposure-mode-toggle');
+if (exposureModeBtn) {
+  exposureModeBtn.addEventListener('click', () => {
+    const current = app.state.exposureMode;
+    const next: ExposureMode = current === 'optimized' ? 'manual' : 'optimized';
+    setField(app, 'exposureMode', next);
+    exposureModeBtn.textContent = next === 'optimized' ? 'On' : 'Off';
+    exposureModeBtn.classList.toggle('active', next === 'optimized');
+    exposureModeBtn.classList.toggle('text-blue-400', next === 'optimized');
+    exposureModeBtn.classList.toggle('text-slate-400', next !== 'optimized');
+    updateOptimizerLockedControls(next === 'optimized');
+    refreshAll();
+  });
+}
+
+export function updateOptimizerLockedControls(isOn: boolean): void {
+  const fpsButtons = document.querySelectorAll('#fps-presets .fps-preset');
+  const shutterButtons = document.querySelectorAll('#shutter-presets .shutter-preset');
+  const fpsCustom = document.getElementById('fps-custom') as HTMLInputElement | null;
+  const shutterCustom = document.getElementById('shutter-custom') as HTMLInputElement | null;
+  const allButtons = [...fpsButtons, ...shutterButtons];
+  allButtons.forEach((el) => {
+    const btn = el as HTMLButtonElement;
+    if (isOn) {
+      btn.disabled = true;
+      btn.title = 'Managed by Exposure Optimizer';
+      btn.classList.add('disabled-preset');
+    } else {
+      btn.disabled = false;
+      btn.removeAttribute('title');
+      btn.classList.remove('disabled-preset');
+    }
+  });
+  if (fpsCustom) {
+    fpsCustom.disabled = isOn;
+    fpsCustom.title = isOn ? 'Managed by Exposure Optimizer' : '';
+    if (isOn) fpsCustom.style.opacity = '0.4'; else fpsCustom.style.opacity = '';
+  }
+  if (shutterCustom) {
+    shutterCustom.disabled = isOn;
+    shutterCustom.title = isOn ? 'Managed by Exposure Optimizer' : '';
+    if (isOn) shutterCustom.style.opacity = '0.4'; else shutterCustom.style.opacity = '';
+  }
+}
+
+// Lux presets
+const LUX_PRESETS: Record<string, number> = {
+  '0.2': 0.2,
+  '100': 100,
+  '1000': 1000,
+  '10000': 10000,
+  '100000': 100000,
+};
+document.querySelectorAll('.lux-preset').forEach((el) => {
+  el.addEventListener('click', () => {
+    const lux = LUX_PRESETS[(el as HTMLButtonElement).dataset.lux || '1000'];
+    setField(app, 'luxAtSubject', lux);
+    syncInputsFromState();
+    updateLuxPresetStyles();
+    refreshAll();
+  });
+});
+function updateLuxPresetStyles(): void {
+  document.querySelectorAll('.lux-preset').forEach((el) => {
+    const lux = LUX_PRESETS[(el as HTMLButtonElement).dataset.lux || ''];
+    const btn = el as HTMLButtonElement;
+    btn.classList.toggle('active', lux === app.state.luxAtSubject);
+  });
+}
+updateLuxPresetStyles();
+
+// Advanced sensor specs toggle
+const sensorAdvToggle = document.getElementById('sensor-advanced-toggle');
+const sensorAdv = document.getElementById('sensor-advanced');
+if (sensorAdvToggle && sensorAdv) {
+  sensorAdvToggle.addEventListener('click', () => {
+    sensorAdv.classList.toggle('hidden');
+  });
+}
+
+// Update advanced sensor specs display on every refresh
+const prevRefreshAll = refreshAll;
+refreshAll = function(): void {
+  prevRefreshAll();
+  updateAdvancedSensorSpecs();
+};
+
+export function updateAdvancedSensorSpecs(): void {
+  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+  setText('as-qe', radiometry.qePercent + '%');
+  setText('as-fwc', radiometry.fullWellCapacity.toLocaleString() + ' e\u207b');
+  setText('as-rn', radiometry.readNoiseE.toFixed(1) + ' e\u207b RMS');
+  setText('as-dc', radiometry.darkCurrentE.toFixed(0) + ' e\u207b/s');
+  setText('as-cg', radiometry.conversionGainUvPerE.toFixed(0) + ' \u00b5V/e\u207b');
+  setText('as-adc', radiometry.adcBits + '-bit');
+  setText('as-readout', radiometry.readoutTimeUs + ' \u00b5s/row');
+  setText('as-lens-t', (radiometry.lensTransmission * 100).toFixed(0) + '%');
+  setText('as-cfa', radiometry.cfaFactor.toFixed(2));
+};
+
+function setText(id: string, text: string): void {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
 
 window.addEventListener('resize', () => {
   drawChart(app);

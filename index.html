@@ -30,20 +30,11 @@
       <button data-preset="imx219" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
         Pi Cam v2 (IMX219)
       </button>
-      <button data-preset="imx708" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
-        Pi Cam v3 (IMX708)
-      </button>
-      <button data-preset="imx708-wide" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
-        Pi Cam v3 Wide
-      </button>
       <button data-preset="imx477" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
         Pi HQ Cam (IMX477)
       </button>
       <button data-preset="ov9281" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
         OV9281 Module
-      </button>
-      <button data-preset="flagship-smartphone" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
-        Smartphone
       </button>
       <button data-preset="custom" class="preset-chip w-full rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-left text-xs font-medium text-slate-400 transition hover:border-blue-500">
         Custom
@@ -181,20 +172,20 @@
         <!-- Quick controls -->
         <div id="quick-controls" class="mt-3 flex gap-1.5 items-stretch">
           <!-- Velocity of tracked object -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Velocity of tracked object</p>
             <div class="flex items-center gap-0.5" id="velocity-presets">
               <button data-velocity="static" class="vel-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Static</button>
               <button data-velocity="walking" class="vel-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Walking</button>
               <button data-velocity="sports" class="vel-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Sports</button>
-              <input id="velocity-custom" class="calc-input input-field no-spinner w-14" type="number" step="0.1" min="0" max="100" placeholder="m/s" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              <input id="velocity-custom" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="0" max="100" placeholder="m/s" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
             </div>
           </div>
 
           <!-- Resolution presets only -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Resolution</p>
-            <div class="flex flex-nowrap gap-0.5 items-start">
+            <div class="grid grid-cols-3 gap-0.5">
               <button data-res="sd-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500 leading-none">SD MJPG</button>
               <button data-res="sd-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500 leading-none">SD NV12</button>
               <button data-res="720p-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500 leading-none">720 MJPG</button>
@@ -205,40 +196,63 @@
           </div>
 
           <!-- Bitrate -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Bitrate</p>
             <p id="bitrate-display" class="text-xs font-mono text-slate-300">—</p>
           </div>
 
           <!-- FPS -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">FPS</p>
-            <div class="flex flex-nowrap gap-0.5" id="fps-presets">
+            <div class="flex items-center gap-0.5" id="fps-presets">
               <button data-fps="25" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">25</button>
               <button data-fps="30" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">30</button>
               <button data-fps="50" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">50</button>
               <button data-fps="60" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">60</button>
               <button data-fps="90" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">90</button>
               <button data-fps="120" class="fps-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">120</button>
+              <input id="fps-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="240" placeholder="fps" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
             </div>
           </div>
 
           <!-- Shutter speed -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Shutter</p>
-            <div class="flex flex-nowrap gap-0.5" id="shutter-presets">
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Shutter speed</p>
+            <div class="flex items-center gap-0.5" id="shutter-presets">
               <button data-shutter="30" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/30</button>
               <button data-shutter="60" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/60</button>
               <button data-shutter="120" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/120</button>
               <button data-shutter="250" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/250</button>
               <button data-shutter="500" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/500</button>
               <button data-shutter="1000" class="shutter-preset rounded border px-1 py-1 text-[11px] font-medium transition text-center leading-none">1/1000</button>
+              <input id="shutter-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="8000" placeholder="1/N" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+            </div>
+          </div>
+
+          <!-- Exposure Optimizer toggle + lux presets + SNR bar -->
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Exposure Optimizer</p>
+            <div class="flex items-center gap-1 mb-1">
+              <button id="exposure-mode-toggle" class="rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-blue-400 transition hover:border-blue-500 leading-none whitespace-nowrap active">On</button>
+              <div id="exp-snr-container" class="flex-1 flex items-center gap-1">
+                <div class="flex-1 h-1.5 rounded-full bg-slate-800">
+                  <div id="exp-snr-bar" class="h-full rounded-full transition-all" style="width:0%"></div>
+                </div>
+                <span id="exp-snr-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap">—</span>
+              </div>
+            </div>
+            <div class="flex flex-nowrap gap-0.5" id="lux-presets">
+              <button data-lux="0.2" class="lux-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Moon</button>
+              <button data-lux="100" class="lux-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Indoor</button>
+              <button data-lux="1000" class="lux-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none active">Overcast</button>
+              <button data-lux="10000" class="lux-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Daylight</button>
+              <button data-lux="100000" class="lux-preset rounded border px-1 py-1 text-[11px] font-medium transition leading-none">Sunlight</button>
             </div>
           </div>
 
           <!-- Sync Error Toggle -->
-          <div class="flex-1 min-w-0 rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sync Errors</p>
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Include camera sync error</p>
             <button id="sync-toggle" class="sync-toggle rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-pink-500 leading-none whitespace-nowrap">Off</button>
           </div>
         </div>
@@ -249,6 +263,8 @@
       <div id="bottleneck-banner" class="mt-3 mb-3 rounded-lg border border-slate-800 bg-slate-900/50 p-2.5 text-xs text-slate-400">
         —
       </div>
+
+
 
       <!-- Metric cards -->
       <div id="metric-cards" class="mb-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
@@ -282,7 +298,7 @@
 
       <!-- Scrollable detailed controls section -->
       <div id="detailed-controls" class="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
-        <div class="grid gap-4 lg:grid-cols-3">
+        <div class="grid gap-4 lg:grid-cols-4">
 
           <!-- LENS -->
           <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
@@ -380,13 +396,11 @@
               <div>
                 <label class="mb-1 block text-xs font-medium text-slate-400">Sensor model</label>
                 <div class="flex flex-wrap gap-1.5">
-                  <button data-preset="ov5647" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV5647</button>
-                  <button data-preset="imx219" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX219</button>
-                  <button data-preset="imx708" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708</button>
-                  <button data-preset="imx708-wide" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708 W</button>
-                  <button data-preset="imx477" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX477</button>
-                  <button data-preset="ov9281" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV9281</button>
-                  <button data-preset="ar0234" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">AR0234</button>
+                  <button data-preset="ov5647" class="sensor-model-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV5647</button>
+                  <button data-preset="imx219" class="sensor-model-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX219</button>
+                  <button data-preset="imx477" class="sensor-model-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX477</button>
+                  <button data-preset="ov9281" class="sensor-model-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV9281</button>
+                  <button data-preset="custom" class="sensor-model-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Custom</button>
                 </div>
               </div>
 
@@ -405,6 +419,73 @@
                   <span id="derived-nyquist" class="font-mono text-slate-300">—</span>
                 </div>
               </div>
+
+              <div>
+                <button id="sensor-advanced-toggle" class="text-[10px] font-medium text-slate-500 hover:text-slate-300 underline">Advanced sensor specs</button>
+                <div id="sensor-advanced" class="mt-2 hidden rounded border border-slate-800 bg-slate-950/50 p-2">
+                  <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                    <span class="text-slate-500">QE @ 550nm</span>
+                    <span id="as-qe" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Full-well capacity</span>
+                    <span id="as-fwc" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Read noise</span>
+                    <span id="as-rn" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Dark current @ 25°C</span>
+                    <span id="as-dc" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Conversion gain</span>
+                    <span id="as-cg" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">ADC bits</span>
+                    <span id="as-adc" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Readout time</span>
+                    <span id="as-readout" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">Lens transmission</span>
+                    <span id="as-lens-t" class="font-mono text-slate-300">—</span>
+                    <span class="text-slate-500">CFA factor</span>
+                    <span id="as-cfa" class="font-mono text-slate-300">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- LIGHT & EXPOSURE -->
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">Light &amp; Exposure</legend>
+            <div class="space-y-3">
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="luxAtSubject">Scene luminance</label>
+                <div class="flex items-center gap-2">
+                  <input id="luxAtSubject" class="calc-input input-field w-full" type="number" step="1" min="0.01" max="110000" value="1000" />
+                  <span class="text-xs text-slate-500">lux</span>
+                </div>
+
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="subjectReflectance">Subject reflectance</label>
+                <div class="flex items-center gap-2">
+                  <input id="subjectReflectance" class="calc-input input-field w-16" type="number" step="0.01" min="0.01" max="1" value="0.18" />
+                  <span class="text-xs text-slate-500">(0–1)</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="desiredSnrDb">Desired SNR</label>
+                <div class="flex items-center gap-2">
+                  <input id="desiredSnrDb" class="calc-input input-field w-16" type="number" step="1" min="5" max="50" value="20" />
+                  <span class="text-xs text-slate-500">dB</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="temperatureC">Sensor temperature</label>
+                <div class="flex items-center gap-2">
+                  <input id="temperatureC" class="calc-input input-field w-16" type="number" step="1" min="-20" max="70" value="25" />
+                  <span class="text-xs text-slate-500">&deg;C</span>
+                </div>
+              </div>
+
             </div>
           </fieldset>
 

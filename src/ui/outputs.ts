@@ -22,6 +22,7 @@ export function updateOutputs(app: AppStateFull): void {
 
   updateBitrate(app);
   updateBottleneckBanner(r.bottleneckType, app);
+  updateExposurePanel(app);
   updateConditionalNotes(app);
 }
 
@@ -58,6 +59,35 @@ function updateBitrate(app: AppStateFull): void {
   el.textContent = bitrateMbps >= 100
     ? Math.round(bitrateMbps) + ' Mbps'
     : bitrateMbps.toFixed(1) + ' Mbps';
+}
+
+function updateExposurePanel(app: AppStateFull): void {
+  const bar = document.getElementById('exp-snr-bar');
+  const label = document.getElementById('exp-snr-label');
+  if (!bar || !label) return;
+
+  const e = app.results.exposure;
+  const snr = e.snrAtOptimalDb;
+  const target = app.state.desiredSnrDb;
+
+  label.textContent = snr.toFixed(1) + ' dB';
+
+  let barColor: string;
+  let barWidth: number;
+
+  if (snr >= target) {
+    barColor = '#10b981';
+  } else if (snr >= target * 0.5) {
+    barColor = '#eab308';
+  } else {
+    barColor = '#ef4444';
+  }
+
+  const linearSnr = Math.pow(10, snr / 20);
+  const linearTarget = Math.pow(10, target / 20);
+  barWidth = Math.max(3, Math.min(100, (linearSnr / linearTarget) * 100));
+  bar.style.width = barWidth + '%';
+  bar.style.backgroundColor = barColor;
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
@@ -103,6 +133,11 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
       color: 'border-pink-800 bg-pink-950/30 text-pink-300',
       icon: '\u27f7',
       text: `Sync-limited: camera timing errors cause ${app.results.syncErrorP95.toFixed(1)}\u00a0mm positional uncertainty (MTF50 at ${app.results.fSyncMTF50 < 1000 ? app.results.fSyncMTF50.toFixed(1) : '\u221e'} lp/mm). Software: synchronize cameras tightly, reduce timing jitter. Hardware: genlock-capable cameras, hardware trigger sync.`,
+    },
+    'photon-starved': {
+      color: 'border-indigo-800 bg-indigo-950/30 text-indigo-300',
+      icon: '\u25c6',
+      text: `Photon-starved: ${state.luxAtSubject.toFixed(1)} lux scene brightness limits SNR below ${state.desiredSnrDb}\u00a0dB target. Software: reduce SNR target, lower gain, reduce frame rate. Hardware: wider-aperture lens, larger pixels, higher-QE sensor, increase scene illumination.`,
     },
     balanced: {
       color: 'border-emerald-800 bg-emerald-950/30 text-emerald-300',

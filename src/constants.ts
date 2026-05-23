@@ -76,3 +76,49 @@ export const CHROMA_UYVY_PENALTY = 0.5;
 export const CHROMA_OTHER_PENALTY = 0.25;
 export const BOTTLENECK_RATIO = 0.85;
 export const BINNING_VALUES = [1, 2, 4] as const;
+
+export const PHOTONS_PER_UM2_PER_LUX_SEC = 4130;
+export const DEFAULT_LENS_TRANSMISSION = 0.85;
+export const DEFAULT_REFLECTANCE = 0.18;
+export const DEFAULT_SNR_TARGET_DB = 20;
+export const DEFAULT_TEMPERATURE_C = 25;
+export const DARK_CURRENT_DOUBLING_C = 6;
+export const DEFAULT_LUX_SUBJECT = 1000;
+export const EXPOSURE_HEADROOM_FACTOR = 0.8;
+export const FWC_TARGET_FILL = 0.5;
+export const GAIN_MIN = 1.0;
+export const GAIN_MAX = 8.0;
+export const TEMP_MIN_C = -20;
+export const TEMP_MAX_C = 70;
+export const LUX_MIN = 0.01;
+export const LUX_MAX = 110000;
+export const SNR_DB_MIN = 5;
+export const SNR_DB_MAX = 50;
+
+export const SENSOR_RADIOMETRY: Record<string, import('./types').SensorRadiometry> = {
+  ov5647: {
+    qePercent: 55, fullWellCapacity: 3500, readNoiseE: 4.0, darkCurrentE: 25,
+    conversionGainUvPerE: 150, adcBits: 10, readoutTimeUs: 32, lensTransmission: 0.85,
+    cfaFactor: 0.55, hasDualCG: false,
+  },
+  imx219: {
+    qePercent: 72, fullWellCapacity: 2200, readNoiseE: 3.5, darkCurrentE: 15,
+    conversionGainUvPerE: 180, adcBits: 10, readoutTimeUs: 28, lensTransmission: 0.85,
+    cfaFactor: 0.58, hasDualCG: false,
+  },
+  imx477: {
+    qePercent: 75, fullWellCapacity: 4300, readNoiseE: 3.0, darkCurrentE: 10,
+    conversionGainUvPerE: 110, adcBits: 12, readoutTimeUs: 20, lensTransmission: 0.85,
+    cfaFactor: 0.60, hasDualCG: false,
+  },
+  ov9281: {
+    qePercent: 85, fullWellCapacity: 8500, readNoiseE: 6.0, darkCurrentE: 35,
+    conversionGainUvPerE: 50, adcBits: 10, readoutTimeUs: 15, lensTransmission: 0.85,
+    cfaFactor: 1.0, hasDualCG: false,
+  },
+  custom: {
+    qePercent: 60, fullWellCapacity: 5000, readNoiseE: 4.0, darkCurrentE: 20,
+    conversionGainUvPerE: 100, adcBits: 12, readoutTimeUs: 25, lensTransmission: 0.85,
+    cfaFactor: 0.55, hasDualCG: false,
+  },
+};

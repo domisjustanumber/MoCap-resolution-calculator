@@ -1,5 +1,7 @@
-import type { AppState, PresetName, AppStateFull } from './types';
+import type { AppState, PresetName, AppStateFull, ExposureMode } from './types';
 import { calculateDerived, calculateResults } from './engine';
+import { calculateExposureOptimizer } from './exposure';
+import { PRESETS } from './presets';
 import {
   APERTURE_MIN,
   APERTURE_MAX,
@@ -10,8 +12,19 @@ import {
   H264_QP_MAX,
   H264_BITRATE_MIN_MBPS,
   H264_BITRATE_MAX_MBPS,
+  SENSOR_RADIOMETRY,
+  DEFAULT_LUX_SUBJECT,
+  DEFAULT_REFLECTANCE,
+  DEFAULT_SNR_TARGET_DB,
+  DEFAULT_TEMPERATURE_C,
+  TEMP_MIN_C,
+  TEMP_MAX_C,
+  LUX_MIN,
+  LUX_MAX,
+  SNR_DB_MIN,
+  SNR_DB_MAX,
 } from './constants';
-import { getSpatialVelocity, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn } from './ui/temporalChart';
+import { getSpatialVelocity, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -34,13 +47,18 @@ export const DEFAULT_STATE: AppState = {
   lensTier: 'cheap-plastic',
   distanceToSubject: 1,
   dynamicRangeDb: 66,
+  luxAtSubject: DEFAULT_LUX_SUBJECT,
+  subjectReflectance: DEFAULT_REFLECTANCE,
+  desiredSnrDb: DEFAULT_SNR_TARGET_DB,
+  temperatureC: DEFAULT_TEMPERATURE_C,
+  exposureMode: 'optimized' as ExposureMode,
 };
 
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
   const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
-  return { state, activePreset: 'ov5647', derived, results };
+  return { state, activePreset: 'ov5647', activeSensorPreset: 'ov5647', derived, results };
 }
 
 export function clamped(value: number, min: number, max: number): number {
@@ -82,6 +100,11 @@ export function validateState(state: AppState): string[] {
     state.pixelBinning = 1;
   }
 
+  state.luxAtSubject = clamped(state.luxAtSubject, LUX_MIN, LUX_MAX);
+  state.subjectReflectance = clamped(state.subjectReflectance, 0.01, 1);
+  state.desiredSnrDb = clamped(state.desiredSnrDb, SNR_DB_MIN, SNR_DB_MAX);
+  state.temperatureC = clamped(state.temperatureC, TEMP_MIN_C, TEMP_MAX_C);
+
   return warnings;
 }
 
@@ -96,7 +119,35 @@ export function recalculate(app: AppStateFull): AppStateFull {
   }
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
-  app.results = calculateResults(state, app.derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
+
+  const velocity = getSpatialVelocity();
+  const manualShutter = getShutterTime();
+  const manualFps = getFrameRate();
+  const syncErr = getSyncErrorP95();
+  const syncOn = isSyncToggleOn();
+
+  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+  const readoutTimeS = (radiometry.readoutTimeUs * state.nativeHeight) / 1_000_000;
+  const sensorMaxFps = readoutTimeS > 0 ? Math.round(1 / readoutTimeS) : 240;
+  const sensorMaxShutterDenom = Math.min(8000, Math.round(1_000_000 / (radiometry.readoutTimeUs * 2)));
+  setMaxFpsLimit(sensorMaxFps);
+  setMaxShutterLimit(sensorMaxShutterDenom);
+
+  if (state.exposureMode === 'optimized') {
+    const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
+    const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
+    const cappedFps = Math.min(exposure.optimalFps, sensorMaxFps);
+    const cappedShutterDenom = Math.min(Math.round(1 / Math.max(0.0001, exposure.tOptimal)), sensorMaxShutterDenom);
+    const cappedShutterTime = 1 / Math.max(1, cappedShutterDenom);
+    app.results = calculateResults(state, app.derived, velocity, cappedShutterTime, cappedFps, syncErr, syncOn, exposure);
+    setFrameRate(Math.round(cappedFps));
+    setShutterDenom(cappedShutterDenom);
+  } else {
+    const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
+    const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
+    app.results = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn, exposure);
+  }
+
   return app;
 }
 
@@ -107,6 +158,7 @@ export function applyPreset(app: AppStateFull, presetValues: Partial<AppState>, 
     app.state.lensTier = prevLensTier;
   }
   app.activePreset = name;
+  app.activeSensorPreset = name;
   return recalculate(app);
 }
 
@@ -118,5 +170,24 @@ export function setField<K extends keyof AppState>(app: AppStateFull, key: K, va
   if (key !== 'lensTier') {
     app.activePreset = 'custom';
   }
+  app.activeSensorPreset = detectSensorPreset(app);
   return recalculate(app);
+}
+
+export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
+  app.activeSensorPreset = name;
+  return recalculate(app);
+}
+
+function detectSensorPreset(app: AppStateFull): string {
+  for (const preset of PRESETS) {
+    if (preset.name === 'custom') continue;
+    const { pixelPitch, nativeWidth, nativeHeight } = preset.values;
+    if (pixelPitch === app.state.pixelPitch &&
+        nativeWidth === app.state.nativeWidth &&
+        nativeHeight === app.state.nativeHeight) {
+      return preset.name;
+    }
+  }
+  return 'custom';
 }

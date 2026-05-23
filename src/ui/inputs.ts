@@ -1,11 +1,15 @@
 import type { AppStateFull, AppState, Preset } from '../types';
-import { setField, applyPreset, recalculate } from '../state';
+import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
 import { PRESETS } from '../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { drawTemporalChart } from './temporalChart';
+import { updateAdvancedSensorSpecs } from '../main';
+import { updateOptimizerLockedControls } from '../main';
+import { updateShutterPresetStyles } from '../main';
+import { updateFpsPresetStyles } from '../main';
 
 let app: AppStateFull;
 
@@ -34,6 +38,10 @@ export function initInputs(state: AppStateFull): void {
   bindNumberInput('extractedHeight', 'extractedHeight');
   bindSelectInput('subsamplingMethod', 'subsamplingMethod');
   bindSelectInput('outputFormat', 'outputFormat');
+  bindNumberInput('luxAtSubject', 'luxAtSubject');
+  bindNumberInput('subjectReflectance', 'subjectReflectance');
+  bindNumberInput('desiredSnrDb', 'desiredSnrDb');
+  bindNumberInput('temperatureC', 'temperatureC');
   bindRangeInput('mjpgQuality', 'mjpgQuality');
   bindH264QpInput();
   bindH264BitrateInput();
@@ -42,6 +50,7 @@ export function initInputs(state: AppStateFull): void {
   bindLensTierChips();
   bindProcessingChips();
   bindPresetChips();
+  bindSensorModelChips();
   buildWavelengthChips();
 
   syncInputsFromState();
@@ -245,7 +254,7 @@ function handleExtractedClamp(): void {
 }
 
 function bindPresetChips(): void {
-  const chips = document.querySelectorAll('.preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  const chips = document.querySelectorAll('#preset-bar .preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   chips.forEach((chip) => {
     chip.addEventListener('click', () => {
       const name = chip.dataset.preset;
@@ -260,10 +269,31 @@ function bindPresetChips(): void {
   });
 }
 
+function bindSensorModelChips(): void {
+  const chips = document.querySelectorAll('.sensor-model-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const name = chip.dataset.preset;
+      if (!name) return;
+      setSensorPreset(app, name);
+      syncInputsFromState();
+      refresh();
+    });
+  });
+}
+
 export function updatePresetChipStyles(): void {
-  const chips = document.querySelectorAll('.preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  const chips = document.querySelectorAll('#preset-bar .preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   chips.forEach((chip) => {
     if (chip.dataset.preset === app.activePreset) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+  const sensorChips = document.querySelectorAll('.sensor-model-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  sensorChips.forEach((chip) => {
+    if (chip.dataset.preset === app.activeSensorPreset) {
       chip.classList.add('active');
     } else {
       chip.classList.remove('active');
@@ -395,6 +425,10 @@ export function syncInputsFromState(): void {
     'extractedWidth',
     'extractedHeight',
     'dynamicRangeDb',
+    'luxAtSubject',
+    'subjectReflectance',
+    'desiredSnrDb',
+    'temperatureC',
   ];
   numberFields.forEach((key) => {
     const el = document.getElementById(key) as HTMLInputElement | null;
@@ -464,6 +498,9 @@ export function syncInputsFromState(): void {
 
   handleExtractedClamp();
 
+  updateFpsPresetStyles();
+  updateShutterPresetStyles();
+
   const drStr = String(app.state.dynamicRangeDb);
   document.querySelectorAll('.dr-preset').forEach((el) => {
     const btn = el as HTMLButtonElement;
@@ -477,4 +514,8 @@ function refresh(): void {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
+  updateAdvancedSensorSpecs();
+  updateOptimizerLockedControls(app.state.exposureMode === 'optimized');
+  updateShutterPresetStyles();
+  updateFpsPresetStyles();
 }
