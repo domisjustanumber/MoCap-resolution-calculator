@@ -1,7 +1,9 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatUm, formatFov, formatFeatureMm, formatSensorSize } from '../engine';
 import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS } from '../constants';
-import { getFrameRate } from './temporalChart';
+import { getFrameRate, getShutterTime } from './temporalChart';
+import { SENSOR_RADIOMETRY } from '../../presets';
+import { DEFAULT_RADIOMETRY } from '../constants';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -67,25 +69,28 @@ function updateExposurePanel(app: AppStateFull): void {
   if (!bar || !label) return;
 
   const e = app.results.exposure;
-  const snr = e.snrAtOptimalDb;
+  const shutterTime = getShutterTime();
+  const actualElectrons = e.electronsPerPxPerSec * Math.max(0.00001, shutterTime);
+  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
+  const RN2 = radiometry.readNoiseE * radiometry.readNoiseE;
+  const DC = radiometry.darkCurrentE * shutterTime;
+  const totalNoise = Math.sqrt(actualElectrons + RN2 + DC);
+  const snr = totalNoise > 0 ? 20 * Math.log10(actualElectrons / totalNoise) : 0;
   const target = app.state.desiredSnrDb;
+  const snrRounded = Math.round(snr * 10) / 10;
 
   label.textContent = snr.toFixed(1) + ' dB';
 
   let barColor: string;
-  let barWidth: number;
-
-  if (snr >= target) {
+  if (snrRounded >= target) {
     barColor = '#10b981';
-  } else if (snr >= target * 0.5) {
+  } else if (snrRounded >= target * 0.5) {
     barColor = '#eab308';
   } else {
     barColor = '#ef4444';
   }
 
-  const linearSnr = Math.pow(10, snr / 20);
-  const linearTarget = Math.pow(10, target / 20);
-  barWidth = Math.max(3, Math.min(100, (linearSnr / linearTarget) * 100));
+  const barWidth = Math.max(3, Math.min(100, (snrRounded / Math.max(1, target)) * 100));
   bar.style.width = barWidth + '%';
   bar.style.backgroundColor = barColor;
 }

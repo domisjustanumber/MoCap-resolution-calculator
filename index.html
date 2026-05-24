@@ -24,16 +24,16 @@
     <!-- Left sidebar: Camera preset buttons (sticky) -->
     <div id="preset-bar" class="sticky top-4 w-36 shrink-0 flex flex-col gap-0.5 self-start max-h-[calc(100vh-4rem)] overflow-y-auto">
       <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Camera</p>
-      <button data-preset="ov5647" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-200 hover:border-blue-500 bg-slate-800">
+      <button data-preset="pi-cam-v1" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-200 hover:border-blue-500 bg-slate-800">
         Pi Cam v1 (OV5647)
       </button>
-      <button data-preset="imx219" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+      <button data-preset="pi-cam-v2" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
         Pi Cam v2 (IMX219)
       </button>
-      <button data-preset="imx477" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+      <button data-preset="pi-hq-cam" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
         Pi HQ Cam (IMX477)
       </button>
-      <button data-preset="ov9281" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+      <button data-preset="ov9281-module" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
         OV9281 Module
       </button>
       <button data-preset="custom" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
@@ -214,22 +214,45 @@
               <button data-shutter="1000" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/1000</button>
               <input id="shutter-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="8000" placeholder="1/N" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
             </div>
+            <div class="mt-1 flex items-center gap-1">
+              <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Gain</label>
+              <input id="gain-slider" class="w-full" type="range" min="1.0" max="8.0" step="0.1" value="1.0" />
+              <input id="gain-value" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="1.0" max="8.0" value="1.0" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              <span class="text-[10px] text-slate-600">×</span>
+            </div>
+            <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
+              <span>1× Unity</span>
+              <span>2×</span>
+              <span>4×</span>
+              <span>8× Max</span>
+            </div>
           </div>
 
-          <!-- Exposure Optimizer toggle + lux presets + SNR bar -->
+          <!-- Exposure Optimizer + SNR bar -->
           <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
             <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Exposure Optimizer</p>
-            <div class="flex items-center gap-1 mb-1">
-              <button id="exposure-mode-toggle" class="rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-blue-400 transition hover:border-blue-500 leading-none whitespace-nowrap active">On</button>
-              <div id="exp-snr-container" class="flex-1 flex items-center gap-1">
+            <div class="flex items-center gap-1">
+              <button id="optimize-btn" class="rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500 leading-none whitespace-nowrap">Optimize</button>
+              <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Target SNR</label>
+              <input id="desiredSnrDb" class="calc-input input-field no-spinner w-10" type="number" step="1" min="5" max="50" value="20" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              <span class="text-[10px] text-slate-600 whitespace-nowrap">dB</span>
+            </div>
+            <div id="exp-snr-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Current SNR</div>
+              <div class="flex items-center gap-1">
                 <div class="flex-1 h-1.5 rounded-full bg-slate-800">
                   <div id="exp-snr-bar" class="h-full rounded-full transition-all" style="width:0%"></div>
                 </div>
                 <span id="exp-snr-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap">—</span>
               </div>
             </div>
+          </div>
+
+          <!-- Light level -->
+          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
+            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Light level</p>
             <div class="flex flex-nowrap gap-0.5" id="lux-presets">
-              <button data-lux="0.2" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Moon</button>
+              <button data-lux="0.2" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Moonlight</button>
               <button data-lux="100" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Indoor</button>
               <button data-lux="1000" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none active">Overcast</button>
               <button data-lux="10000" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Daylight</button>
@@ -323,6 +346,14 @@
                   <button data-preset="lens-mid" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Glass</button>
                   <button data-preset="lens-premium" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Premium</button>
                   <button data-preset="lens-custom" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Custom</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="lensTransmission">Lens light transmission</label>
+                <div class="flex items-center gap-2">
+                  <input id="lensTransmission" class="calc-input input-field w-20" type="number" step="0.01" min="0.01" max="1" value="0.85" />
+                  <span class="text-xs text-slate-500">(0–1)</span>
                 </div>
               </div>
 
@@ -431,8 +462,8 @@
                   <span id="as-adc" class="font-mono text-slate-300">—</span>
                   <span class="text-slate-500">Readout time</span>
                   <span id="as-readout" class="font-mono text-slate-300">—</span>
-                  <span class="text-slate-500">Lens transmission</span>
-                  <span id="as-lens-t" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Shutter type</span>
+                  <span id="as-shutter" class="font-mono text-slate-300">—</span>
                   <span class="text-slate-500">CFA factor</span>
                   <span id="as-cfa" class="font-mono text-slate-300">—</span>
                 </div>
@@ -459,14 +490,6 @@
                 <div class="flex items-center gap-2">
                   <input id="subjectReflectance" class="calc-input input-field w-16" type="number" step="0.01" min="0.01" max="1" value="0.18" />
                   <span class="text-xs text-slate-500">(0–1)</span>
-                </div>
-              </div>
-
-              <div>
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="desiredSnrDb">Desired SNR</label>
-                <div class="flex items-center gap-2">
-                  <input id="desiredSnrDb" class="calc-input input-field w-16" type="number" step="1" min="5" max="50" value="20" />
-                  <span class="text-xs text-slate-500">dB</span>
                 </div>
               </div>
 

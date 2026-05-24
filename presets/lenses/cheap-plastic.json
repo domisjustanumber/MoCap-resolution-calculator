@@ -4,5 +4,6 @@
   "tier": "cheap-plastic",
   "qualityScalar": 0.6,
   "focalLength": 3.6,
-  "aperture": 2.0
+  "aperture": 2.0,
+  "lensTransmission": 0.60
 }

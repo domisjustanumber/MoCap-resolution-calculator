@@ -21,8 +21,9 @@ import {
   getMaxShutterLimit,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
-import { SENSOR_RADIOMETRY } from '../presets';
-import type { ExposureMode } from './types';
+import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
+import { DEFAULT_RADIOMETRY } from './constants';
+import { runOptimization } from './optimizer';
 
 const app = createState();
 
@@ -43,7 +44,6 @@ drawChart(app);
 drawDistanceChart(app);
 drawTemporalChart(app);
 initAcceleration();
-updateOptimizerLockedControls(true);
 updateAdvancedSensorSpecs();
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
@@ -342,49 +342,31 @@ bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, 
 updateVelocityPresetStyles();
 
 // Exposure mode toggle
-const exposureModeBtn = document.getElementById('exposure-mode-toggle');
-if (exposureModeBtn) {
-  exposureModeBtn.addEventListener('click', () => {
-    const current = app.state.exposureMode;
-    const next: ExposureMode = current === 'optimized' ? 'manual' : 'optimized';
-    setField(app, 'exposureMode', next);
-    exposureModeBtn.textContent = next === 'optimized' ? 'On' : 'Off';
-    exposureModeBtn.classList.toggle('active', next === 'optimized');
-    exposureModeBtn.classList.toggle('text-blue-400', next === 'optimized');
-    exposureModeBtn.classList.toggle('text-slate-400', next !== 'optimized');
-    updateOptimizerLockedControls(next === 'optimized');
-    refreshAll();
+const optimizeBtn = document.getElementById('optimize-btn');
+if (optimizeBtn) {
+  optimizeBtn.addEventListener('click', () => {
+    const result = runOptimization(app);
+    if (result) {
+      app.state.extractedWidth        = result.extractedWidth;
+      app.state.extractedHeight       = result.extractedHeight;
+      app.state.selectedV4l2Mode      = result.selectedV4l2Mode;
+      app.state.readoutPitchMultiplier = result.readoutPitchMultiplier;
+      app.state.readoutFullFoV        = result.readoutFullFoV;
+      setFrameRate(result.fps);
+      setShutterDenom(result.shutterDenom);
+      syncInputsFromState();
+      refreshAll();
+    } else {
+      showOptimizerWarning();
+    }
   });
 }
 
-export function updateOptimizerLockedControls(isOn: boolean): void {
-  const fpsButtons = document.querySelectorAll('#fps-presets .fps-preset');
-  const shutterButtons = document.querySelectorAll('#shutter-presets .shutter-preset');
-  const fpsCustom = document.getElementById('fps-custom') as HTMLInputElement | null;
-  const shutterCustom = document.getElementById('shutter-custom') as HTMLInputElement | null;
-  const allButtons = [...fpsButtons, ...shutterButtons];
-  allButtons.forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    if (isOn) {
-      btn.disabled = true;
-      btn.title = 'Managed by Exposure Optimizer';
-      btn.classList.add('disabled-preset');
-    } else {
-      btn.disabled = false;
-      btn.removeAttribute('title');
-      btn.classList.remove('disabled-preset');
-    }
-  });
-  if (fpsCustom) {
-    fpsCustom.disabled = isOn;
-    fpsCustom.title = isOn ? 'Managed by Exposure Optimizer' : '';
-    if (isOn) fpsCustom.style.opacity = '0.4'; else fpsCustom.style.opacity = '';
-  }
-  if (shutterCustom) {
-    shutterCustom.disabled = isOn;
-    shutterCustom.title = isOn ? 'Managed by Exposure Optimizer' : '';
-    if (isOn) shutterCustom.style.opacity = '0.4'; else shutterCustom.style.opacity = '';
-  }
+function showOptimizerWarning(): void {
+  const banner = document.getElementById('bottleneck-banner');
+  if (!banner) return;
+  banner.textContent = '\u26a0 Optimizer: no valid exposure \u2014 increase lux or lower SNR target';
+  banner.classList.add('text-red-400');
 }
 
 // Lux presets
@@ -418,10 +400,11 @@ const prevRefreshAll = refreshAll;
 refreshAll = function(): void {
   prevRefreshAll();
   updateAdvancedSensorSpecs();
+  updateGainDisplay();
 };
 
 export function updateAdvancedSensorSpecs(): void {
-  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
   setText('as-qe', radiometry.qePercent + '%');
   setText('as-fwc', radiometry.fullWellCapacity.toLocaleString() + ' e\u207b');
   setText('as-rn', radiometry.readNoiseE.toFixed(1) + ' e\u207b RMS');
@@ -429,13 +412,34 @@ export function updateAdvancedSensorSpecs(): void {
   setText('as-cg', radiometry.conversionGainUvPerE.toFixed(0) + ' \u00b5V/e\u207b');
   setText('as-adc', radiometry.adcBits + '-bit');
   setText('as-readout', radiometry.readoutTimeUs + ' \u00b5s/row');
-  setText('as-lens-t', (radiometry.lensTransmission * 100).toFixed(0) + '%');
   setText('as-cfa', radiometry.cfaFactor.toFixed(2));
+
+  const sensorGeom = SENSOR_GEOMETRY[app.activeSensorPreset];
+  const skewMs = sensorGeom
+    ? ((radiometry.readoutTimeUs * sensorGeom.nativeHeight) / 1000).toFixed(1)
+    : '—';
+  if (sensorGeom?.shutterType === 'global') {
+    setText('as-shutter', 'Global — no rolling skew');
+  } else if (sensorGeom?.shutterType === 'rolling') {
+    setText('as-shutter', 'Rolling — ~' + skewMs + 'ms full-frame skew');
+  } else {
+    setText('as-shutter', '—');
+  }
 };
 
 function setText(id: string, text: string): void {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
+}
+
+function updateGainDisplay(): void {
+  const slider = document.getElementById('gain-slider') as HTMLInputElement | null;
+  const input = document.getElementById('gain-value') as HTMLInputElement | null;
+  if (!slider || !input) return;
+  const gain = app.results.exposure.optimalGain;
+  const clamped = Math.max(1.0, Math.min(8.0, gain));
+  if (slider !== document.activeElement) slider.value = clamped.toFixed(1);
+  if (input !== document.activeElement) input.value = clamped.toFixed(1);
 }
 
 window.addEventListener('resize', () => {

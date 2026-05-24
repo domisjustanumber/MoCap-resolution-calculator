@@ -1,7 +1,7 @@
-import type { AppState, PresetName, AppStateFull, ExposureMode } from './types';
+import type { AppState, PresetName, AppStateFull } from './types';
 import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
-import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY, findCameraPreset, LENS_PRESETS, PRESETS } from '../presets';
+import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY, CAMERA_PRESETS, findCameraPreset, LENS_PRESETS, PRESETS } from '../presets';
 import {
   APERTURE_MIN,
   APERTURE_MAX,
@@ -11,6 +11,7 @@ import {
   H264_QP_MAX,
   H264_BITRATE_MIN_MBPS,
   H264_BITRATE_MAX_MBPS,
+  DEFAULT_LENS_TRANSMISSION,
   DEFAULT_LUX_SUBJECT,
   DEFAULT_REFLECTANCE,
   DEFAULT_SNR_TARGET_DB,
@@ -52,7 +53,7 @@ export const DEFAULT_STATE: AppState = {
   subjectReflectance: DEFAULT_REFLECTANCE,
   desiredSnrDb: DEFAULT_SNR_TARGET_DB,
   temperatureC: DEFAULT_TEMPERATURE_C,
-  exposureMode: 'optimized' as ExposureMode,
+  lensTransmission: DEFAULT_LENS_TRANSMISSION,
 };
 
 export function createState(): AppStateFull {
@@ -102,6 +103,7 @@ export function validateState(state: AppState): string[] {
   state.subjectReflectance = clamped(state.subjectReflectance, 0.01, 1);
   state.desiredSnrDb = clamped(state.desiredSnrDb, SNR_DB_MIN, SNR_DB_MAX);
   state.temperatureC = clamped(state.temperatureC, TEMP_MIN_C, TEMP_MAX_C);
+  state.lensTransmission = clamped(state.lensTransmission, 0.01, 1);
 
   return warnings;
 }
@@ -125,32 +127,33 @@ export function recalculate(app: AppStateFull): AppStateFull {
   const syncOn = isSyncToggleOn();
 
   const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
-  const readoutTimeS = (radiometry.readoutTimeUs * state.nativeHeight) / 1_000_000;
-  const sensorMaxFps = readoutTimeS > 0 ? Math.round(1 / readoutTimeS) : 240;
-  const sensorMaxShutterDenom = Math.min(8000, Math.round(1_000_000 / (radiometry.readoutTimeUs * 2)));
+  let sensorMaxFps: number;
+  if (state.selectedV4l2Mode >= 0) {
+    const geom = SENSOR_GEOMETRY[app.activeSensorPreset];
+    const mode = geom?.v4l2?.modes?.[state.selectedV4l2Mode];
+    sensorMaxFps = mode?.maxFps ?? 240;
+  } else {
+    const readoutTimeS = (radiometry.readoutTimeUs * state.nativeHeight) / 1_000_000;
+    sensorMaxFps = readoutTimeS > 0 ? Math.round(1 / readoutTimeS) : 240;
+  }
+  const sensorGeom = SENSOR_GEOMETRY[app.activeSensorPreset];
+  const isGlobal = sensorGeom?.shutterType === 'global';
+  const readoutShutterBound = isGlobal ? Infinity : Math.round(1_000_000 / (radiometry.readoutTimeUs * 2));
+  const sensorMaxShutterDenom = Math.min(8000, readoutShutterBound);
   setMaxFpsLimit(sensorMaxFps);
   setMaxShutterLimit(sensorMaxShutterDenom);
 
-  if (state.exposureMode === 'optimized') {
-    const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
-    const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
-    const cappedFps = Math.min(exposure.optimalFps, sensorMaxFps);
-    const cappedShutterDenom = Math.min(Math.round(1 / Math.max(0.0001, exposure.tOptimal)), sensorMaxShutterDenom);
-    const cappedShutterTime = 1 / Math.max(1, cappedShutterDenom);
-    app.results = calculateResults(state, app.derived, velocity, cappedShutterTime, cappedFps, syncErr, syncOn, exposure);
-    setFrameRate(Math.round(cappedFps));
-    setShutterDenom(cappedShutterDenom);
-  } else {
-    const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
-    const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
-    app.results = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn, exposure);
-  }
+  const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
+  const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
+  app.results = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn, exposure);
+
 
   return app;
 }
 
 export function applyPreset(app: AppStateFull, _presetValues: Partial<AppState>, name: PresetName): AppStateFull {
   app.state.lensTier = 'cheap-plastic';
+  app.state.diagonalFov = 0;
   const cameraPreset = findCameraPreset(name);
   if (cameraPreset) {
     const sensorPreset = SENSOR_GEOMETRY[cameraPreset.sensorName];
@@ -166,14 +169,13 @@ export function applyPreset(app: AppStateFull, _presetValues: Partial<AppState>,
       app.state.lensTier = lensPreset.name as AppState['lensTier'];
       app.state.focalLength = lensPreset.focalLength;
       app.state.aperture = lensPreset.aperture;
+      app.state.lensTransmission = lensPreset.lensTransmission;
     }
   }
   app.activePreset = name;
   app.activeSensorPreset = cameraPreset ? cameraPreset.sensorName : name;
   app.activeLensPreset = cameraPreset ? cameraPreset.lensName : 'custom';
-  app.state.selectedV4l2Mode = -1;
-  app.state.readoutPitchMultiplier = 1;
-  app.state.readoutFullFoV = true;
+  applyDefaultV4l2Mode(app, app.activeSensorPreset);
   return recalculate(app);
 }
 
@@ -185,14 +187,23 @@ export function setField<K extends keyof AppState>(app: AppStateFull, key: K, va
   if (key !== 'lensTier') {
     app.activePreset = 'custom';
   }
+  if (key === 'lensTier') {
+    const lens = LENS_PRESETS[value as string];
+    if (lens) {
+      app.state.lensTransmission = lens.lensTransmission;
+    }
+  }
   app.activeSensorPreset = detectSensorPreset(app);
   app.activeLensPreset = detectLensPreset(app);
+  app.activePreset = detectCameraPreset(app);
+  invalidateV4l2ModeIfNeeded(app, key);
   return recalculate(app);
 }
 
 export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
   app.activeSensorPreset = name;
   app.activeLensPreset = detectLensPreset(app);
+  app.activePreset = detectCameraPreset(app);
   const geom = SENSOR_GEOMETRY[name];
   if (geom) {
     app.state.pixelPitch = geom.pixelPitch;
@@ -202,8 +213,7 @@ export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
     app.state.dynamicRangeDb = geom.dynamicRangeDb;
   }
   app.state.selectedV4l2Mode = -1;
-  app.state.readoutPitchMultiplier = 1;
-  app.state.readoutFullFoV = true;
+  applyDefaultV4l2Mode(app, name);
   return recalculate(app);
 }
 
@@ -227,4 +237,53 @@ function detectLensPreset(app: AppStateFull): string {
     }
   }
   return 'custom';
+}
+
+function detectCameraPreset(app: AppStateFull): PresetName {
+  for (const camera of CAMERA_PRESETS) {
+    if (camera.sensorName === app.activeSensorPreset && camera.lensName === app.activeLensPreset) {
+      return camera.name as PresetName;
+    }
+  }
+  return 'custom';
+}
+
+function invalidateV4l2ModeIfNeeded(app: AppStateFull, key: keyof AppState): void {
+  if (app.state.selectedV4l2Mode < 0) return;
+  if (key !== 'extractedWidth' && key !== 'extractedHeight') return;
+  const geom = SENSOR_GEOMETRY[app.activeSensorPreset];
+  const mode = geom?.v4l2?.modes?.[app.state.selectedV4l2Mode];
+  if (!mode) { app.state.selectedV4l2Mode = -1; return; }
+  if (app.state.extractedWidth !== mode.width || app.state.extractedHeight !== mode.height) {
+    app.state.selectedV4l2Mode = -1;
+  }
+}
+
+function applyDefaultV4l2Mode(app: AppStateFull, sensorName: string): void {
+  const geom = SENSOR_GEOMETRY[sensorName];
+  const modes = geom?.v4l2?.modes;
+  if (!modes || modes.length === 0) {
+    app.state.selectedV4l2Mode = -1;
+    app.state.readoutPitchMultiplier = 1;
+    app.state.readoutFullFoV = true;
+    return;
+  }
+
+  const fastModes = modes
+    .map((mode, i) => ({ ...mode, index: i }))
+    .filter(m => m.maxFps >= 25);
+
+  let chosen = fastModes.length > 0
+    ? fastModes.sort((a, b) => (b.width * b.height) - (a.width * a.height))[0]
+    : modes.map((mode, i) => ({ ...mode, index: i }))
+        .reduce((best, curr) =>
+          curr.maxFps > best.maxFps ? curr :
+          curr.maxFps === best.maxFps && curr.width * curr.height > best.width * best.height ? curr : best
+        );
+
+  app.state.selectedV4l2Mode = chosen.index;
+  app.state.extractedWidth = chosen.width;
+  app.state.extractedHeight = chosen.height;
+  app.state.readoutPitchMultiplier = chosen.pitchMultiplier ?? 1;
+  app.state.readoutFullFoV = chosen.fullFoV ?? true;
 }

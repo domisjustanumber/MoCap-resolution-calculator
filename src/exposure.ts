@@ -23,7 +23,7 @@ export function calculateExposureOptimizer(
   const N = state.aperture;
   const lux = state.luxAtSubject;
   const R = state.subjectReflectance;
-  const T = radiometry.lensTransmission;
+  const T = state.lensTransmission;
 
   const E_sensor = lux * R * T / (4 * N * N);
   const pixelAreaUm2 = derived.pixelPitch * derived.pixelPitch;

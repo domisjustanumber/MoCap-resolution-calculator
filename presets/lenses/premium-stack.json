@@ -4,5 +4,6 @@
   "tier": "premium-stack",
   "qualityScalar": 0.95,
   "focalLength": 12.0,
-  "aperture": 1.8
+  "aperture": 1.8,
+  "lensTransmission": 0.95
 }

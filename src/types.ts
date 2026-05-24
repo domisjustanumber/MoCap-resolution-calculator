@@ -4,7 +4,6 @@ export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'monochrome' | 'colour';
 export type ReadoutMethod = 'native' | 'cropping' | 'binning' | 'subsampling';
 export type PresetName = 'pi-cam-v1' | 'pi-cam-v2' | 'pi-hq-cam' | 'ov9281-module' | 'custom';
-export type ExposureMode = 'manual' | 'optimized';
 
 export interface SensorRadiometry {
   qePercent: number;
@@ -14,7 +13,6 @@ export interface SensorRadiometry {
   conversionGainUvPerE: number;
   adcBits: number;
   readoutTimeUs: number;
-  lensTransmission: number;
   cfaFactor: number;
   hasDualCG: boolean;
   hcgReadNoiseE?: number;
@@ -63,7 +61,7 @@ export interface AppState {
   subjectReflectance: number;
   desiredSnrDb: number;
   temperatureC: number;
-  exposureMode: ExposureMode;
+  lensTransmission: number;
 }
 
 export interface DerivedState {

@@ -14,7 +14,6 @@
     "conversionGainUvPerE": 150,
     "adcBits": 10,
     "readoutTimeUs": 32,
-    "lensTransmission": 0.85,
     "cfaFactor": 0.55,
     "hasDualCG": false
   },
@@ -38,5 +37,6 @@
     "analogueGain": { "min": 16, "max": 1023, "step": 1, "default": 32 },
     "hblank": { "min": 252, "max": 5935, "default": 252 },
     "vblank": { "min": 24, "max": 30823, "default": 24 }
-  }
+  },
+  "shutterType": "rolling"
 }

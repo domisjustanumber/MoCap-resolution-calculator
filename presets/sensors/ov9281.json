@@ -14,7 +14,6 @@
     "conversionGainUvPerE": 50,
     "adcBits": 10,
     "readoutTimeUs": 15,
-    "lensTransmission": 0.85,
     "cfaFactor": 1.0,
     "hasDualCG": false
   },
@@ -37,5 +36,6 @@
     "analogueGain": { "min": 16, "max": 248, "step": 1, "default": 16 },
     "hblank": { "min": 176, "max": 176, "default": 176 },
     "vblank": { "min": 110, "max": 31727, "default": 110 }
-  }
+  },
+  "shutterType": "global"
 }

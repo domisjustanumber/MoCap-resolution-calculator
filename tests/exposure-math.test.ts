@@ -33,6 +33,7 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     subjectReflectance: 0.18,
     desiredSnrDb: 20,
     temperatureC: 25,
+    lensTransmission: 0.85,
     exposureMode: 'optimized',
     ...overrides,
   };

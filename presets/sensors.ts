@@ -1,5 +1,5 @@
 import type { SensorRadiometry } from '../src/types';
-import type { SensorPreset } from './types';
+import type { SensorPreset, V4l2Config } from './types';
 
 import ov5647Raw from './sensors/ov5647.json';
 import imx219Raw from './sensors/imx219.json';
@@ -24,6 +24,24 @@ export const SENSOR_RADIOMETRY: Record<string, SensorRadiometry> = Object.fromEn
   Object.entries(sensors).map(([k, v]) => [k, v.radiometry]),
 );
 
-export const SENSOR_GEOMETRY: Record<string, { pixelPitch: number; nativeWidth: number; nativeHeight: number; olpfPresent: boolean; dynamicRangeDb: number; v4l2?: import('./types').V4l2Config }> = Object.fromEntries(
-  Object.entries(sensors).map(([k, v]) => [k, { pixelPitch: v.pixelPitch, nativeWidth: v.nativeWidth, nativeHeight: v.nativeHeight, olpfPresent: v.olpfPresent, dynamicRangeDb: v.dynamicRangeDb, v4l2: v.v4l2 }]),
+export interface SensorGeometry {
+  pixelPitch: number;
+  nativeWidth: number;
+  nativeHeight: number;
+  olpfPresent: boolean;
+  dynamicRangeDb: number;
+  v4l2?: V4l2Config;
+  shutterType: 'rolling' | 'global';
+}
+
+export const SENSOR_GEOMETRY: Record<string, SensorGeometry> = Object.fromEntries(
+  Object.entries(sensors).map(([k, v]) => [k, {
+    pixelPitch: v.pixelPitch,
+    nativeWidth: v.nativeWidth,
+    nativeHeight: v.nativeHeight,
+    olpfPresent: v.olpfPresent,
+    dynamicRangeDb: v.dynamicRangeDb,
+    v4l2: v.v4l2,
+    shutterType: v.shutterType,
+  }]),
 );

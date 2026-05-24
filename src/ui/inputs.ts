@@ -1,18 +1,17 @@
 import type { AppStateFull, AppState, ReadoutMethod } from '../types';
 import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
 import { PRESETS, SENSOR_GEOMETRY, SENSOR_RADIOMETRY } from '../../presets';
-import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
+import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, DEFAULT_RADIOMETRY } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { drawTemporalChart } from './temporalChart';
 import { updateAdvancedSensorSpecs } from '../main';
-import { updateOptimizerLockedControls } from '../main';
 import { updateShutterPresetStyles } from '../main';
 import { updateFpsPresetStyles } from '../main';
 
 let app: AppStateFull;
-let lastSensorWasMonochrome = true;
+let lastSensorWasMonochrome = false;
 
 export function initInputs(state: AppStateFull): void {
   app = state;
@@ -20,6 +19,7 @@ export function initInputs(state: AppStateFull): void {
   bindNumberInput('focalLength', 'focalLength');
   bindFovInput();
   bindNumberInput('aperture', 'aperture');
+  bindNumberInput('lensTransmission', 'lensTransmission');
   bindNumberInput('wavelength', 'wavelength');
   bindNumberInput('pixelPitch', 'pixelPitch');
   bindNumberInput('nativeWidth', 'nativeWidth');
@@ -480,6 +480,7 @@ export function syncInputsFromState(): void {
     'subjectReflectance',
     'desiredSnrDb',
     'temperatureC',
+    'lensTransmission',
   ];
   numberFields.forEach((key) => {
     const el = document.getElementById(key) as HTMLInputElement | null;
@@ -487,6 +488,7 @@ export function syncInputsFromState(): void {
       if (key === 'aperture') el.value = app.state.aperture.toFixed(1);
       else if (key === 'pixelPitch') el.value = app.state.pixelPitch.toFixed(1);
       else if (key === 'focalLength') el.value = app.state.focalLength.toFixed(1);
+      else if (key === 'lensTransmission') el.value = app.state.lensTransmission.toFixed(2);
       else el.value = String(app.state[key]);
     }
   });
@@ -536,7 +538,7 @@ export function syncInputsFromState(): void {
   const colourEl = document.getElementById('mode-colour') as HTMLInputElement | null;
   if (monochromeEl) monochromeEl.checked = app.state.measurementMode === 'monochrome';
   if (colourEl) {
-    const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || SENSOR_RADIOMETRY['custom'];
+    const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
     const isMonoSensor = radiometry.cfaFactor >= 0.95;
     if (isMonoSensor) {
       colourEl.disabled = true;
@@ -582,7 +584,6 @@ function refresh(): void {
   drawDistanceChart(app);
   drawTemporalChart(app);
   updateAdvancedSensorSpecs();
-  updateOptimizerLockedControls(app.state.exposureMode === 'optimized');
   updateShutterPresetStyles();
   updateFpsPresetStyles();
 }

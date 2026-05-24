@@ -89,6 +89,8 @@ export interface LensPreset {
   focalLength: number;
   /** Aperture (f-number) */
   aperture: number;
+  /** Lens light transmission (0–1) */
+  lensTransmission: number;
 }
 
 /** A sensor preset defines the physical sensor geometry and radiometric characteristics. */
@@ -111,4 +113,6 @@ export interface SensorPreset {
   radiometry: SensorRadiometry;
   /** V4L2 driver configuration from the Linux kernel */
   v4l2: V4l2Config;
+  /** Sensor readout architecture */
+  shutterType: 'rolling' | 'global';
 }

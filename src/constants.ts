@@ -99,7 +99,6 @@ export const DEFAULT_RADIOMETRY: SensorRadiometry = {
   conversionGainUvPerE: 100,
   adcBits: 12,
   readoutTimeUs: 25,
-  lensTransmission: 0.85,
   cfaFactor: 0.55,
   hasDualCG: false,
 };
