@@ -19,14 +19,23 @@ let cachedMaxDensity: Float32Array | null = null;
 let cachedRmseDensity: Float32Array | null = null;
 let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
 
+import type { MotionParams } from '../types';
+
+// Motion parameters — shared across spatial chart, engine, and temporal sim
+let motionParams: MotionParams = {
+  linearVelocity: 1.5,
+  acceleration: 0,
+  angularVelocity: 0,
+  subjectHalfWidth: 0.5,
+};
+
 // Chart inputs
 let zoomMax = 200;
-let targetVelocity = 0;   // m/s — used for temporal Monte Carlo simulation
-let spatialVelocity = 1.5; // m/s — used for spatial chart motion curves
-let frameRate = 30;        // fps
-let shutterDenom = 60;     // 1/N seconds
-let phaseOffset = 16.6;   // ms
-let jitterMs = 10.0;      // ms
+let targetVelocity = 0; // m/s — used for temporal Monte Carlo simulation only
+let frameRate = 30;     // fps
+let shutterDenom = 60;  // 1/N seconds
+let phaseOffset = 16.6; // ms
+let jitterMs = 10.0;    // ms
 
 let syncToggle = false;
 export function isSyncToggleOn(): boolean { return syncToggle; }
@@ -56,9 +65,22 @@ export function getSyncInputsHash(): string {
   return makeSimHash();
 }
 
+export function getMotionParams(): MotionParams { return { ...motionParams }; }
+export function setMotionParams(p: Partial<MotionParams>): void {
+  if (p.linearVelocity !== undefined) motionParams.linearVelocity = Math.max(0, Math.min(20, p.linearVelocity));
+  if (p.acceleration !== undefined) motionParams.acceleration = Math.max(0, Math.min(20, p.acceleration));
+  if (p.angularVelocity !== undefined) motionParams.angularVelocity = Math.max(0, Math.min(360, p.angularVelocity));
+  if (p.subjectHalfWidth !== undefined) motionParams.subjectHalfWidth = Math.max(0.1, Math.min(2, p.subjectHalfWidth));
+}
+export function getLinearVelocity(): number { return motionParams.linearVelocity; }
+export function setLinearVelocity(v: number): void { motionParams.linearVelocity = Math.max(0, Math.min(20, v)); }
+export function setAcceleration(v: number): void { motionParams.acceleration = Math.max(0, Math.min(20, v)); }
+export function setAngularVelocity(v: number): void { motionParams.angularVelocity = Math.max(0, Math.min(360, v)); }
+export function setSubjectHalfWidth(v: number): void { motionParams.subjectHalfWidth = Math.max(0.1, Math.min(2, v)); }
+
 export function getTemporalVelocity(): number { return targetVelocity; }
-export function getSpatialVelocity(): number { return spatialVelocity; }
-export function setSpatialVelocity(v: number): void { spatialVelocity = Math.max(0, Math.min(20, v)); }
+export function getSpatialVelocity(): number { return motionParams.linearVelocity; }
+export function setSpatialVelocity(v: number): void { motionParams.linearVelocity = Math.max(0, Math.min(20, v)); }
 export function getFrameRate(): number { return frameRate; }
 export function getShutterTime(): number { return 1 / shutterDenom; }
 export function getShutterDenom(): number { return shutterDenom; }
@@ -173,7 +195,16 @@ function calculateDensityCurve(data: Float32Array, maxZoomMM: number): Float32Ar
   const binCount = 300;
   const densities = new Float32Array(binCount);
   const step = maxZoomMM / binCount;
-  const bandwidth = Math.max(1.2, maxZoomMM * 0.02);
+
+  // Silverman's rule of thumb for KDE bandwidth
+  const n = data.length;
+  const sorted = [...data].sort((a, b) => a - b);
+  const mean = sorted.reduce((s, v) => s + v, 0) / n;
+  const variance = sorted.reduce((s, v) => s + (v - mean) ** 2, 0) / (n - 1);
+  const std = Math.sqrt(variance);
+  const iqr = sorted[Math.floor(n * 0.75)] - sorted[Math.floor(n * 0.25)];
+  const h = 0.9 * Math.min(std, iqr / 1.34) * Math.pow(n, -0.2);
+  const bandwidth = Math.max(h, 0.1);
 
   for (let i = 0; i < data.length; i++) {
     const val = data[i];

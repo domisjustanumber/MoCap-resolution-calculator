@@ -1,4 +1,4 @@
-import type { AppState, DerivedState, SensorRadiometry, ExposureOptimization } from './types';
+import type { AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams } from './types';
 import {
   PHOTONS_PER_UM2_PER_LUX_SEC,
   DARK_CURRENT_DOUBLING_C,
@@ -7,6 +7,9 @@ import {
   GAIN_MIN,
   GAIN_MAX,
   MOTION_MTF50_CONST,
+  RAW_FORMATS,
+  CHROMA_UYVY_SNR_DB,
+  CHROMA_OTHER_SNR_DB,
 } from './constants';
 
 function darkCurrentAtTemp(dc25: number, tempC: number): number {
@@ -17,8 +20,9 @@ export function calculateExposureOptimizer(
   state: Readonly<AppState>,
   derived: Readonly<DerivedState>,
   radiometry: Readonly<SensorRadiometry>,
-  velocity: number,
+  motion: MotionParams,
   targetFEffectiveLpMm: number,
+  manualShutterOverride?: number,
 ): ExposureOptimization {
   const N = state.aperture;
   const lux = state.luxAtSubject;
@@ -26,7 +30,8 @@ export function calculateExposureOptimizer(
   const T = state.lensTransmission;
 
   const E_sensor = lux * R * T / (4 * N * N);
-  const pixelAreaUm2 = derived.pixelPitch * derived.pixelPitch;
+  const pixelPitch = state.readoutMethod === 'binning' ? derived.effectivePixelPitch : derived.pixelPitch;
+  const pixelAreaUm2 = pixelPitch * pixelPitch;
   const photonsPerPxPerSec = E_sensor * pixelAreaUm2 * PHOTONS_PER_UM2_PER_LUX_SEC * radiometry.cfaFactor;
   const electronsPerPxPerSec = photonsPerPxPerSec * (radiometry.qePercent / 100);
 
@@ -34,7 +39,12 @@ export function calculateExposureOptimizer(
   const S = electronsPerPxPerSec;
   const RN2 = radiometry.readNoiseE * radiometry.readNoiseE;
 
-  const snrTargetLinear = Math.pow(10, state.desiredSnrDb / 20);
+  // Inflate SNR target to compensate for chroma subsampling penalty
+  let effectiveSnrTargetDb = state.desiredSnrDb;
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    effectiveSnrTargetDb += state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
+  }
+  const snrTargetLinear = Math.pow(10, effectiveSnrTargetDb / 20);
 
   const a = S * S;
   const b = -snrTargetLinear * snrTargetLinear * (S + DC);
@@ -50,22 +60,48 @@ export function calculateExposureOptimizer(
     tMinusSnr = Infinity;
   }
 
-  let tMotionMax = Infinity;
-  if (velocity > 1e-6 && targetFEffectiveLpMm > 0) {
-    const vImg = velocity * state.focalLength / Math.max(0.1, state.distanceToSubject);
-    if (vImg > 1e-6) {
-      tMotionMax = MOTION_MTF50_CONST / (vImg * targetFEffectiveLpMm);
-    }
-  }
+  // Motion ceiling — uses full vTotal (linear, acceleration, angular) with two-pass for acceleration's time dependency
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const computeTMotionMax = (vEff: number): number => {
+    const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+    if (vTotal < 1e-6 || targetFEffectiveLpMm < 1e-6) return Infinity;
+    const vImg = vTotal * state.focalLength / Math.max(0.1, state.distanceToSubject);
+    if (vImg < 1e-6) return Infinity;
+    return MOTION_MTF50_CONST / (vImg * targetFEffectiveLpMm);
+  };
+
+  // Pass 1: estimate motion ceiling from linearVelocity (no acceleration time term)
+  let tMotionMax = computeTMotionMax(motion.linearVelocity);
 
   let tSaturation = Infinity;
   if (S > 0) {
     tSaturation = radiometry.fullWellCapacity / S;
   }
 
-  const tCeiling = Math.min(EXPOSURE_HEADROOM_FACTOR * tSaturation, tMotionMax);
-  const photonStarved = !isFinite(tMinusSnr) || tMinusSnr > tCeiling;
-  const tOptimal = photonStarved ? tCeiling : Math.max(0.00001, tMinusSnr);
+  // Pass 1 interim tOptimal to estimate the acceleration contribution
+  const tCeilingPass1 = Math.min(EXPOSURE_HEADROOM_FACTOR * tSaturation, tMotionMax);
+  const tEstimate = !isFinite(tMinusSnr) || tMinusSnr > tCeilingPass1 ? tCeilingPass1 : tMinusSnr;
+
+  // Pass 2: refine motion ceiling with acceleration × estimated shutter time
+  if (isFinite(tEstimate) && motion.acceleration > 1e-6) {
+    const vEff2 = motion.linearVelocity + 0.5 * motion.acceleration * tEstimate;
+    tMotionMax = computeTMotionMax(vEff2);
+  }
+
+  let photonStarved: boolean;
+  let tOptimal: number;
+
+  if (manualShutterOverride !== undefined) {
+    // Manual mode: use the user's shutter time, capped at saturation ceiling
+    const saturationCap = EXPOSURE_HEADROOM_FACTOR * tSaturation;
+    tOptimal = Math.max(0.00001, isFinite(saturationCap) ? Math.min(manualShutterOverride, saturationCap) : manualShutterOverride);
+    photonStarved = false;
+  } else {
+    // Optimizer mode: find best exposure within motion + saturation bounds
+    const tCeiling = Math.min(EXPOSURE_HEADROOM_FACTOR * tSaturation, tMotionMax);
+    photonStarved = !isFinite(tMinusSnr) || tMinusSnr > tCeiling;
+    tOptimal = Math.max(0.00001, tCeiling);
+  }
 
   const actualElectrons = S * tOptimal;
   const targetElectrons = FWC_TARGET_FILL * radiometry.fullWellCapacity;

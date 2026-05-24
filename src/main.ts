@@ -7,8 +7,12 @@ import {
   drawTemporalChart,
   setTemporalZoom,
   setTemporalVelocity,
-  getSpatialVelocity,
-  setSpatialVelocity,
+  getMotionParams,
+  setMotionParams,
+  setLinearVelocity,
+  setAcceleration,
+  setAngularVelocity,
+  setSubjectHalfWidth,
   setTemporalPhase,
   setTemporalJitter,
   setFrameRate,
@@ -21,9 +25,11 @@ import {
   getMaxShutterLimit,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
+import type { MotionParams } from './types';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import { DEFAULT_RADIOMETRY } from './constants';
 import { runOptimization } from './optimizer';
+import { getErrorBudget } from './ui/accelerationChart';
 
 const app = createState();
 
@@ -94,7 +100,7 @@ function switchTab(tab: string): void {
   if (tab === 'acceleration' && accelTab) accelTab.classList.add('active');
 
   setTimeout(() => {
-    if (tab === 'spatial') { drawChart(app); drawDistanceChart(app); }
+    if (tab === 'spatial') { drawChart(app, true); drawDistanceChart(app, true); }
     if (tab === 'temporal') drawTemporalChart(app, true);
   }, 50);
 }
@@ -126,38 +132,35 @@ function updatePresetStyles(selector: string, getValue: () => string | number, d
   });
 }
 
-// --- Velocity presets ---
-const VELOCITY_PRESETS: Record<string, number> = {
-  static: 0,
-  walking: 1.5,
-  sports: 5,
+// --- Motion presets ---
+const MOTION_PRESETS: Record<string, MotionParams> = {
+  static:  { linearVelocity: 0,   acceleration: 0,   angularVelocity: 0,   subjectHalfWidth: 0.5 },
+  walking: { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10,  subjectHalfWidth: 0.5 },
+  sports:  { linearVelocity: 5,   acceleration: 4,   angularVelocity: 60,  subjectHalfWidth: 0.5 },
 };
 
-let activeVelocityPreset = 'walking';
+let activeMotionPreset = 'walking';
 
-setSpatialVelocity(VELOCITY_PRESETS.walking);
-setTemporalVelocity(VELOCITY_PRESETS.walking);
-const initVelSlider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
-const initVelLabel = document.getElementById('temporal-velocity-label');
+setMotionParams(MOTION_PRESETS.walking);
+setTemporalVelocity(MOTION_PRESETS.walking.linearVelocity);
 const initCustomVel = document.getElementById('velocity-custom') as HTMLInputElement | null;
-if (initVelSlider) initVelSlider.value = String(VELOCITY_PRESETS.walking);
-if (initVelLabel) initVelLabel.textContent = VELOCITY_PRESETS.walking + ' m/s';
-if (initCustomVel) initCustomVel.value = String(VELOCITY_PRESETS.walking);
+if (initCustomVel) initCustomVel.value = String(MOTION_PRESETS.walking.linearVelocity);
+syncQcInputsFromParams();
 refreshAll();
-updateVelocityPresetStyles();
+updateMotionPresetStyles();
 
-function detectVelocityPreset(v: number): string {
+function detectMotionPreset(v: number): string {
   if (Math.abs(v - 0) < 0.05) return 'static';
   if (Math.abs(v - 1.5) < 0.05) return 'walking';
   if (Math.abs(v - 5) < 0.05) return 'sports';
   return 'custom';
 }
 
-function updateVelocityPresetStyles(): void {
-  updatePresetStyles('.vel-preset', () => activeVelocityPreset, 'velocity');
+function updateMotionPresetStyles(): void {
+  updatePresetStyles('.vel-preset', () => activeMotionPreset, 'velocity');
   const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
   if (customInput) {
-    customInput.classList.toggle('vel-input-active', activeVelocityPreset === 'custom');
+    customInput.classList.toggle('vel-input-active', activeMotionPreset === 'custom');
   }
 }
 
@@ -187,22 +190,20 @@ function updateFpsLabel(): void {
   if (label) label.textContent = 'Kinematic @ ' + getFrameRate() + ' fps';
 }
 
-function applyVelocityPreset(preset: string): void {
-  activeVelocityPreset = preset;
-  const v = VELOCITY_PRESETS[preset] ?? parseFloat((document.getElementById('velocity-custom') as HTMLInputElement)?.value || '0');
-  setSpatialVelocity(v);
-  setTemporalVelocity(v);
+function applyMotionPreset(preset: string): void {
+  activeMotionPreset = preset;
+  const p = MOTION_PRESETS[preset] ?? {
+    linearVelocity: parseFloat((document.getElementById('velocity-custom') as HTMLInputElement)?.value || '0'),
+    acceleration: parseFloat((document.getElementById('accel-custom') as HTMLInputElement)?.value || '0'),
+    angularVelocity: parseFloat((document.getElementById('angular-custom') as HTMLInputElement)?.value || '0'),
+    subjectHalfWidth: parseFloat((document.getElementById('motion-halfwidth-input') as HTMLInputElement)?.value || '0.5'),
+  };
+  setMotionParams(p);
+  setTemporalVelocity(p.linearVelocity);
 
-  const slider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
-  const label = document.getElementById('temporal-velocity-label');
-  if (slider) slider.value = String(v);
-  if (label) label.textContent = v + ' m/s';
-
-  const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
-  if (customInput) customInput.value = String(v);
-
+  syncQcInputsFromParams(p);
   refreshAll();
-  updateVelocityPresetStyles();
+  updateMotionPresetStyles();
 }
 
 // Velocity preset buttons
@@ -211,13 +212,13 @@ document.querySelectorAll('.vel-preset').forEach((el) => {
     const preset = (el as HTMLButtonElement).dataset.velocity;
     if (!preset) return;
     if (preset === 'custom') {
-      activeVelocityPreset = 'custom';
-      updateVelocityPresetStyles();
+      activeMotionPreset = 'custom';
+      updateMotionPresetStyles();
       const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
       if (customInput) customInput.focus();
       return;
     }
-    applyVelocityPreset(preset);
+    applyMotionPreset(preset);
   });
 });
 
@@ -227,17 +228,84 @@ if (customVelInput) {
   customVelInput.addEventListener('input', () => {
     const v = parseFloat(customVelInput.value);
     if (isNaN(v) || v < 0) return;
-    activeVelocityPreset = 'custom';
-    setSpatialVelocity(v);
+    activeMotionPreset = 'custom';
+    setLinearVelocity(v);
     setTemporalVelocity(v);
-    const slider = document.getElementById('temporal-velocity') as HTMLInputElement | null;
-    const label = document.getElementById('temporal-velocity-label');
-    if (slider) slider.value = String(v);
-    if (label) label.textContent = v + ' m/s';
     refreshAll();
-    updateVelocityPresetStyles();
+    updateMotionPresetStyles();
   });
 }
+
+function syncQcInputsFromParams(p?: MotionParams): void {
+  const m = p ?? getMotionParams();
+  const setIfNotFocused = (id: string, value: string) => {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el && el !== document.activeElement) el.value = value;
+  };
+  setIfNotFocused('velocity-custom', String(m.linearVelocity));
+  setIfNotFocused('accel-custom', m.acceleration.toFixed(1));
+  setIfNotFocused('angular-custom', String(Math.round(m.angularVelocity)));
+  const setSliderAndInput = (sliderId: string, inputId: string, value: number, decimals: number) => {
+    const slider = document.getElementById(sliderId) as HTMLInputElement | null;
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    if (slider) slider.value = value.toFixed(decimals);
+    if (input && input !== document.activeElement) input.value = value.toFixed(decimals);
+  };
+  setSliderAndInput('motion-accel', 'motion-accel-input', m.acceleration, 1);
+  setSliderAndInput('motion-angular', 'motion-angular-input', m.angularVelocity, 0);
+  setSliderAndInput('motion-halfwidth', 'motion-halfwidth-input', m.subjectHalfWidth, 1);
+  setSliderAndInput('temporal-motion-accel', 'temporal-motion-accel-input', m.acceleration, 1);
+  setSliderAndInput('temporal-motion-angular', 'temporal-motion-angular-input', m.angularVelocity, 0);
+  setSliderAndInput('temporal-motion-halfwidth', 'temporal-motion-halfwidth-input', m.subjectHalfWidth, 1);
+}
+
+function bindQcMotionInput(id: string, setter: (v: number) => void, decimals: number): void {
+  const el = document.getElementById(id) as HTMLInputElement | null;
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    if (isNaN(v)) return;
+    setter(v);
+    activeMotionPreset = 'custom';
+    updateMotionPresetStyles();
+    refreshAll();
+    syncQcInputsFromParams();
+  });
+}
+bindQcMotionInput('velocity-custom', (v) => { setLinearVelocity(v); setTemporalVelocity(v); }, 1);
+bindQcMotionInput('accel-custom', setAcceleration, 1);
+bindQcMotionInput('angular-custom', setAngularVelocity, 0);
+
+// Motion slider bindings
+function bindMotionSlider(sliderId: string, inputId: string, setter: (v: number) => void): void {
+  const slider = document.getElementById(sliderId) as HTMLInputElement | null;
+  const input = document.getElementById(inputId) as HTMLInputElement | null;
+  if (!slider || !input) return;
+  const handler = () => {
+    const v = parseFloat(slider.value);
+    setter(v);
+    if (input !== document.activeElement) input.value = String(v);
+    activeMotionPreset = 'custom';
+    updateMotionPresetStyles();
+    refreshAll();
+  };
+  slider.addEventListener('input', handler);
+  input.addEventListener('change', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v)) return;
+    setter(v);
+    if (slider !== document.activeElement) slider.value = String(v);
+    activeMotionPreset = 'custom';
+    updateMotionPresetStyles();
+    refreshAll();
+  });
+}
+bindMotionSlider('motion-accel', 'motion-accel-input', setAcceleration);
+bindMotionSlider('motion-angular', 'motion-angular-input', setAngularVelocity);
+bindMotionSlider('motion-halfwidth', 'motion-halfwidth-input', setSubjectHalfWidth);
+bindMotionSlider('temporal-motion-accel', 'temporal-motion-accel-input', setAcceleration);
+bindMotionSlider('temporal-motion-angular', 'temporal-motion-angular-input', setAngularVelocity);
+bindMotionSlider('temporal-motion-halfwidth', 'temporal-motion-halfwidth-input', setSubjectHalfWidth);
 
 // FPS preset buttons
   document.querySelectorAll('.fps-preset').forEach((el) => {
@@ -326,11 +394,6 @@ if (syncToggleBtn) {
   });
 }
 
-bindSlider('temporal-velocity', (v) => {
-  setTemporalVelocity(v);
-  const canvas = document.getElementById('temporal-chart') as HTMLCanvasElement | null;
-  if (canvas) drawTemporalChart(app, true);
-}, 'temporal-velocity-label', ' m/s');
 bindSlider('temporal-distance', (v) => {
   setField(app, 'distanceToSubject', v);
   refreshAll();
@@ -339,23 +402,25 @@ bindSlider('temporal-phase', (v) => { setTemporalPhase(v); drawTemporalChart(app
 bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawTemporalChart(app, true); }, 'temporal-jitter-label', ' ms');
 bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, 'temporal-zoom-label', ' mm');
 
-updateVelocityPresetStyles();
+updateMotionPresetStyles();
 
 // Exposure mode toggle
 const optimizeBtn = document.getElementById('optimize-btn');
 if (optimizeBtn) {
   optimizeBtn.addEventListener('click', () => {
-    const result = runOptimization(app);
+    const result = runOptimization(app, getMotionParams(), getErrorBudget());
     if (result) {
       app.state.extractedWidth        = result.extractedWidth;
       app.state.extractedHeight       = result.extractedHeight;
       app.state.selectedV4l2Mode      = result.selectedV4l2Mode;
       app.state.readoutPitchMultiplier = result.readoutPitchMultiplier;
       app.state.readoutFullFoV        = result.readoutFullFoV;
+      app.state.readoutMethod         = result.readoutMethod;
       setFrameRate(result.fps);
       setShutterDenom(result.shutterDenom);
       syncInputsFromState();
       refreshAll();
+      updateGainDisplay();
     } else {
       showOptimizerWarning();
     }
@@ -395,12 +460,32 @@ function updateLuxPresetStyles(): void {
 }
 updateLuxPresetStyles();
 
+// Lux slider + input binding
+const luxSlider = document.getElementById('lux-slider') as HTMLInputElement | null;
+const luxInput = document.getElementById('luxAtSubject') as HTMLInputElement | null;
+if (luxSlider && luxInput) {
+  luxSlider.addEventListener('input', () => {
+    const v = parseFloat(luxSlider.value);
+    setField(app, 'luxAtSubject', v);
+    if (luxInput !== document.activeElement) luxInput.value = String(v);
+    updateLuxPresetStyles();
+    refreshAll();
+  });
+  luxInput.addEventListener('change', () => {
+    const v = parseFloat(luxInput.value);
+    if (isNaN(v)) return;
+    setField(app, 'luxAtSubject', v);
+    if (luxSlider !== document.activeElement) luxSlider.value = String(v);
+    updateLuxPresetStyles();
+    refreshAll();
+  });
+}
+
 // Update advanced sensor specs display on every refresh
 const prevRefreshAll = refreshAll;
 refreshAll = function(): void {
   prevRefreshAll();
   updateAdvancedSensorSpecs();
-  updateGainDisplay();
 };
 
 export function updateAdvancedSensorSpecs(): void {

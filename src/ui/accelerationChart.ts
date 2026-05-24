@@ -1,6 +1,7 @@
 // Kinematic Motion Resolution Limits — based on temporal_acceleration_chart.html
-import { getFrameRate, setFrameRate } from './temporalChart';
+import { getFrameRate, setFrameRate, getMotionParams } from './temporalChart';
 import { setText } from './outputs';
+import type { MotionParams } from '../types';
 
 let errorBudgetMm = 5;
 
@@ -14,6 +15,7 @@ export function getErrorBudget(): number { return errorBudgetMm; }
 export function updateAccelOutputs(): void {
   const fps = getFrameRate();
   const epsilon = errorBudgetMm / 1000;
+  const motion = getMotionParams();
 
   const maxAccel = 8 * epsilon * fps * fps;
   const gForce = maxAccel / 9.80665;
@@ -24,6 +26,21 @@ export function updateAccelOutputs(): void {
   setText('accel-g', '≈ ' + gForce.toFixed(1) + ' G');
   setText('accel-turn', maxTurn.toLocaleString() + '°/s');
   setText('accel-latency', latency.toFixed(1) + ' ms');
+
+  const subjectAccelEl = document.getElementById('accel-subject-accel');
+  if (subjectAccelEl) {
+    subjectAccelEl.textContent = motion.acceleration.toFixed(1) + ' m/s²';
+    if (motion.acceleration > 0 && motion.acceleration > maxAccel) {
+      subjectAccelEl.classList.add('text-red-400');
+    } else {
+      subjectAccelEl.classList.remove('text-red-400');
+    }
+  }
+
+  const subjectRotEl = document.getElementById('accel-subject-rot');
+  if (subjectRotEl) {
+    subjectRotEl.textContent = Math.round(motion.angularVelocity) + ' °/s';
+  }
 }
 
 export function initAcceleration(): void {

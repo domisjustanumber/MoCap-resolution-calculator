@@ -24,7 +24,7 @@ import {
   SNR_DB_MAX,
   DEFAULT_RADIOMETRY,
 } from './constants';
-import { getSpatialVelocity, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
+import { getMotionParams, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
 
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
@@ -59,7 +59,7 @@ export const DEFAULT_STATE: AppState = {
 export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
-  const results = calculateResults(state, derived, getSpatialVelocity(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
+  const results = calculateResults(state, derived, getMotionParams(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
   const app: AppStateFull = { state, activePreset: 'pi-cam-v1', activeSensorPreset: 'ov5647', activeLensPreset: 'cheap-plastic', derived, results };
   return applyPreset(app, {}, 'pi-cam-v1');
 }
@@ -120,7 +120,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
   const warnings = validateState(state);
   app.derived = calculateDerived(state);
 
-  const velocity = getSpatialVelocity();
+  const motion = getMotionParams();
   const manualShutter = getShutterTime();
   const manualFps = getFrameRate();
   const syncErr = getSyncErrorP95();
@@ -143,9 +143,9 @@ export function recalculate(app: AppStateFull): AppStateFull {
   setMaxFpsLimit(sensorMaxFps);
   setMaxShutterLimit(sensorMaxShutterDenom);
 
-  const firstPass = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn);
-  const exposure = calculateExposureOptimizer(state, app.derived, radiometry, velocity, firstPass.fEffective);
-  app.results = calculateResults(state, app.derived, velocity, manualShutter, manualFps, syncErr, syncOn, exposure);
+  const firstPass = calculateResults(state, app.derived, motion, manualShutter, manualFps, syncErr, syncOn);
+  const exposure = calculateExposureOptimizer(state, app.derived, radiometry, motion, firstPass.fEffective, manualShutter);
+  app.results = calculateResults(state, app.derived, motion, manualShutter, manualFps, syncErr, syncOn, exposure);
 
 
   return app;
@@ -286,4 +286,8 @@ function applyDefaultV4l2Mode(app: AppStateFull, sensorName: string): void {
   app.state.extractedHeight = chosen.height;
   app.state.readoutPitchMultiplier = chosen.pitchMultiplier ?? 1;
   app.state.readoutFullFoV = chosen.fullFoV ?? true;
+  app.state.readoutMethod = !chosen.readoutType ? 'native' :
+    chosen.readoutType.includes('binning') ? 'binning' :
+    chosen.readoutType.includes('subsampling') ? 'subsampling' :
+    chosen.readoutType.includes('cropping') ? 'cropping' : 'native';
 }

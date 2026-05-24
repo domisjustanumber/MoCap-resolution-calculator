@@ -1,6 +1,7 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { isSyncToggleOn, getSyncErrorP95 } from './temporalChart';
+import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from './temporalChart';
+import { MOTION_MTF50_CONST } from '../constants';
 
 let lastHash = '';
 let mouseX = -1;
@@ -108,7 +109,9 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     String(yMaxOverride) +
     pins.map((p) => p.distance.toFixed(2) + p.color).join('|') +
     String(isSyncToggleOn()) +
-    String(getSyncErrorP95());
+    String(getSyncErrorP95()) +
+    String(getShutterTime()) +
+    JSON.stringify(getMotionParams());
   if (hash === lastHash && !force) return;
   lastHash = hash;
 
@@ -124,9 +127,12 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   if (!ctx) return;
 
   const { results, state } = app;
-  const { minFeatureSize } = results;
+  const { minFeatureSize, fcAberrated, fNyquistSkipped, fDRLimited, formatEfficiency } = results;
   const { focalLength } = state;
   const dMax = maxDistance;
+
+  const motion = getMotionParams();
+  const shutterS = getShutterTime();
 
   const syncEnabled = isSyncToggleOn();
   const syncErrP95 = getSyncErrorP95();
@@ -137,8 +143,28 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
+
+  // Per-pixel motion blur ceiling — vImg depends on distance
+  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterS;
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+
   const featureMm = (d: number) => {
-    const optical = (minFeatureSize * d) / focalLength;
+    const dEff = Math.max(0.01, d);
+    if (vTotal > 1e-6 && shutterS > 1e-9) {
+      const vImg = vTotal * focalLength / dEff;
+      if (vImg > 1e-6) {
+        const fTemporal = MOTION_MTF50_CONST / (vImg * shutterS);
+        const fEffective = Math.min(fcAberrated, fNyquistSkipped, fTemporal, fDRLimited) * formatEfficiency;
+        if (fEffective > 1e-6) {
+          const minFeat = 500 / fEffective;
+          const optical = (minFeat * dEff) / focalLength;
+          return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
+        }
+      }
+    }
+    // Fallback: no meaningful motion blur, use original formula
+    const optical = (minFeatureSize * dEff) / focalLength;
     return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
   };
 

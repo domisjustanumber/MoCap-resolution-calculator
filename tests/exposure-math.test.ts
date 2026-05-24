@@ -3,7 +3,7 @@ import { calculateExposureOptimizer } from '../src/exposure';
 import { calculateDerived, calculateResults } from '../src/engine';
 import { SENSOR_RADIOMETRY } from '../presets';
 import { DEFAULT_TEMPERATURE_C, DARK_CURRENT_DOUBLING_C } from '../src/constants';
-import type { AppState, SensorRadiometry } from '../src/types';
+import type { AppState, SensorRadiometry, MotionParams } from '../src/types';
 
 function makeState(overrides: Partial<AppState> = {}): AppState {
   return {
@@ -34,16 +34,19 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     desiredSnrDb: 20,
     temperatureC: 25,
     lensTransmission: 0.85,
-    exposureMode: 'optimized',
     ...overrides,
   };
 }
 
+function motion(v: number = 1.5, accel: number = 0, angular: number = 0): MotionParams {
+  return { linearVelocity: v, acceleration: accel, angularVelocity: angular, subjectHalfWidth: 0.5 };
+}
+
 const imx219 = SENSOR_RADIOMETRY['imx219'];
 
-function optimize(state: AppState, radiometry: SensorRadiometry, velocity = 1.5, targetFreq = 100) {
+function optimize(state: AppState, radiometry: SensorRadiometry, mv = 1.5, targetFreq = 100) {
   const derived = calculateDerived(state);
-  return calculateExposureOptimizer(state, derived, radiometry, velocity, targetFreq);
+  return calculateExposureOptimizer(state, derived, radiometry, motion(mv), targetFreq);
 }
 
 // ── Photon Flux & Electron Rate ──────────────────────────────────
@@ -359,12 +362,12 @@ describe('preset behavior', () => {
 
 describe('engine integration', () => {
   it('exposure optimizer feeds into calculateResults correctly', () => {
-    const s = makeState({ luxAtSubject: 1000, exposureMode: 'optimized' });
+    const s = makeState({ luxAtSubject: 1000 });
     const derived = calculateDerived(s);
     const exposure = optimize(s, imx219, 1.5, 200);
 
     const results = calculateResults(
-      s, derived, 1.5, exposure.tOptimal, exposure.optimalFps, 0, false, exposure
+      s, derived, motion(1.5), exposure.tOptimal, exposure.optimalFps, 0, false, exposure
     );
 
     expect(results.exposure.tOptimal).toBe(exposure.tOptimal);
@@ -379,17 +382,17 @@ describe('engine integration', () => {
     const exposure = optimize(s, imx219, 15, 300);
 
     const results = calculateResults(
-      s, derived, 15, exposure.tOptimal, exposure.optimalFps, 0, false, exposure
+      s, derived, motion(15), exposure.tOptimal, exposure.optimalFps, 0, false, exposure
     );
 
     expect(exposure.photonStarved).toBe(true);
     expect(results.bottleneckType).toBe('photon-starved');
   });
 
-  it('manual mode bypasses optimizer', () => {
-    const s = makeState({ exposureMode: 'manual' });
+  it('bypasses optimizer for manual shutter', () => {
+    const s = makeState();
     const derived = calculateDerived(s);
-    const results = calculateResults(s, derived, 1.5, 1/30, 30, 0, false);
+    const results = calculateResults(s, derived, motion(1.5), 1/30, 30, 0, false);
 
     expect(results.exposure.tOptimal).toBeCloseTo(1/30, 2);
     expect(results.exposure.optimalGain).toBe(1);

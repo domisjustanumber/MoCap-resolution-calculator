@@ -105,6 +105,13 @@ export interface AppStateFull {
   results: Results;
 }
 
+export interface MotionParams {
+  linearVelocity: number;
+  acceleration: number;
+  angularVelocity: number;
+  subjectHalfWidth: number;
+}
+
 export interface Preset {
   name: PresetName;
   label: string;

@@ -1,4 +1,4 @@
-import type { AppState, DerivedState, Results, ExposureOptimization, BottleneckType } from './types';
+import type { AppState, DerivedState, Results, ExposureOptimization, BottleneckType, MotionParams } from './types';
 import { lensTierScalar } from '../presets';
 import {
   OLPF_PENALTY,
@@ -87,7 +87,7 @@ export function calculateDiffractionCutoff(aperture: number, wavelengthNm: numbe
 export function calculateResults(
   state: Readonly<AppState>,
   derived: Readonly<DerivedState>,
-  velocity: number,
+  motion: MotionParams,
   shutterTime: number,
   fps: number,
   syncErrorP95: number,
@@ -120,11 +120,17 @@ export function calculateResults(
     formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
   }
 
-  const vImg = velocity * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterTime;
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+  const vImg = vTotal * state.focalLength / Math.max(0.1, state.distanceToSubject);
   const fTemporal50 = vImg > 1e-6 ? MOTION_MTF50_CONST / (vImg * shutterTime) : Infinity;
 
   // Dynamic Range: minimum detectable contrast from noise floor
-  const contrastFloor = 1 / Math.pow(10, state.dynamicRangeDb / 20);
+  const effectiveDR = exposure?.photonStarved
+    ? Math.min(state.dynamicRangeDb, exposure.snrAtOptimalDb)
+    : state.dynamicRangeDb;
+  const contrastFloor = 1 / Math.pow(10, effectiveDR / 20);
   const fDRLimited = fcAberrated * Math.sqrt(Math.max(0, 1 - contrastFloor / Math.max(0.01, formatEfficiency)));
 
   const fSyncMTF50 = syncErrorP95 > 0.001 ? 0.1874 / syncErrorP95 : Infinity;
