@@ -66,7 +66,7 @@ setRegionHz(defaultHz);
 function detectRegionForValue(value: number): number {
   if (value === 30 || (value > 0 && value % 60 === 0)) return 60;
   if (value === 25 || (value > 0 && value % 50 === 0)) return 50;
-  return 0;
+  return getRegionHz();
 }
 
 function rebuildFpsPresets(): void {
@@ -571,9 +571,15 @@ if (optimizeBtn) {
       app.state.readoutPitchMultiplier = result.readoutPitchMultiplier;
       app.state.readoutFullFoV        = result.readoutFullFoV;
       app.state.readoutMethod         = result.readoutMethod;
+      // Update max fps/shutter for the new V4L2 mode before applying timing — otherwise
+      // setFrameRate clamps to the previous mode's limit (e.g. 40 fps on 2028×1520).
+      recalculate(app);
       setFrameRate(result.fps);
       setShutterDenom(result.shutterDenom);
       syncInputsFromState();
+      updateFpsLabel();
+      updateFpsPresetStyles();
+      updateShutterPresetStyles();
       refreshAll();
       updateGainDisplay();
       if (!result.snrMet) {

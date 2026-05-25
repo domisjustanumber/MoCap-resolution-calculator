@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { runOptimization, minAcceptableSnrDb, motionHeadroom, snrUndershootWorthwhile, spatialUndershootWorthwhile, candidateWorthwhileSnrUndershoot, pickBestWorthwhileRelaxed } from '../src/optimizer';
 import { calculateDerived, calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
-import { DEFAULT_STATE, createState, applyPreset } from '../src/state';
+import { DEFAULT_STATE, createState, applyPreset, recalculate } from '../src/state';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz } from '../src/ui/temporalChart';
+import { setRegionHz, setFrameRate, getFrameRate, getMaxFpsLimit } from '../src/ui/temporalChart';
 import { isValidRegionFps } from '../src/temporalQuantize';
 import type { AppStateFull, MotionParams } from '../src/types';
 
@@ -198,6 +198,45 @@ describe('runOptimization SNR guarantee', () => {
     expect(result).not.toBeNull();
     expect(isValidRegionFps(result!.fps, 60)).toBe(true);
     expect([30, 60]).toContain(result!.fps);
+  });
+
+  it('Pi HQ Sports daylight picks 120 fps on 1332×990 mode', () => {
+    setRegionHz(60);
+    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const app = applyPreset(createState(), {}, 'pi-hq-cam');
+    app.state.luxAtSubject = 10_000;
+    app.state.measurementMode = 'monochrome';
+    recalculate(app);
+
+    const result = runOptimization(app, sports, 5, 10);
+    expect(result).not.toBeNull();
+    expect(result!.extractedWidth).toBe(1332);
+    expect(result!.extractedHeight).toBe(990);
+    expect(result!.fps).toBe(120);
+    expect(isValidRegionFps(result!.fps, 60)).toBe(true);
+  });
+
+  it('setFrameRate must run after recalculate when applying optimize result', () => {
+    setRegionHz(60);
+    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const app = applyPreset(createState(), {}, 'pi-hq-cam');
+    app.state.luxAtSubject = 10_000;
+    recalculate(app);
+    expect(getMaxFpsLimit()).toBe(40);
+
+    const result = runOptimization(app, sports, 5, 10);
+    expect(result!.fps).toBe(120);
+
+    setFrameRate(result!.fps);
+    expect(getFrameRate()).toBe(40);
+
+    app.state.extractedWidth = result!.extractedWidth;
+    app.state.extractedHeight = result!.extractedHeight;
+    app.state.selectedV4l2Mode = result!.selectedV4l2Mode;
+    recalculate(app);
+    setFrameRate(result!.fps);
+    expect(getFrameRate()).toBe(120);
+    expect(getMaxFpsLimit()).toBe(120);
   });
 });
 

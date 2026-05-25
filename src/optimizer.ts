@@ -1,4 +1,4 @@
-import type { AppStateFull, AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams, ReadoutMethod } from './types';
+﻿import type { AppStateFull, AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams, ReadoutMethod } from './types';
 import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
@@ -101,7 +101,7 @@ export function snrUndershootWorthwhile(
   return underperforming && worthwhile;
 }
 
-/** True when SNR undershoot is justified by ≥20% smaller min resolvable feature (better spatial resolution). */
+/** True when SNR undershoot is justified by >=20% smaller min resolvable feature (better spatial resolution). */
 export function spatialUndershootWorthwhile(
   baselineMinFeature: number,
   candidateMinFeature: number,
@@ -213,34 +213,9 @@ export function runOptimization(
   const initialWidth = app.state.extractedWidth;
   const initialHeight = app.state.extractedHeight;
 
-  let bestMetFps = 0;
-  let bestMetShutterDenom = 0;
-  let bestMetWidth = 0;
-  let bestMetHeight = 0;
-  let bestMetV4l2Mode = -1;
-  let bestMetPitchMult = 1;
-  let bestMetFullFoV = true;
-  let bestMetMinFeature = Infinity;
-  let bestMetReadoutMethod: ReadoutMethod = 'native';
-  let bestMetMaxFps = 0;
-  let bestMetMaxShutter = 0;
-  let bestMetTargetFreq = 0;
-
+  const strictOptions: ResolvedCandidate[] = [];
   const relaxedOptions: ResolvedCandidate[] = [];
-
-  let bestFallbackFps = 0;
-  let bestFallbackShutterDenom = 0;
-  let bestFallbackWidth = 0;
-  let bestFallbackHeight = 0;
-  let bestFallbackV4l2Mode = -1;
-  let bestFallbackPitchMult = 1;
-  let bestFallbackFullFoV = true;
-  let bestFallbackMinFeature = Infinity;
-  let bestFallbackSnr = -Infinity;
-  let bestFallbackReadoutMethod: ReadoutMethod = 'native';
-  let bestFallbackMaxFps = 0;
-  let bestFallbackMaxShutter = 0;
-  let bestFallbackTargetFreq = 0;
+  const fallbackOptions: ResolvedCandidate[] = [];
 
   let initialModeStrict: ResolvedCandidate | null = null;
 
@@ -300,37 +275,26 @@ export function runOptimization(
       const shutterTime = 1 / Math.max(1, shutterDenom);
       const results = calculateResults(tempState, tempDerived, motion, shutterTime, fps, 0, false, exposure);
 
+      const opt: ResolvedCandidate = {
+        fps,
+        shutterDenom,
+        width: c.statePatch.extractedWidth ?? tempState.extractedWidth,
+        height: c.statePatch.extractedHeight ?? tempState.extractedHeight,
+        v4l2Mode: c.statePatch.selectedV4l2Mode ?? -1,
+        pitchMult: c.statePatch.readoutPitchMultiplier ?? 1,
+        fullFoV: c.statePatch.readoutFullFoV ?? true,
+        readoutMethod: (c.statePatch.readoutMethod as ReadoutMethod) ?? tempState.readoutMethod,
+        minFeature: results.minFeatureSize,
+        maxFps: c.maxFps,
+        maxShutter: c.maxShutterDenom,
+        targetFreq,
+        snrDb,
+      };
+
       if (snrDb >= tempState.desiredSnrDb) {
-        if (bestMetMinFeature === Infinity ||
-            shutterDenom > bestMetShutterDenom ||
-            (shutterDenom === bestMetShutterDenom && results.minFeatureSize < bestMetMinFeature)) {
-          bestMetMinFeature = results.minFeatureSize;
-          bestMetFps = fps;
-          bestMetShutterDenom = shutterDenom;
-          bestMetWidth = c.statePatch.extractedWidth ?? tempState.extractedWidth;
-          bestMetHeight = c.statePatch.extractedHeight ?? tempState.extractedHeight;
-          bestMetV4l2Mode = c.statePatch.selectedV4l2Mode ?? -1;
-          bestMetPitchMult = c.statePatch.readoutPitchMultiplier ?? 1;
-          bestMetFullFoV = c.statePatch.readoutFullFoV ?? true;
-          bestMetReadoutMethod = (c.statePatch.readoutMethod as ReadoutMethod) ?? tempState.readoutMethod;
-          bestMetMaxFps = c.maxFps;
-          bestMetMaxShutter = c.maxShutterDenom;
-          bestMetTargetFreq = targetFreq;
-        }
-      } else if (snrDb > bestFallbackSnr) {
-        bestFallbackSnr = snrDb;
-        bestFallbackMinFeature = results.minFeatureSize;
-        bestFallbackFps = fps;
-        bestFallbackShutterDenom = shutterDenom;
-        bestFallbackWidth = c.statePatch.extractedWidth ?? tempState.extractedWidth;
-        bestFallbackHeight = c.statePatch.extractedHeight ?? tempState.extractedHeight;
-        bestFallbackV4l2Mode = c.statePatch.selectedV4l2Mode ?? -1;
-        bestFallbackPitchMult = c.statePatch.readoutPitchMultiplier ?? 1;
-        bestFallbackFullFoV = c.statePatch.readoutFullFoV ?? true;
-        bestFallbackReadoutMethod = (c.statePatch.readoutMethod as ReadoutMethod) ?? tempState.readoutMethod;
-        bestFallbackMaxFps = c.maxFps;
-        bestFallbackMaxShutter = c.maxShutterDenom;
-        bestFallbackTargetFreq = targetFreq;
+        strictOptions.push(opt);
+      } else {
+        fallbackOptions.push(opt);
       }
     }
 
@@ -368,8 +332,8 @@ export function runOptimization(
     }
   }
 
-  const hasValidMet = isFinite(bestMetMinFeature);
-  const hasValidFallback = isFinite(bestFallbackMinFeature);
+  const hasValidMet = strictOptions.length > 0;
+  const hasValidFallback = fallbackOptions.length > 0;
   const hasRelaxed = relaxedOptions.length > 0;
 
   if (!hasValidMet && !hasRelaxed && !hasValidFallback) return null;
@@ -378,33 +342,31 @@ export function runOptimization(
   let useStrict = false;
 
   if (hasValidMet) {
-    const strictWinner: ResolvedCandidate = {
-      fps: bestMetFps,
-      shutterDenom: bestMetShutterDenom,
-      width: bestMetWidth,
-      height: bestMetHeight,
-      v4l2Mode: bestMetV4l2Mode,
-      pitchMult: bestMetPitchMult,
-      fullFoV: bestMetFullFoV,
-      readoutMethod: bestMetReadoutMethod,
-      minFeature: bestMetMinFeature,
-      maxFps: bestMetMaxFps,
-      maxShutter: bestMetMaxShutter,
-      targetFreq: bestMetTargetFreq,
-      snrDb: app.state.desiredSnrDb,
-    };
+    strictOptions.sort((a, b) => {
+      if (a.shutterDenom !== b.shutterDenom) return b.shutterDenom - a.shutterDenom;
+      return a.minFeature - b.minFeature;
+    });
+    const baselineStrict = strictOptions[0];
+
+    const strictMotion = motionHeadroom(motion, baselineStrict.fps, errorBudgetMm);
+    const motionQualifyingStrict = strictOptions.filter((opt) =>
+      snrUndershootWorthwhile(strictMotion, motionHeadroom(motion, opt.fps, errorBudgetMm)),
+    );
+    const strictWinner = motionQualifyingStrict.length > 0
+      ? pickBestWorthwhileRelaxed(baselineStrict.fps, baselineStrict.minFeature, motion, errorBudgetMm, motionQualifyingStrict, true) ?? baselineStrict
+      : baselineStrict;
 
     if (hasRelaxed && minSnrDb < app.state.desiredSnrDb) {
-      const strictMotion = motionHeadroom(motion, bestMetFps, errorBudgetMm);
+      const winnerMotion = motionHeadroom(motion, strictWinner.fps, errorBudgetMm);
       const motionQualifying = relaxedOptions.filter((opt) =>
-        snrUndershootWorthwhile(strictMotion, motionHeadroom(motion, opt.fps, errorBudgetMm)),
+        snrUndershootWorthwhile(winnerMotion, motionHeadroom(motion, opt.fps, errorBudgetMm)),
       );
       const motionPick = motionQualifying.length > 0
-        ? pickBestWorthwhileRelaxed(bestMetFps, bestMetMinFeature, motion, errorBudgetMm, motionQualifying, true)
+        ? pickBestWorthwhileRelaxed(strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, motionQualifying, true)
         : null;
 
       let relaxedPick = motionPick ?? pickBestWorthwhileRelaxed(
-        bestMetFps, bestMetMinFeature, motion, errorBudgetMm, relaxedOptions,
+        strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, relaxedOptions,
       );
 
       if (!motionPick && initialModeStrict) {
@@ -435,42 +397,18 @@ export function runOptimization(
       useStrict = true;
     }
   } else if (hasRelaxed) {
-    if (hasValidFallback) {
-      const relaxedPick = pickBestWorthwhileRelaxed(bestFallbackFps, bestFallbackMinFeature, motion, errorBudgetMm, relaxedOptions);
-      winner = relaxedPick ?? {
-        fps: bestFallbackFps,
-        shutterDenom: bestFallbackShutterDenom,
-        width: bestFallbackWidth,
-        height: bestFallbackHeight,
-        v4l2Mode: bestFallbackV4l2Mode,
-        pitchMult: bestFallbackPitchMult,
-        fullFoV: bestFallbackFullFoV,
-        readoutMethod: bestFallbackReadoutMethod,
-        minFeature: bestFallbackMinFeature,
-        maxFps: bestFallbackMaxFps,
-        maxShutter: bestFallbackMaxShutter,
-        targetFreq: bestFallbackTargetFreq,
-        snrDb: bestFallbackSnr,
-      };
+    fallbackOptions.sort((a, b) => b.snrDb - a.snrDb);
+    const bestFallback = fallbackOptions[0];
+
+    if (bestFallback) {
+      const relaxedPick = pickBestWorthwhileRelaxed(bestFallback.fps, bestFallback.minFeature, motion, errorBudgetMm, relaxedOptions);
+      winner = relaxedPick ?? bestFallback;
     } else {
       winner = pickBestRelaxedOverall(relaxedOptions);
     }
   } else {
-    winner = {
-      fps: bestFallbackFps,
-      shutterDenom: bestFallbackShutterDenom,
-      width: bestFallbackWidth,
-      height: bestFallbackHeight,
-      v4l2Mode: bestFallbackV4l2Mode,
-      pitchMult: bestFallbackPitchMult,
-      fullFoV: bestFallbackFullFoV,
-      readoutMethod: bestFallbackReadoutMethod,
-      minFeature: bestFallbackMinFeature,
-      maxFps: bestFallbackMaxFps,
-      maxShutter: bestFallbackMaxShutter,
-      targetFreq: bestFallbackTargetFreq,
-      snrDb: bestFallbackSnr,
-    };
+    fallbackOptions.sort((a, b) => b.snrDb - a.snrDb);
+    winner = fallbackOptions[0];
   }
 
   if (!winner) return null;

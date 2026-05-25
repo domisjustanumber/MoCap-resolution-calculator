@@ -40,24 +40,25 @@ export function snapFpsToRegion(
   const rounded = Math.round(fps);
   if (regionHz <= 0) return Math.max(1, Math.min(maxFps, rounded));
 
-  const half = regionHz / 2;
+  const valid = enumerateRegionFpsValues(maxFps, regionHz);
+  if (valid.length === 0) return Math.max(1, Math.min(maxFps, rounded));
 
   if (mode === 'nearest') {
-    const nearestMultiple = Math.round(fps / regionHz) * regionHz;
-    const useHalf = Math.abs(fps - half) < Math.abs(fps - nearestMultiple);
-    const candidate = useHalf ? half : nearestMultiple;
-    return Math.max(1, Math.min(maxFps, candidate));
+    return valid.reduce((prev, curr) =>
+      Math.abs(curr - fps) < Math.abs(prev - fps) ? curr : prev
+    );
   }
 
   if (mode === 'ceil') {
-    if (fps <= half) return Math.min(maxFps, half);
-    return Math.min(maxFps, Math.ceil(fps / regionHz) * regionHz);
+    const candidates = valid.filter((v) => v >= fps);
+    if (candidates.length > 0) return Math.min(...candidates);
+    return Math.max(...valid);
   }
 
-  // floor — lower fps for longer exposure; pick largest valid fps still ≤ fps
-  const candidates = enumerateRegionFpsValues(maxFps, regionHz).filter((v) => v <= fps);
+  // floor
+  const candidates = valid.filter((v) => v <= fps);
   if (candidates.length > 0) return Math.max(...candidates);
-  return Math.min(maxFps, half);
+  return Math.min(...valid);
 }
 
 export function snapShutterToRegion(
@@ -70,21 +71,25 @@ export function snapShutterToRegion(
   const clamped = Math.max(minDenom, Math.min(maxDenom, denom));
   if (regionHz <= 0) return Math.round(clamped);
 
+  const valid = enumerateRegionShutterDenoms(regionHz, maxDenom).filter(d => d >= minDenom);
+  if (valid.length === 0) return Math.round(clamped);
+
+  if (mode === 'nearest') {
+    return valid.reduce((prev, curr) =>
+      Math.abs(curr - clamped) < Math.abs(prev - clamped) ? curr : prev
+    );
+  }
+
   if (mode === 'ceil') {
-    return Math.max(minDenom, Math.min(maxDenom, Math.ceil(clamped / regionHz) * regionHz));
-  }
-
-  if (mode === 'floor') {
-    const floored = Math.floor(clamped / regionHz) * regionHz;
-  // floor: longest exposure on grid — smallest denom ≥ minDenom that is ≤ clamped
-    const candidates = enumerateRegionShutterDenoms(regionHz, maxDenom)
-      .filter((d) => d >= minDenom && d <= clamped);
+    const candidates = valid.filter((d) => d >= clamped);
     if (candidates.length > 0) return Math.min(...candidates);
-    if (floored >= minDenom && floored <= maxDenom) return floored;
-    return Math.max(minDenom, regionHz / 2);
+    return Math.max(...valid);
   }
 
-  return Math.max(minDenom, Math.min(maxDenom, Math.round(clamped / regionHz) * regionHz));
+  // floor
+  const candidates = valid.filter((d) => d <= clamped);
+  if (candidates.length > 0) return Math.max(...candidates);
+  return Math.min(...valid);
 }
 
 /** Shutter denominators to evaluate at fps: continuous cap plus on-grid values in range. */
@@ -137,7 +142,9 @@ export function snapTimingPreservingSnr(
 
   let best: (TimingValues & { onRegionGrid: boolean }) | null = null;
 
+  const minFps = Math.max(1, Math.round(timing.fps));
   for (const fps of enumerateRegionFpsValues(maxFps, regionHz)) {
+    if (fps < minFps) continue;
     for (const shutterDenom of enumerateRegionShutterDenoms(regionHz, maxShutterDenom)) {
       if (shutterDenom < fps || shutterDenom > maxShutterDenom) continue;
       if (!meetsSnr(fps, shutterDenom)) continue;

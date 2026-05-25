@@ -43,6 +43,18 @@ describe('temporalQuantize', () => {
     expect(result.shutterDenom).toBe(25);
   });
 
+  it('snap does not lower fps below the winner timing', () => {
+    const result = snapTimingPreservingSnr(
+      { fps: 120, shutterDenom: 1920 },
+      60,
+      120,
+      8000,
+      (fps, shutter) => fps >= 120 && shutter >= fps,
+    );
+    expect(result.fps).toBeGreaterThanOrEqual(120);
+    expect(isValidRegionFps(result.fps, 60)).toBe(true);
+  });
+
   it('snaps to grid when on-grid cannot meet SNR', () => {
     const result = snapTimingPreservingSnr(
       { fps: 15, shutterDenom: 15 },
@@ -53,6 +65,6 @@ describe('temporalQuantize', () => {
     );
     expect(result.onRegionGrid).toBe(true);
     expect(result.fps).toBe(25);
-    expect(result.shutterDenom).toBe(50);
+    expect(result.shutterDenom).toBe(25);
   });
 });
