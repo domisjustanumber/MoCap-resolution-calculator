@@ -17,6 +17,7 @@ TypeScript interface: `presets/types.ts` → `SensorPreset`
 |---|---|---|---|---|
 | `name` | string slug | **yes** | sensor lookup key | Unique identifier, e.g. `"imx219"` |
 | `label` | string | **yes** | display only | Human-readable name, e.g. `"Sony IMX219"` |
+| `colourVariant` | `"monochrome"` \| `"colour"` \| `"both"` | **yes** | `state.ts` auto-sets measurement mode | Whether the sensor die is available in monochrome, colour, or both variants |
 | `pixelPitch` | µm | **yes** | `engine.ts` spatial calculation, `state.ts` preset detection | Sensor datasheet |
 | `nativeWidth` | pixels | **yes** | `engine.ts` spatial calculation, `state.ts` preset detection | Sensor datasheet |
 | `nativeHeight` | pixels | **yes** | `engine.ts` spatial calculation, `state.ts` preset detection | Sensor datasheet |

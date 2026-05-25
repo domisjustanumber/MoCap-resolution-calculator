@@ -430,7 +430,7 @@ export function updateWavelengthColorIndicator(): void {
 export function updateIrBadge(): void {
   const badge = document.getElementById('ir-badge');
   if (badge) {
-    badge.classList.toggle('hidden', app.state.wavelength <= 780);
+    badge.classList.toggle('invisible', app.state.wavelength <= 780);
   }
 }
 

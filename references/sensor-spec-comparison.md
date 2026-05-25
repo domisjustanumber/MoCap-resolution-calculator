@@ -16,6 +16,7 @@
 | **Sensor diagonal** | 3.67 mm ⚠ | 3.68 mm ⚠ | 6.45 mm ⚠ | 6.29 mm ⚠ | 3.90 mm ✅ | 5.76 mm ⚠ | ~10.2 mm |
 | **Optical format** | 1/4" ✅ | 1/4" ✅ | ~1/2.5" ⚠ | 1/2.3" ✅ | 1/4" ✅ | 1/2.6" ⚠ | ~1/1.5" |
 | **CFA type** | Bayer ✅ | Bayer ✅ | Bayer ⚠ | Bayer ✅ | Monochrome ✅ | Bayer ⚠ | Quad-Bayer |
+| **Colour variant** | colour ✅ | colour ✅ | colour ⚠ | colour ✅ | monochrome ✅ | colour ⚠ | colour ⚠ |
 | **OLPF present** | Yes ✅ | Yes ✅ | Yes ⚠ | No ✅ | Yes ⚠ | No ⚠ | No |
 | **ADC bit depth** | 10-bit ✅ | 10-bit ✅ | 12-bit ⚠ | 12-bit ⚠ | 10-bit ✅ | 12-bit ⚠ | 12-bit ⚠ |
 | **Row readout time** | 32 µs ⚠ | 28 µs ⚠ | 25 µs ⚠ | 20 µs ⚠ | 15 µs ✅ | 25 µs ⚠ | 12 µs ⚠ |
