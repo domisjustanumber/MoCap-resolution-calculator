@@ -575,6 +575,7 @@ export function syncInputsFromState(): void {
 
 function refresh(): void {
   recalculate(app);
+  syncInputsFromState();
   updateOutputs(app);
   drawChart(app);
   drawDistanceChart(app);
