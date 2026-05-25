@@ -35,7 +35,7 @@ const BITS_PER_PIXEL: Record<OutputFormat, (quality?: number) => number> = {
   raw10: () => 10,
   uyuv: () => 16,
   nv12: () => 12,
-  mjpg: (q = 50) => q / 100 * 16,
+  mjpg: (q = 50) => (q / 100) ** 2 * 2 + 0.05,
   h264: () => 2,
 };
 
