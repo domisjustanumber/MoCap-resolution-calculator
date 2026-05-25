@@ -224,7 +224,11 @@ function detectSensorPreset(app: AppStateFull): string {
   for (const [name, geom] of Object.entries(SENSOR_GEOMETRY)) {
     if (geom.pixelPitch === app.state.pixelPitch &&
         geom.nativeWidth === app.state.nativeWidth &&
-        geom.nativeHeight === app.state.nativeHeight) {
+        geom.nativeHeight === app.state.nativeHeight &&
+        geom.olpfPresent === app.state.olpfPresent &&
+        geom.dynamicRangeDb === app.state.dynamicRangeDb &&
+        geom.shutterType === app.state.shutterType &&
+        geom.colourVariant === app.state.measurementMode) {
       return name;
     }
   }
