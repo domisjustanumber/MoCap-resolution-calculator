@@ -1,7 +1,7 @@
 import type { AppStateFull, AppState, ReadoutMethod } from '../types';
 import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
-import { PRESETS, SENSOR_GEOMETRY, SENSOR_RADIOMETRY } from '../../presets';
-import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, DEFAULT_RADIOMETRY } from '../constants';
+import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
+import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
@@ -11,7 +11,6 @@ import { updateShutterPresetStyles } from '../main';
 import { updateFpsPresetStyles } from '../main';
 
 let app: AppStateFull;
-let lastSensorWasMonochrome = false;
 
 export function initInputs(state: AppStateFull): void {
   app = state;
@@ -42,6 +41,7 @@ export function initInputs(state: AppStateFull): void {
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
   bindLensTierChips();
+  bindShutterRadios();
   bindPresetChips();
   bindSensorModelChips();
   buildWavelengthChips();
@@ -161,19 +161,36 @@ function bindFovInput(): void {
 }
 
 function bindLensTierChips(): void {
-  const map: Record<string, string> = { 'lens-cheap': 'cheap-plastic', 'lens-mid': 'mid-glass', 'lens-premium': 'premium-stack' };
-  Object.entries(map).forEach(([preset, tier]) => {
+  const map: Record<string, { tier: string; dr: number }> = {
+    'lens-cheap': { tier: 'cheap-plastic', dr: 59 },
+    'lens-mid': { tier: 'mid-glass', dr: 66 },
+    'lens-premium': { tier: 'premium-stack', dr: 90 },
+  };
+  Object.entries(map).forEach(([preset, spec]) => {
     const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;
     if (!chip) return;
     chip.addEventListener('click', () => {
-      setField(app, 'lensTier', tier as AppState['lensTier']);
+      setField(app, 'lensTier', spec.tier as AppState['lensTier']);
+      setField(app, 'dynamicRangeDb', spec.dr);
       syncInputsFromState();
       updateCompressionControlsState();
       refresh();
     });
   });
-  const customChip = document.querySelector('[data-preset="lens-custom"]') as HTMLButtonElement | null;
-  if (customChip) customChip.disabled = true;
+}
+
+function bindShutterRadios(): void {
+  const globalEl = document.getElementById('shutter-global') as HTMLInputElement | null;
+  const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
+  [globalEl, rollingEl].forEach((el) => {
+    if (!el) return;
+    el.addEventListener('change', () => {
+      if (!el.checked) return;
+      setField(app, 'shutterType', el.value as AppState['shutterType']);
+      syncInputsFromState();
+      refresh();
+    });
+  });
 }
 
 function bindDistanceRange(): void {
@@ -356,13 +373,6 @@ function updateLensTierChipStyles(): void {
       chip.classList.remove('active');
     }
   });
-  const customChip = document.querySelector('[data-preset="lens-custom"]') as HTMLButtonElement | null;
-  if (!customChip) return;
-  if (app.activeLensPreset === 'custom') {
-    customChip.classList.add('active');
-  } else {
-    customChip.classList.remove('active');
-  }
 }
 
 function buildWavelengthChips(): void {
@@ -534,29 +544,15 @@ export function syncInputsFromState(): void {
     h264BrValueSpan.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
   }
 
+  const luxSlider = document.getElementById('lux-slider') as HTMLInputElement | null;
+  if (luxSlider && luxSlider !== document.activeElement) {
+    luxSlider.value = String(app.state.luxAtSubject);
+  }
+
   const monochromeEl = document.getElementById('mode-monochrome') as HTMLInputElement | null;
   const colourEl = document.getElementById('mode-colour') as HTMLInputElement | null;
   if (monochromeEl) monochromeEl.checked = app.state.measurementMode === 'monochrome';
-  if (colourEl) {
-    const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
-    const isMonoSensor = radiometry.cfaFactor >= 0.95;
-    if (isMonoSensor) {
-      colourEl.disabled = true;
-      colourEl.checked = false;
-      if (app.state.measurementMode === 'colour') {
-        app.state.measurementMode = 'monochrome';
-        if (monochromeEl) monochromeEl.checked = true;
-      }
-    } else {
-      colourEl.disabled = false;
-      if (lastSensorWasMonochrome) {
-        app.state.measurementMode = 'colour';
-        if (monochromeEl) monochromeEl.checked = false;
-      }
-      colourEl.checked = app.state.measurementMode === 'colour';
-    }
-    lastSensorWasMonochrome = isMonoSensor;
-  }
+  if (colourEl) colourEl.checked = app.state.measurementMode === 'colour';
 
   const fovEl = document.getElementById('diagonalFov') as HTMLInputElement | null;
   if (fovEl && fovEl !== document.activeElement) {

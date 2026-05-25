@@ -23,13 +23,15 @@ import {
   setSyncToggle,
   getMaxFpsLimit,
   getMaxShutterLimit,
+  getRegionHz,
+  setRegionHz,
+  getErrorBudget,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
 import type { MotionParams } from './types';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import { DEFAULT_RADIOMETRY } from './constants';
 import { runOptimization } from './optimizer';
-import { getErrorBudget } from './ui/accelerationChart';
 
 const app = createState();
 
@@ -44,6 +46,139 @@ let refreshAll = function(): void {
 };
 
 initInputs(app);
+
+// ---- Region setup + event delegation ----
+
+function detectDefaultRegion(): number {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const is60Hz = tz.startsWith('America/') ||
+      ['Asia/Seoul', 'Asia/Tokyo', 'Asia/Manila', 'Asia/Taipei'].includes(tz);
+    return is60Hz ? 60 : 50;
+  } catch {
+    return 50;
+  }
+}
+const defaultHz = detectDefaultRegion();
+setRegionHz(defaultHz);
+
+function detectRegionForValue(value: number): number {
+  if (value === 30 || (value > 0 && value % 60 === 0)) return 60;
+  if (value === 25 || (value > 0 && value % 50 === 0)) return 50;
+  return 0;
+}
+
+function rebuildFpsPresets(): void {
+  const container = document.getElementById('fps-presets');
+  if (!container) return;
+  container.querySelectorAll('.fps-preset').forEach(el => el.remove());
+  const regionHz = getRegionHz();
+  let count = 0;
+  if (regionHz > 0) {
+    const half = regionHz / 2;
+    if (count < 5) {
+      const btn = document.createElement('button');
+      btn.dataset.fps = String(half);
+      btn.className = 'fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none';
+      btn.textContent = String(half);
+      container.appendChild(btn);
+      count++;
+    }
+  }
+  const step = regionHz > 0 ? regionHz : 25;
+  for (let v = step; count < 5; v += step) {
+    if (v > 300) break;
+    const btn = document.createElement('button');
+    btn.dataset.fps = String(v);
+    btn.className = 'fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none';
+    btn.textContent = String(v);
+    container.appendChild(btn);
+    count++;
+  }
+  updateFpsPresetStyles();
+}
+
+function rebuildShutterPresets(): void {
+  const container = document.getElementById('shutter-presets');
+  if (!container) return;
+  container.querySelectorAll('.shutter-preset').forEach(el => el.remove());
+  const reference = container.lastElementChild;
+  const regionHz = getRegionHz();
+  const MAX_BUTTONS = 9;
+  const MAX_DENOM = 8000;
+  let count = 0;
+
+  const baseDenom = regionHz > 0 ? regionHz : 60;
+  if (regionHz > 0) {
+    const half = regionHz / 2;
+    const btn = document.createElement('button');
+    btn.dataset.shutter = String(half);
+    btn.className = 'shutter-preset rounded px-1 py-1 text-[11px] font-medium leading-none';
+    btn.textContent = '1/' + half;
+    container.insertBefore(btn, reference);
+    count++;
+  }
+
+  let denom = baseDenom;
+  while (count < MAX_BUTTONS) {
+    if (denom > MAX_DENOM) denom = MAX_DENOM;
+    const btn = document.createElement('button');
+    btn.dataset.shutter = String(denom);
+    btn.className = 'shutter-preset rounded px-1 py-1 text-[11px] font-medium leading-none';
+    btn.textContent = '1/' + denom;
+    container.insertBefore(btn, reference);
+    count++;
+    if (denom < MAX_DENOM) denom *= 2;
+  }
+  updateShutterPresetStyles();
+}
+
+function updateRegionPresetStyles(): void {
+  updatePresetStyles('.region-preset', () => getRegionHz(), 'region');
+}
+
+// Event delegation: FPS presets
+document.getElementById('fps-presets')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('.fps-preset') as HTMLButtonElement;
+  if (!btn) return;
+  const fps = parseInt(btn.dataset.fps || '0', 10);
+  if (fps > getMaxFpsLimit()) return;
+  setFrameRate(fps);
+  updateFpsPresetStyles();
+  updateFpsLabel();
+  updateShutterPresetStyles();
+  refreshAll();
+});
+
+// Event delegation: Shutter presets
+document.getElementById('shutter-presets')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('.shutter-preset') as HTMLButtonElement;
+  if (!btn) return;
+  const d = parseInt(btn.dataset.shutter || '0', 10);
+  if (d < getFrameRate()) return;
+  setShutterDenom(d);
+  updateShutterPresetStyles();
+  refreshAll();
+});
+
+// Event delegation: Region presets
+document.getElementById('region-presets')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('.region-preset') as HTMLButtonElement;
+  if (!btn) return;
+  const hz = parseInt(btn.dataset.region || '0', 10);
+  if (hz === getRegionHz()) return;
+  setRegionHz(hz);
+  rebuildFpsPresets();
+  rebuildShutterPresets();
+  updateRegionPresetStyles();
+  updateFpsPresetStyles();
+  updateShutterPresetStyles();
+  refreshAll();
+});
+
+rebuildFpsPresets();
+rebuildShutterPresets();
+updateRegionPresetStyles();
 
 updateOutputs(app);
 drawChart(app);
@@ -251,6 +386,9 @@ function syncQcInputsFromParams(p?: MotionParams): void {
     if (slider) slider.value = value.toFixed(decimals);
     if (input && input !== document.activeElement) input.value = value.toFixed(decimals);
   };
+  setSliderAndInput('velocity-slider', 'velocity-custom', m.linearVelocity, 1);
+  setSliderAndInput('accel-slider', 'accel-custom', m.acceleration, 1);
+  setSliderAndInput('angular-slider', 'angular-custom', m.angularVelocity, 0);
   setSliderAndInput('motion-accel', 'motion-accel-input', m.acceleration, 1);
   setSliderAndInput('motion-angular', 'motion-angular-input', m.angularVelocity, 0);
   setSliderAndInput('motion-halfwidth', 'motion-halfwidth-input', m.subjectHalfWidth, 1);
@@ -288,6 +426,7 @@ function bindMotionSlider(sliderId: string, inputId: string, setter: (v: number)
     activeMotionPreset = 'custom';
     updateMotionPresetStyles();
     refreshAll();
+    syncQcInputsFromParams();
   };
   slider.addEventListener('input', handler);
   input.addEventListener('change', () => {
@@ -298,29 +437,18 @@ function bindMotionSlider(sliderId: string, inputId: string, setter: (v: number)
     activeMotionPreset = 'custom';
     updateMotionPresetStyles();
     refreshAll();
+    syncQcInputsFromParams();
   });
 }
+bindMotionSlider('velocity-slider', 'velocity-custom', (v) => { setLinearVelocity(v); setTemporalVelocity(v); });
+bindMotionSlider('accel-slider', 'accel-custom', setAcceleration);
+bindMotionSlider('angular-slider', 'angular-custom', setAngularVelocity);
 bindMotionSlider('motion-accel', 'motion-accel-input', setAcceleration);
 bindMotionSlider('motion-angular', 'motion-angular-input', setAngularVelocity);
 bindMotionSlider('motion-halfwidth', 'motion-halfwidth-input', setSubjectHalfWidth);
 bindMotionSlider('temporal-motion-accel', 'temporal-motion-accel-input', setAcceleration);
 bindMotionSlider('temporal-motion-angular', 'temporal-motion-angular-input', setAngularVelocity);
 bindMotionSlider('temporal-motion-halfwidth', 'temporal-motion-halfwidth-input', setSubjectHalfWidth);
-
-// FPS preset buttons
-  document.querySelectorAll('.fps-preset').forEach((el) => {
-  el.addEventListener('click', () => {
-    const fps = parseInt((el as HTMLButtonElement).dataset.fps || '30', 10);
-    if (fps > getMaxFpsLimit()) return;
-    setFrameRate(fps);
-    updateFpsPresetStyles();
-    updateFpsLabel();
-    updateShutterPresetStyles();
-    refreshAll();
-  });
-});
-
-updateFpsPresetStyles();
 
 // Custom FPS number input
 const customFpsInput = document.getElementById('fps-custom') as HTMLInputElement | null;
@@ -334,17 +462,19 @@ if (customFpsInput) {
     updateShutterPresetStyles();
     refreshAll();
   });
-}
-
-// Shutter speed preset buttons
-document.querySelectorAll('.shutter-preset').forEach((el) => {
-  el.addEventListener('click', () => {
-    const d = parseInt((el as HTMLButtonElement).dataset.shutter || '60', 10);
-    setShutterDenom(d);
-    updateShutterPresetStyles();
-    refreshAll();
+  customFpsInput.addEventListener('change', () => {
+    const parsed = parseInt(customFpsInput.value, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      const detected = detectRegionForValue(parsed);
+      if (detected !== getRegionHz()) {
+        setRegionHz(detected);
+        rebuildFpsPresets();
+        rebuildShutterPresets();
+        updateRegionPresetStyles();
+      }
+    }
   });
-});
+}
 
 // Custom shutter speed number input
 const customShutterInput = document.getElementById('shutter-custom') as HTMLInputElement | null;
@@ -356,15 +486,28 @@ if (customShutterInput) {
     updateShutterPresetStyles();
     refreshAll();
   });
+  customShutterInput.addEventListener('change', () => {
+    const parsed = parseInt(customShutterInput.value, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      const detected = detectRegionForValue(parsed);
+      if (detected !== getRegionHz()) {
+        setRegionHz(detected);
+        rebuildFpsPresets();
+        rebuildShutterPresets();
+        updateRegionPresetStyles();
+      }
+    }
+  });
 }
 
 export function updateShutterPresetStyles(): void {
   const minDenom = getFrameRate();
+  const maxDenom = getMaxShutterLimit();
   updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
   document.querySelectorAll('.shutter-preset').forEach((el) => {
     const btn = el as HTMLButtonElement;
     const denom = parseInt(btn.dataset.shutter || '0', 10);
-    if (denom < minDenom) {
+    if (denom < minDenom || denom > maxDenom) {
       btn.classList.add('disabled-preset');
     } else {
       btn.classList.remove('disabled-preset');
@@ -379,8 +522,6 @@ export function updateShutterPresetStyles(): void {
     }
   }
 }
-
-updateShutterPresetStyles();
 
 // Sync error toggle
 const syncToggleBtn = document.getElementById('sync-toggle');
@@ -500,16 +641,11 @@ export function updateAdvancedSensorSpecs(): void {
   setText('as-cfa', radiometry.cfaFactor.toFixed(2));
 
   const sensorGeom = SENSOR_GEOMETRY[app.activeSensorPreset];
-  const skewMs = sensorGeom
-    ? ((radiometry.readoutTimeUs * sensorGeom.nativeHeight) / 1000).toFixed(1)
-    : '—';
-  if (sensorGeom?.shutterType === 'global') {
-    setText('as-shutter', 'Global — no rolling skew');
-  } else if (sensorGeom?.shutterType === 'rolling') {
-    setText('as-shutter', 'Rolling — ~' + skewMs + 'ms full-frame skew');
-  } else {
-    setText('as-shutter', '—');
-  }
+  const isGlobal = sensorGeom?.shutterType === 'global';
+  const globalEl = document.getElementById('shutter-global') as HTMLInputElement | null;
+  const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
+  if (globalEl) globalEl.checked = !!isGlobal;
+  if (rollingEl) rollingEl.checked = !isGlobal;
 };
 
 function setText(id: string, text: string): void {

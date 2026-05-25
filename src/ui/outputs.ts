@@ -1,7 +1,7 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatUm, formatFov, formatFeatureMm, formatSensorSize } from '../engine';
 import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS } from '../constants';
-import { getFrameRate, getShutterTime } from './temporalChart';
+import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget } from './temporalChart';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { DEFAULT_RADIOMETRY } from '../constants';
 
@@ -26,6 +26,23 @@ export function updateOutputs(app: AppStateFull): void {
   updateBottleneckBanner(r.bottleneckType, app);
   updateExposurePanel(app);
   updateConditionalNotes(app);
+
+  // Max acceleration / rotation detection limits
+  const fps = getFrameRate();
+  const motion = getMotionParams();
+  const epsilon = getErrorBudget() / 1000;
+  const maxAccel = epsilon * fps * fps;
+  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
+
+  const accelExceeded = motion.acceleration > maxAccel;
+  const accelText = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
+  setText('card-max-accel', accelExceeded ? '⚠ ' + accelText : accelText);
+  setText('card-max-turn', maxTurn.toLocaleString() + ' °/s');
+
+  const accelEl = document.getElementById('card-max-accel');
+  if (accelEl) {
+    accelEl.className = `mt-0.5 text-lg font-bold font-mono ${accelExceeded ? 'text-red-400' : 'text-slate-100'}`;
+  }
 }
 
 export function setText(id: string, text: string): void {
@@ -46,26 +63,33 @@ function updateBitrate(app: AppStateFull): void {
   const el = document.getElementById('bitrate-display');
   if (!el) return;
 
+  let mbps: number;
   if (app.state.outputFormat === 'h264') {
-    el.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
-    return;
+    mbps = app.state.h264BitrateMbps;
+  } else {
+    const fps = getFrameRate();
+    const w = app.state.extractedWidth;
+    const h = app.state.extractedHeight;
+    const fmt = app.state.outputFormat;
+    const quality = app.state.mjpgQuality;
+    const bpp = BITS_PER_PIXEL[fmt](quality);
+    mbps = (w * h * fps * bpp) / 1_000_000;
   }
-
-  const fps = getFrameRate();
-  const w = app.state.extractedWidth;
-  const h = app.state.extractedHeight;
-  const fmt = app.state.outputFormat;
-  const quality = app.state.mjpgQuality;
-  const bpp = BITS_PER_PIXEL[fmt](quality);
-  const bitrateMbps = (w * h * fps * bpp) / 1_000_000;
-  el.textContent = bitrateMbps >= 100
-    ? Math.round(bitrateMbps) + ' Mbps'
-    : bitrateMbps.toFixed(1) + ' Mbps';
+  el.textContent = Math.round(mbps).toLocaleString('en-US') + ' Mbps';
 }
 
 function updateExposurePanel(app: AppStateFull): void {
+  updateSnrBar(app);
+  updateAccelBar();
+  updateRotBar();
+}
+
+const SNR_BAR_MAX_DB = 50;
+
+function updateSnrBar(app: AppStateFull): void {
   const bar = document.getElementById('exp-snr-bar');
   const label = document.getElementById('exp-snr-label');
+  const marker = document.getElementById('exp-snr-target-marker');
   if (!bar || !label) return;
 
   const e = app.results.exposure;
@@ -90,9 +114,86 @@ function updateExposurePanel(app: AppStateFull): void {
     barColor = '#ef4444';
   }
 
-  const barWidth = Math.max(3, Math.min(100, (snrRounded / Math.max(1, target)) * 100));
-  bar.style.width = barWidth + '%';
+  const pct = Math.max(0, Math.min(100, (snrRounded / SNR_BAR_MAX_DB) * 100));
+  bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
+
+  if (marker) {
+    const markerPct = Math.min(100, (target / SNR_BAR_MAX_DB) * 100);
+    marker.style.left = markerPct + '%';
+    marker.style.display = 'block';
+  }
+}
+
+const ACCEL_BAR_MAX = 50;
+const ROT_BAR_MAX = 120;
+
+function updateAccelBar(): void {
+  const bar = document.getElementById('exp-accel-bar');
+  const label = document.getElementById('exp-accel-label');
+  const marker = document.getElementById('exp-accel-target-marker');
+  if (!bar || !label) return;
+
+  const fps = getFrameRate();
+  const motion = getMotionParams();
+  const epsilon = getErrorBudget() / 1000;
+  const maxAccel = epsilon * fps * fps;
+  const target = motion.acceleration;
+
+  label.textContent = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
+
+  let barColor: string;
+  if (target < 1e-6 || maxAccel >= target) {
+    barColor = '#10b981';
+  } else if (maxAccel >= target * 0.5) {
+    barColor = '#eab308';
+  } else {
+    barColor = '#ef4444';
+  }
+
+  const pct = Math.max(0, Math.min(100, (maxAccel / ACCEL_BAR_MAX) * 100));
+  bar.style.width = pct + '%';
+  bar.style.backgroundColor = barColor;
+
+  if (marker) {
+    const markerPct = Math.min(100, (target / ACCEL_BAR_MAX) * 100);
+    marker.style.left = markerPct + '%';
+    marker.style.display = 'block';
+  }
+}
+
+function updateRotBar(): void {
+  const bar = document.getElementById('exp-rot-bar');
+  const label = document.getElementById('exp-rot-label');
+  const marker = document.getElementById('exp-rot-target-marker');
+  if (!bar || !label) return;
+
+  const fps = getFrameRate();
+  const motion = getMotionParams();
+  const epsilon = getErrorBudget() / 1000;
+  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
+  const target = motion.angularVelocity;
+
+  label.textContent = maxTurn.toLocaleString() + ' °/s';
+
+  let barColor: string;
+  if (target < 1e-6 || maxTurn >= target) {
+    barColor = '#10b981';
+  } else if (maxTurn >= target * 0.5) {
+    barColor = '#eab308';
+  } else {
+    barColor = '#ef4444';
+  }
+
+  const pct = Math.max(0, Math.min(100, (maxTurn / ROT_BAR_MAX) * 100));
+  bar.style.width = pct + '%';
+  bar.style.backgroundColor = barColor;
+
+  if (marker) {
+    const markerPct = Math.min(100, (target / ROT_BAR_MAX) * 100);
+    marker.style.left = markerPct + '%';
+    marker.style.display = 'block';
+  }
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
@@ -160,8 +261,10 @@ function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
 function updateConditionalNotes(app: AppStateFull): void {
   const procContainer = document.getElementById('processing-notes');
   const compContainer = document.getElementById('compression-notes');
+  const wavelengthContainer = document.getElementById('wavelength-notes');
   const procNotes: string[] = [];
   const compNotes: string[] = [];
+  const wavelengthNotes: string[] = [];
 
   const state = app.state;
 
@@ -216,13 +319,13 @@ function updateConditionalNotes(app: AppStateFull): void {
   }
 
   if (state.wavelength > 780) {
-    procNotes.push(
+    wavelengthNotes.push(
       `IR wavelength (${state.wavelength} nm): longer \u03bb means more diffraction blur — lower diffraction cutoff.`,
     );
   }
 
   if (state.wavelength < 400) {
-    procNotes.push(
+    wavelengthNotes.push(
       `UV wavelength (${state.wavelength} nm): near the edge of the visible spectrum. Ensure your optics transmit at this \u03bb.`,
     );
   }
@@ -232,4 +335,5 @@ function updateConditionalNotes(app: AppStateFull): void {
 
   if (procContainer) procContainer.innerHTML = procNotes.map(noteHtml).join('');
   if (compContainer) compContainer.innerHTML = compNotes.map(noteHtml).join('');
+  if (wavelengthContainer) wavelengthContainer.innerHTML = wavelengthNotes.map(noteHtml).join('');
 }

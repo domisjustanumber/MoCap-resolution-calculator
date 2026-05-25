@@ -37,6 +37,8 @@ let shutterDenom = 60;  // 1/N seconds
 let phaseOffset = 16.6; // ms
 let jitterMs = 10.0;    // ms
 
+let errorBudgetMm = 5;
+
 let syncToggle = false;
 export function isSyncToggleOn(): boolean { return syncToggle; }
 export function setSyncToggle(on: boolean): void { syncToggle = on; }
@@ -85,6 +87,11 @@ export function getFrameRate(): number { return frameRate; }
 export function getShutterTime(): number { return 1 / shutterDenom; }
 export function getShutterDenom(): number { return shutterDenom; }
 
+export function getErrorBudget(): number { return errorBudgetMm; }
+export function setErrorBudget(mm: number): void {
+  errorBudgetMm = Math.max(0.5, Math.min(25, mm));
+}
+
 export function setTemporalZoom(max: number): void {
   zoomMax = Math.max(10, Math.min(500, Math.round(max)));
   if (appRef) drawTemporalChart(appRef, true);
@@ -105,12 +112,59 @@ let maxShutterDenom = 8000;
 export function setMaxShutterLimit(max: number): void { maxShutterDenom = max; }
 export function getMaxShutterLimit(): number { return maxShutterDenom; }
 
-const SHUTTER_PRESETS = [30, 60, 120, 250, 500, 1000];
+// Region frequency state
+let regionHz = 50;   // 50, 60, or 0 for Free
+export function getRegionHz(): number { return regionHz; }
+
+function shutterStep(hz: number): number {
+  return hz > 0 ? hz : 25;
+}
+
+function isValidFps(fps: number, hz: number): boolean {
+  if (hz === 0) return true;
+  return fps === hz / 2 || fps % hz === 0;
+}
+
+function nearestShutterMultiple(denom: number, hz: number): number {
+  if (hz === 0) return Math.round(denom);
+  return Math.round(denom / hz) * hz;
+}
+
+function ceilShutter(denom: number, hz: number): number {
+  if (hz === 0) return denom;
+  return Math.ceil(denom / hz) * hz;
+}
+
+function nearestValidFps(fps: number, hz: number, maxFps: number): number {
+  if (hz === 0) return Math.max(1, Math.min(maxFps, Math.round(fps)));
+  const half = hz / 2;
+  const nearestMultiple = Math.round(fps / hz) * hz;
+  const useHalf = Math.abs(fps - half) < Math.abs(fps - nearestMultiple);
+  const candidate = useHalf ? half : nearestMultiple;
+  return Math.max(1, Math.min(maxFps, candidate));
+}
+
+function ceilValidFps(fps: number, hz: number, maxFps: number): number {
+  if (hz === 0) return Math.max(1, Math.min(maxFps, Math.round(fps)));
+  const half = hz / 2;
+  if (fps <= half) return half;
+  return Math.min(maxFps, Math.ceil(fps / hz) * hz);
+}
+
+export function setRegionHz(hz: number): void {
+  regionHz = hz;
+  frameRate = nearestValidFps(frameRate, hz, maxFps);
+  if (shutterDenom < frameRate) {
+    shutterDenom = Math.max(frameRate, ceilShutter(frameRate, hz));
+  } else {
+    shutterDenom = Math.max(frameRate, nearestShutterMultiple(shutterDenom, hz));
+  }
+}
+
 export function setFrameRate(fps: number): void {
   frameRate = Math.max(1, Math.min(maxFps, Math.round(fps)));
   if (shutterDenom < frameRate) {
-    const valid = SHUTTER_PRESETS.filter(p => p >= frameRate);
-    shutterDenom = valid.length > 0 ? valid[0] : frameRate;
+    shutterDenom = Math.max(frameRate, ceilShutter(frameRate, regionHz));
   }
   if (appRef) drawTemporalChart(appRef, true);
 }

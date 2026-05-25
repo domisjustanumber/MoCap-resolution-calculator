@@ -4,6 +4,7 @@ import { calculateExposureOptimizer } from './exposure';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import type { SensorGeometry, V4l2Mode } from '../presets';
 import { DEFAULT_RADIOMETRY, RAW_FORMATS, CHROMA_UYVY_SNR_DB, CHROMA_OTHER_SNR_DB } from './constants';
+import { getRegionHz } from './ui/temporalChart';
 
 export interface OptimizationResult {
   fps: number;
@@ -78,8 +79,20 @@ export function runOptimization(app: AppStateFull, motion: MotionParams, errorBu
 
     // Clamp to hardware limits
     const idealShutterDenom = Math.round(1 / Math.max(0.000001, exposure.tOptimal));
-    const shutterDenom = Math.min(idealShutterDenom, c.maxShutterDenom);
-    const fps = Math.min(shutterDenom, c.maxFps);
+    let shutterDenom = Math.min(idealShutterDenom, c.maxShutterDenom);
+    let fps = Math.min(shutterDenom, c.maxFps);
+
+    // Round to region-valid values
+    const regionHz = getRegionHz();
+    if (regionHz > 0) {
+      shutterDenom = Math.round(shutterDenom / regionHz) * regionHz;
+      shutterDenom = Math.max(c.maxFps, Math.min(c.maxShutterDenom, shutterDenom));
+      const half = regionHz / 2;
+      const nearestMultiple = Math.round(fps / regionHz) * regionHz;
+      const useHalf = Math.abs(fps - half) < Math.abs(fps - nearestMultiple);
+      fps = useHalf ? half : nearestMultiple;
+      fps = Math.min(shutterDenom, Math.min(fps, c.maxFps));
+    }
 
     // Compute effective SNR (with chroma penalty if colour mode)
     let snrCheck = exposure.snrAtOptimalDb;
@@ -158,7 +171,7 @@ function buildCandidates(
   radiometry: SensorRadiometry,
   sensorGeom: SensorGeometry | undefined,
 ): CandidateSpec[] {
-  const isGlobal = sensorGeom?.shutterType === 'global';
+  const isGlobal = app.state.shutterType === 'global';
   const v4l2Modes = sensorGeom?.v4l2?.modes;
 
   if (v4l2Modes && v4l2Modes.length > 0) {

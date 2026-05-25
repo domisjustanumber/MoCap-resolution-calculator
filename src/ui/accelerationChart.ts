@@ -1,25 +1,16 @@
 // Kinematic Motion Resolution Limits — based on temporal_acceleration_chart.html
-import { getFrameRate, setFrameRate, getMotionParams } from './temporalChart';
+import { getFrameRate, setFrameRate, getMotionParams, getErrorBudget, setErrorBudget } from './temporalChart';
 import { setText } from './outputs';
 import type { MotionParams } from '../types';
 
-let errorBudgetMm = 5;
-
-export function setErrorBudget(mm: number): void {
-  errorBudgetMm = Math.max(0.5, Math.min(25, mm));
-  updateAccelOutputs();
-}
-
-export function getErrorBudget(): number { return errorBudgetMm; }
-
 export function updateAccelOutputs(): void {
   const fps = getFrameRate();
-  const epsilon = errorBudgetMm / 1000;
+  const epsilon = getErrorBudget() / 1000;
   const motion = getMotionParams();
 
-  const maxAccel = 8 * epsilon * fps * fps;
+  const maxAccel = epsilon * fps * fps;
   const gForce = maxAccel / 9.80665;
-  const maxTurn = fps * 180;
+  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
   const latency = (1000 / fps) * 2;
 
   setText('accel-m-s2', maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²');
@@ -61,11 +52,11 @@ export function initAcceleration(): void {
   }
 
   if (budgetSlider) {
-    budgetSlider.value = String(errorBudgetMm);
-    if (budgetLabel) budgetLabel.textContent = errorBudgetMm.toFixed(1);
+    budgetSlider.value = String(getErrorBudget());
+    if (budgetLabel) budgetLabel.textContent = getErrorBudget().toFixed(1);
     budgetSlider.addEventListener('input', () => {
-      errorBudgetMm = parseFloat(budgetSlider.value);
-      if (budgetLabel) budgetLabel.textContent = errorBudgetMm.toFixed(1);
+      setErrorBudget(parseFloat(budgetSlider.value));
+      if (budgetLabel) budgetLabel.textContent = getErrorBudget().toFixed(1);
       updateAccelOutputs();
     });
   }

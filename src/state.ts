@@ -47,6 +47,7 @@ export const DEFAULT_STATE: AppState = {
   readoutFullFoV: true,
   measurementMode: 'monochrome',
   lensTier: 'cheap-plastic',
+  shutterType: 'rolling' as const,
   distanceToSubject: 1,
   dynamicRangeDb: 66,
   luxAtSubject: DEFAULT_LUX_SUBJECT,
@@ -137,7 +138,7 @@ export function recalculate(app: AppStateFull): AppStateFull {
     sensorMaxFps = readoutTimeS > 0 ? Math.round(1 / readoutTimeS) : 240;
   }
   const sensorGeom = SENSOR_GEOMETRY[app.activeSensorPreset];
-  const isGlobal = sensorGeom?.shutterType === 'global';
+  const isGlobal = state.shutterType === 'global';
   const readoutShutterBound = isGlobal ? Infinity : Math.round(1_000_000 / (radiometry.readoutTimeUs * 2));
   const sensorMaxShutterDenom = Math.min(8000, readoutShutterBound);
   setMaxFpsLimit(sensorMaxFps);
@@ -163,6 +164,7 @@ export function applyPreset(app: AppStateFull, _presetValues: Partial<AppState>,
       app.state.nativeHeight = sensorPreset.nativeHeight;
       app.state.olpfPresent = sensorPreset.olpfPresent;
       app.state.dynamicRangeDb = sensorPreset.dynamicRangeDb;
+      app.state.shutterType = sensorPreset.shutterType;
     }
     const lensPreset = LENS_PRESETS[cameraPreset.lensName];
     if (lensPreset) {
@@ -211,6 +213,7 @@ export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
     app.state.nativeHeight = geom.nativeHeight;
     app.state.olpfPresent = geom.olpfPresent;
     app.state.dynamicRangeDb = geom.dynamicRangeDb;
+    app.state.shutterType = geom.shutterType;
   }
   app.state.selectedV4l2Mode = -1;
   applyDefaultV4l2Mode(app, name);

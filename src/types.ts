@@ -2,6 +2,7 @@ export type OutputFormat = 'uyuv' | 'nv12' | 'mjpg' | 'h264' | 'raw8' | 'raw10';
 export type BottleneckType = 'lens-limited' | 'sensor-limited' | 'compression-throttled' | 'motion-limited' | 'dr-limited' | 'sync-limited' | 'photon-starved' | 'balanced';
 export type LensTier = 'cheap-plastic' | 'mid-glass' | 'premium-stack';
 export type MeasurementMode = 'monochrome' | 'colour';
+export type ShutterType = 'rolling' | 'global';
 export type ReadoutMethod = 'native' | 'cropping' | 'binning' | 'subsampling';
 export type PresetName = 'pi-cam-v1' | 'pi-cam-v2' | 'pi-hq-cam' | 'ov9281-module' | 'custom';
 
@@ -55,6 +56,7 @@ export interface AppState {
   readoutPitchMultiplier: number;
   readoutFullFoV: boolean;
   lensTier: LensTier;
+  shutterType: ShutterType;
   distanceToSubject: number;
   dynamicRangeDb: number;
   luxAtSubject: number;

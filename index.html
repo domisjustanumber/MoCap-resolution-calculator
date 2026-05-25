@@ -207,75 +207,90 @@
 
         <!-- Quick controls -->
         <div id="quick-controls" class="mt-3 flex gap-1.5 items-stretch">
-          <!-- Motion -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Motion</p>
+          <!-- Target Motion -->
+          <div class="shrink-0 quick-ctrl">
+            <p class="quick-ctrl-title">Target Motion</p>
             <div class="flex items-center gap-0.5 mb-0.5" id="qc-velocity-presets">
               <button data-velocity="static" class="vel-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Static</button>
               <button data-velocity="walking" class="vel-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Walking</button>
               <button data-velocity="sports" class="vel-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Sports</button>
             </div>
-            <div class="flex items-center gap-0.5 flex-wrap">
-              <input id="velocity-custom" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="0" max="100" placeholder="m/s" style="font-size:11px;height:22px;padding-top:0;padding-bottom:0" />
-              <span class="text-[9px] text-slate-500">m/s</span>
-              <input id="accel-custom" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="0" max="20" value="0.5" style="font-size:11px;height:22px;padding-top:0;padding-bottom:0" />
-              <span class="text-[9px] text-slate-500">m/s²</span>
-              <input id="angular-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="0" max="360" value="10" style="font-size:11px;height:22px;padding-top:0;padding-bottom:0" />
-              <span class="text-[9px] text-slate-500">°/s</span>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Velocity</span>
+                <div class="flex-1 min-w-0">
+                  <input id="velocity-slider" class="w-full" type="range" min="0" max="100" step="0.1" value="0" />
+                </div>
+                <input id="velocity-custom" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="0" max="100" placeholder="m/s" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Acceleration</span>
+                <div class="flex-1 min-w-0">
+                  <input id="accel-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="0.5" />
+                </div>
+                <input id="accel-custom" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="0" max="20" value="0.5" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Rotation</span>
+                <div class="flex-1 min-w-0">
+                  <input id="angular-slider" class="w-full" type="range" min="0" max="360" step="1" value="10" />
+                </div>
+                <input id="angular-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="0" max="360" value="10" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              </div>
             </div>
           </div>
 
-          <!-- Bitrate -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Bitrate</p>
-            <p id="bitrate-display" class="text-xs font-mono text-slate-300">—</p>
-          </div>
 
-          <!-- FPS -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">FPS</p>
-            <div class="flex items-center gap-0.5" id="fps-presets">
-              <button data-fps="25" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">25</button>
-              <button data-fps="30" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">30</button>
-              <button data-fps="50" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">50</button>
-              <button data-fps="60" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">60</button>
-              <button data-fps="90" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">90</button>
-              <button data-fps="120" class="fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">120</button>
-              <input id="fps-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="240" placeholder="fps" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+
+          <!-- Region + FPS (stacked) -->
+          <div class="shrink-0 flex flex-col gap-1.5 w-[8.8rem]">
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Region</p>
+              <div class="flex items-center gap-0.5" id="region-presets">
+                <button data-region="50" class="region-preset rounded px-1 py-1 text-[11px] font-medium leading-none">50Hz</button>
+                <button data-region="60" class="region-preset rounded px-1 py-1 text-[11px] font-medium leading-none">60Hz</button>
+                <button data-region="0" class="region-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Free</button>
+              </div>
+            </div>
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">FPS</p>
+              <div class="flex items-center gap-0.5" id="fps-presets">
+                <input id="fps-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="240" placeholder="fps" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              </div>
             </div>
           </div>
 
-          <!-- Shutter speed -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Shutter speed</p>
-            <div class="flex items-center gap-0.5" id="shutter-presets">
-              <button data-shutter="30" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/30</button>
-              <button data-shutter="60" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/60</button>
-              <button data-shutter="120" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/120</button>
-              <button data-shutter="250" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/250</button>
-              <button data-shutter="500" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/500</button>
-              <button data-shutter="1000" class="shutter-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none">1/1000</button>
-              <input id="shutter-custom" class="calc-input input-field no-spinner w-10" type="number" step="1" min="1" max="8000" placeholder="1/N" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
-            </div>
-            <div class="mt-1 flex items-center gap-1">
-              <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Gain</label>
-              <div class="flex-1 min-w-0">
-                <input id="gain-slider" class="w-full" type="range" min="1.0" max="8.0" step="0.1" value="1.0" />
-                <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
-                  <span>1× Unity</span>
-                  <span>2×</span>
-                  <span>4×</span>
-                  <span>8× Max</span>
+          <!-- Shutter + Gain (stacked) -->
+          <div class="shrink-0 flex flex-col gap-1.5 w-56">
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Shutter speed</p>
+              <div class="grid grid-cols-5 gap-0.5" id="shutter-presets">
+                <div class="flex items-center gap-0.5">
+                  <span class="text-[10px] text-slate-500">1/</span>
+                  <input id="shutter-custom" class="calc-input input-field no-spinner w-full" type="number" step="1" min="1" max="8000" placeholder="N" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
                 </div>
               </div>
-              <input id="gain-value" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="1.0" max="8.0" value="1.0" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
-              <span class="text-[10px] text-slate-600">×</span>
+            </div>
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Gain</p>
+              <div class="flex items-center gap-1">
+                <div class="flex-1 min-w-0">
+                  <input id="gain-slider" class="w-full" type="range" min="1.0" max="8.0" step="0.1" value="1.0" />
+                  <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
+                    <span>1× Unity</span>
+                    <span>2×</span>
+                    <span>4×</span>
+                    <span>8× Max</span>
+                  </div>
+                </div>
+                <input id="gain-value" class="calc-input input-field no-spinner w-10" type="number" step="0.1" min="1.0" max="8.0" value="1.0" style="font-size:11px;height:24px;padding-top:0;padding-bottom:0" />
+              </div>
             </div>
           </div>
 
           <!-- Exposure Optimizer + SNR bar -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Exposure Optimizer</p>
+          <div class="shrink-0 quick-ctrl w-60">
+            <p class="quick-ctrl-title">Exposure Optimizer</p>
             <div class="flex items-center gap-1">
               <button id="optimize-btn" class="rounded border border-slate-700 bg-slate-800/50 px-1 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500 leading-none whitespace-nowrap">Optimize</button>
               <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Target SNR</label>
@@ -285,17 +300,38 @@
             <div id="exp-snr-container" class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Current SNR</div>
               <div class="flex items-center gap-1">
-                <div class="flex-1 h-1.5 rounded-full bg-slate-800">
+                 <div class="flex-1 h-1.5 rounded-full bg-slate-800 relative">
                   <div id="exp-snr-bar" class="h-full rounded-full transition-all" style="width:0%"></div>
+                  <div id="exp-snr-target-marker" class="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-white/70 rounded transition-none pointer-events-none" style="display:none"></div>
                 </div>
                 <span id="exp-snr-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap">—</span>
+              </div>
+            </div>
+            <div id="exp-accel-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Acceleration</div>
+              <div class="flex items-center gap-1">
+                 <div class="flex-1 h-1.5 rounded-full bg-slate-800 relative">
+                  <div id="exp-accel-bar" class="h-full rounded-full transition-all" style="width:0%"></div>
+                  <div id="exp-accel-target-marker" class="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-white/70 rounded transition-none pointer-events-none" style="display:none"></div>
+                </div>
+                <span id="exp-accel-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap">—</span>
+              </div>
+            </div>
+            <div id="exp-rot-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Rotation</div>
+              <div class="flex items-center gap-1">
+                 <div class="flex-1 h-1.5 rounded-full bg-slate-800 relative">
+                  <div id="exp-rot-bar" class="h-full rounded-full transition-all" style="width:0%"></div>
+                  <div id="exp-rot-target-marker" class="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-white/70 rounded transition-none pointer-events-none" style="display:none"></div>
+                </div>
+                <span id="exp-rot-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap">—</span>
               </div>
             </div>
           </div>
 
           <!-- Light level -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Light level</p>
+          <div class="shrink-0 quick-ctrl">
+            <p class="quick-ctrl-title">Light level</p>
             <div class="flex flex-nowrap gap-0.5" id="lux-presets">
               <button data-lux="0.2" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none">Moonlight</button>
               <button data-lux="100" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none active">Indoor</button>
@@ -318,8 +354,8 @@
           </div>
 
           <!-- Sync Error Toggle -->
-          <div class="shrink-0 overflow-hidden rounded-lg border border-slate-800 bg-slate-900/50 p-1.5">
-            <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Include camera sync error</p>
+          <div class="shrink-0 quick-ctrl max-w-28">
+            <p class="quick-ctrl-title">Include camera sync error</p>
             <button id="sync-toggle" class="sync-toggle rounded px-1 py-1 text-[11px] font-medium leading-none whitespace-nowrap">Off</button>
           </div>
         </div>
@@ -334,18 +370,14 @@
 
 
       <!-- Metric cards -->
-      <div id="metric-cards" class="mb-3 grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div id="metric-cards" class="mb-3 grid grid-cols-5 gap-3">
         <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-2.5">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Lens Cutoff</p>
-          <p id="card-fc" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Max Accel</p>
+          <p id="card-max-accel" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
         </div>
         <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-2.5">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-orange-400">Nyquist</p>
-          <p id="card-nyquist" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-        </div>
-        <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-2.5">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-teal-400">Diagonal FoV</p>
-          <p id="card-fov" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-rose-400">Max Rotation</p>
+          <p id="card-max-turn" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
         </div>
         <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-2.5">
           <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Skip</p>
@@ -356,8 +388,8 @@
           <p id="card-effective" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
         </div>
         <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-2.5">
-          <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Feature @ Dist</p>
-          <p id="card-feature-distance" class="mt-0.5 text-sm font-mono text-slate-500">Hover chart</p>
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Bitrate</p>
+          <p id="bitrate-display" class="mt-0.5 text-sm font-mono text-slate-500">—</p>
         </div>
       </div>
 
@@ -402,7 +434,19 @@
                   <button data-preset="lens-cheap" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Plastic</button>
                   <button data-preset="lens-mid" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Glass</button>
                   <button data-preset="lens-premium" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Premium</button>
-                  <button data-preset="lens-custom" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Custom</button>
+                </div>
+                <div class="mt-2">
+                  <label class="mb-1 block text-xs font-medium text-slate-400">Dynamic Range</label>
+                  <div class="flex items-center gap-2">
+                    <input id="dr-slider" class="w-full dr-slider" type="range" min="20" max="140" step="1" value="66" />
+                    <input id="dynamicRangeDb" class="calc-input input-field w-16" type="number" step="1" min="20" max="140" value="66" />
+                    <span class="text-xs text-slate-500">dB</span>
+                  </div>
+                  <div class="mt-0.5 flex items-center gap-3 text-[10px] text-slate-500">
+                    <span>50–65 dB Consumer</span>
+                    <span>65–90 dB Industrial</span>
+                    <span>90–140 dB Scientific</span>
+                  </div>
                 </div>
               </div>
 
@@ -422,8 +466,15 @@
                   <span id="ir-badge" class="ml-1 hidden rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-400">IR</span>
                 </label>
                 <div class="flex flex-wrap gap-1.5" id="wavelength-chips"></div>
+                <div id="wavelength-notes" class="mt-1 space-y-1"></div>
               </div>
 
+            <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <span class="text-slate-500">Lens Cutoff</span>
+                <span id="card-fc" class="font-mono text-slate-300">—</span>
+              </div>
+            </div>
             </div>
           </fieldset>
 
@@ -440,6 +491,20 @@
                   <button data-preset="imx477" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">IMX477</button>
                   <button data-preset="ov9281" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">OV9281</button>
                   <button data-preset="custom" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Custom</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Shutter Type</label>
+                <div class="flex gap-4">
+                  <label class="flex items-center gap-2 text-xs text-slate-400">
+                    <input id="shutter-global" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="shutterType" value="global" />
+                    Global
+                  </label>
+                  <label class="flex items-center gap-2 text-xs text-slate-400">
+                    <input id="shutter-rolling" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="shutterType" value="rolling" checked />
+                    Rolling
+                  </label>
                 </div>
               </div>
 
@@ -478,20 +543,6 @@
                 <label class="text-xs font-medium text-slate-400" for="olpfPresent">OLPF Present (Optical Low-Pass / Anti-Aliasing Filter<span class="text-slate-500">, typically yes on webcams</span>)</label>
               </div>
 
-              <div>
-                <label class="mb-1 block text-xs font-medium text-slate-400">Dynamic Range</label>
-                <div class="flex items-center gap-2">
-                  <input id="dr-slider" class="w-full dr-slider" type="range" min="20" max="140" step="1" value="59" />
-                  <input id="dynamicRangeDb" class="calc-input input-field w-16" type="number" step="1" min="20" max="140" value="59" />
-                  <span class="text-xs text-slate-500">dB</span>
-                </div>
-                <div class="mt-0.5 flex items-center gap-3 text-[10px] text-slate-500">
-                  <span>50–65 dB Consumer</span>
-                  <span>65–90 dB Industrial</span>
-                  <span>90–140 dB Scientific</span>
-                </div>
-              </div>
-
               <!-- Sensor details -->
               <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -519,8 +570,6 @@
                   <span id="as-adc" class="font-mono text-slate-300">—</span>
                   <span class="text-slate-500">Readout time</span>
                   <span id="as-readout" class="font-mono text-slate-300">—</span>
-                  <span class="text-slate-500">Shutter type</span>
-                  <span id="as-shutter" class="font-mono text-slate-300">—</span>
                   <span class="text-slate-500">CFA factor</span>
                   <span id="as-cfa" class="font-mono text-slate-300">—</span>
                 </div>
@@ -582,6 +631,15 @@
                   <option value="subsampling">Subsampling (line-skip / average)</option>
                   <option value="cropping">Cropping</option>
                 </select>
+              </div>
+
+              <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span class="text-slate-500">Effective Nyquist</span>
+                  <span id="card-nyquist" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Effective Diagonal FoV</span>
+                  <span id="card-fov" class="font-mono text-slate-300">—</span>
+                </div>
               </div>
 
               <p id="extracted-warning" class="hidden text-[11px] text-amber-400"></p>
