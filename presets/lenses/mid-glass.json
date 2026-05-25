@@ -1,0 +1,9 @@
+{
+  "name": "mid-glass",
+  "label": "Mid-range Glass",
+  "tier": "mid-glass",
+  "qualityScalar": 0.8,
+  "focalLength": 6.0,
+  "aperture": 2.8,
+  "lensTransmission": 0.85
+}

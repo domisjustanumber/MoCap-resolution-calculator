@@ -1,19 +1,28 @@
 import type { AppStateFull } from '../types';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
+import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from './temporalChart';
+import { MOTION_MTF50_CONST, BOTTLENECK_RATIO } from '../constants';
 
 let lastHash = '';
 let mouseX = -1;
 let mouseY = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
-let maxDistance = 5;
+let maxDistance = 3;
+let yMaxOverride = 100;
 
-interface Pin {
+export interface Pin {
   distance: number;
   color: string;
 }
 
-let pins: Pin[] = [];
+export let pins: Pin[] = [];
 let hasAutoPlaced = false;
+
+let onPinsChanged: (() => void) | null = null;
+export function setOnPinsChanged(cb: () => void): void {
+  onPinsChanged = cb;
+}
 
 const PIN_COLORS = [
   '#fbbf24',
@@ -32,15 +41,18 @@ export function setMaxDistance(d: number): void {
   maxDistance = Math.max(1, d);
 }
 
+export function setYMax(y: number): void {
+  yMaxOverride = Math.max(20, Math.min(500, y));
+}
+
 function setupEvents(canvas: HTMLCanvasElement): void {
   if (canvas.dataset.interactive) return;
   canvas.dataset.interactive = '1';
 
   const onMove = (e: MouseEvent) => {
     const rect = canvas.getBoundingClientRect();
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    mouseX = (e.clientX - rect.left) / zoom;
-    mouseY = (e.clientY - rect.top) / zoom;
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
     mouseInCanvas = true;
     if (appRef) drawDistanceChart(appRef, true);
   };
@@ -58,10 +70,9 @@ function setupEvents(canvas: HTMLCanvasElement): void {
   const onClick = () => {
     if (!mouseInCanvas) return;
     const rect = canvas.getBoundingClientRect();
-    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const clickX = mouseX;
-    const pad = { top: 36, right: 40, bottom: 52, left: 60 };
-    const plotW = (rect.width / zoom) - pad.left - pad.right;
+  const pad = { top: 36, right: 50, bottom: 52, left: 60 };
+    const plotW = rect.width - pad.left - pad.right;
     const dClicked = ((clickX - pad.left) / plotW) * maxDistance;
     if (dClicked < 0 || dClicked > maxDistance) return;
 
@@ -78,6 +89,7 @@ function setupEvents(canvas: HTMLCanvasElement): void {
       nextColorIndex++;
     }
     if (appRef) drawDistanceChart(appRef, true);
+    if (onPinsChanged) onPinsChanged();
   };
 
   canvas.addEventListener('mousemove', onMove);
@@ -94,78 +106,91 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     String(app.results.minFeatureSize) +
     String(app.state.focalLength) +
     String(maxDistance) +
-    pins.map((p) => p.distance.toFixed(2) + p.color).join('|');
+    String(yMaxOverride) +
+    pins.map((p) => p.distance.toFixed(2) + p.color).join('|') +
+    String(isSyncToggleOn()) +
+    String(getSyncErrorP95()) +
+    String(getShutterTime()) +
+    JSON.stringify(getMotionParams());
   if (hash === lastHash && !force) return;
   lastHash = hash;
 
+  const parent = canvas.parentElement;
+  if (!parent) return;
+  const cssW = getCssWidth(parent);
+  const refCanvas = document.getElementById('mtf-chart') as HTMLCanvasElement | null;
+  const refH = refCanvas ? parseFloat(refCanvas.style.height) : cssW * (400 / 600);
+  const cssH = refH;
+  sizeCanvas(canvas, cssW, cssH);
+
+  const ctx = getCanvasContext(canvas, cssW, cssH);
+  if (!ctx) return;
+
   const { results, state } = app;
-  const { minFeatureSize } = results;
+  const { minFeatureSize, fcAberrated, fNyquistSkipped, fDRLimited, formatEfficiency } = results;
   const { focalLength } = state;
   const dMax = maxDistance;
 
-  const dpr = window.devicePixelRatio || 1;
-  const parent = canvas.parentElement;
-  if (!parent) return;
-  const parentStyle = getComputedStyle(parent);
-  const cssW = parent.clientWidth - parseFloat(parentStyle.paddingLeft) - parseFloat(parentStyle.paddingRight);
-  const cssH = cssW * (300 / 600);
-  const bufW = Math.round(cssW * dpr);
-  const bufH = Math.round(cssH * dpr);
-  canvas.width = bufW;
-  canvas.height = bufH;
-  canvas.style.width = `${bufW / dpr}px`;
-  canvas.style.height = `${bufH / dpr}px`;
+  const motion = getMotionParams();
+  const shutterS = getShutterTime();
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.scale(dpr, dpr);
+  const syncEnabled = isSyncToggleOn();
+  const syncErrP95 = getSyncErrorP95();
 
-  ctx.clearRect(0, 0, cssW, cssH);
+  const yMax = yMaxOverride;
 
-  const pad = { top: 36, right: 40, bottom: 52, left: 60 };
+  const pad = { top: 36, right: 50, bottom: 52, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
-  const py = (f: number) => {
-    return pad.top + (1 - f / 20) * plotH;
+
+  // Per-pixel motion blur ceiling — vImg depends on distance
+  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterS;
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+
+  // Max trackable velocity (right y-axis)
+  const fSyncMTF50_local = syncEnabled && syncErrP95 > 0.001 ? 0.1874 / syncErrP95 : Infinity;
+  const nextBestLimit = Math.min(fcAberrated, fNyquistSkipped, fDRLimited, fSyncMTF50_local);
+  const vTargetFreq = nextBestLimit * BOTTLENECK_RATIO;
+  const vMaxAtDmax = vTargetFreq > 1e-6 && shutterS > 1e-9 && focalLength > 0.1
+    ? MOTION_MTF50_CONST * dMax / (shutterS * focalLength * vTargetFreq)
+    : 0;
+  const vScaleStep = vMaxAtDmax <= 5 ? 1 : vMaxAtDmax <= 10 ? 2 : vMaxAtDmax <= 25 ? 5 : vMaxAtDmax <= 50 ? 10 : vMaxAtDmax <= 100 ? 25 : 50;
+  const vScaleMax = vScaleStep * Math.ceil(Math.max(1, vMaxAtDmax) / vScaleStep);
+  const vAtD = (d: number) => MOTION_MTF50_CONST * d / (shutterS * focalLength * vTargetFreq);
+  const pyV = (v: number) => pad.top + (1 - v / vScaleMax) * plotH;
+
+  const featureMm = (d: number) => {
+    const dEff = Math.max(0.01, d);
+    if (vTotal > 1e-6 && shutterS > 1e-9) {
+      const vImg = vTotal * focalLength / dEff;
+      if (vImg > 1e-6) {
+        const fTemporal = MOTION_MTF50_CONST / (vImg * shutterS);
+        const fEffective = Math.min(fcAberrated, fNyquistSkipped, fTemporal, fDRLimited) * formatEfficiency;
+        if (fEffective > 1e-6) {
+          const minFeat = 500 / fEffective;
+          const optical = (minFeat * dEff) / focalLength;
+          return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
+        }
+      }
+    }
+    // Fallback: no meaningful motion blur, use original formula
+    const optical = (minFeatureSize * dEff) / focalLength;
+    return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
   };
 
-  const featureMm = (d: number) => (minFeatureSize * d) / focalLength;
+  const yStep = yMax / 5;
+  const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
 
-  const yMax = 20;
-  const yStep = 5;
-
-  // Background
-  ctx.fillStyle = '#020617';
-  ctx.fillRect(0, 0, cssW, cssH);
+  drawBackground(ctx, cssW, cssH);
 
   // Grid lines
-  ctx.strokeStyle = '#1e293b';
-  ctx.lineWidth = 0.5;
   const xStep = Math.max(0.5, Math.ceil(dMax / 6));
-  for (let d = 0; d <= dMax; d += xStep) {
-    const xp = px(d);
-    ctx.beginPath();
-    ctx.moveTo(xp, pad.top);
-    ctx.lineTo(xp, cssH - pad.bottom);
-    ctx.stroke();
-  }
-  for (let y = 0; y <= yMax; y += yStep) {
-    const yp = py(y);
-    ctx.beginPath();
-    ctx.moveTo(pad.left, yp);
-    ctx.lineTo(cssW - pad.right, yp);
-    ctx.stroke();
-  }
+  drawGrid(ctx, pad, cssW, cssH, dMax, xStep, yMax, yStep, px, py);
 
   // Axes
-  ctx.strokeStyle = '#475569';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pad.left, pad.top);
-  ctx.lineTo(pad.left, cssH - pad.bottom);
-  ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
-  ctx.stroke();
+  drawAxes(ctx, pad, cssW, cssH);
 
   // Y-axis labels
   ctx.fillStyle = '#64748b';
@@ -184,6 +209,37 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   ctx.fillText('Min Resolvable Feature (mm)', 0, 0);
   ctx.restore();
 
+  // Right y-axis: Max Trackable Velocity
+  if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cssW - pad.right, pad.top);
+    ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    for (let v = 0; v <= vScaleMax; v += vScaleStep) {
+      const yp = pyV(v);
+      ctx.beginPath();
+      ctx.moveTo(cssW - pad.right, yp);
+      ctx.lineTo(cssW - pad.right + 6, yp);
+      ctx.stroke();
+      ctx.fillText(String(v), cssW - pad.right + 10, yp + 4);
+    }
+
+    ctx.save();
+    ctx.translate(cssW - 12, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Max Trackable Velocity (m/s)', 0, 0);
+    ctx.restore();
+  }
+
   // X-axis labels
   ctx.textAlign = 'center';
   ctx.fillStyle = '#64748b';
@@ -196,7 +252,11 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   ctx.textAlign = 'center';
   ctx.fillText('Distance from Camera (m)', pad.left + plotW / 2, cssH - 6);
 
-  // Line: feature size vs distance
+  // Line: feature size vs distance (clipped to plot area)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.left, pad.top, plotW, plotH);
+  ctx.clip();
   ctx.strokeStyle = 'rgba(99, 102, 241, 0.9)';
   ctx.lineWidth = 2.5;
   ctx.beginPath();
@@ -206,6 +266,54 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     if (first) { ctx.moveTo(px(d), py(f)); first = false; } else { ctx.lineTo(px(d), py(f)); }
   }
   ctx.stroke();
+  ctx.restore();
+
+  // Velocity curve (right y-axis)
+  if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.left, pad.top, plotW, plotH);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    let firstV = true;
+    for (let d = 0; d <= dMax; d += dMax / 100) {
+      const v = vAtD(d);
+      if (!isFinite(v)) continue;
+      if (firstV) { ctx.moveTo(px(d), pyV(v)); firstV = false; }
+      else { ctx.lineTo(px(d), pyV(v)); }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Current vTotal reference line
+    if (vTotal > 0.1 && vTotal < vScaleMax * 2) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad.left, pad.top, plotW, plotH);
+      ctx.clip();
+
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(px(0), pyV(vTotal));
+      ctx.lineTo(px(dMax), pyV(vTotal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.5)';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'left';
+      const vLabelX = Math.min(px(0.15), cssW - pad.right - 60);
+      ctx.fillText(vTotal.toFixed(1) + ' m/s', vLabelX, pyV(vTotal) - 4);
+    }
+  }
 
   // Auto-place first pin at 2m on initial draw
   if (pins.length === 0 && !hasAutoPlaced && maxDistance >= 2) {
@@ -235,7 +343,8 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.arc(pinnedX, pinnedY, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    const pinLabel = featureMm(pin.distance).toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m';
+    const fMm = featureMm(pin.distance);
+    const pinLabel = fMm.toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m | ChArUco ' + (fMm * 8.8).toFixed(1) + ' mm';
     ctx.font = 'bold 11px monospace';
     const textW = ctx.measureText(pinLabel).width;
     const bx = Math.min(pinnedX + 10, cssW - pad.right - textW - 12);
@@ -276,14 +385,27 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Dot on the curve
+    // Dot on the feature size curve
     ctx.fillStyle = '#f472b6';
     ctx.beginPath();
     ctx.arc(hoverX, hoverY, 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // Dot on the velocity curve
+    if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+      const vHover = vAtD(dHover);
+      const vHoverY = pyV(vHover);
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath();
+      ctx.arc(hoverX, vHoverY, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Tooltip box
-    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m';
+    const velText = vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)
+      ? ' | max ' + vAtD(dHover).toFixed(1) + ' m/s'
+      : '';
+    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ChArUco ' + (fHover * 8.8).toFixed(1) + ' mm' + velText;
     const tipX = hoverX + 10 < cssW - pad.right ? hoverX + 10 : hoverX - 10;
     const tipY = hoverY - 10 > pad.top ? hoverY - 10 : hoverY + 10;
     ctx.font = 'bold 11px monospace';

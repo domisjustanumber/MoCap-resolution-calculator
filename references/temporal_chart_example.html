@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Multi-Camera Sync Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #111827;
+            color: #f9fafb;
+        }
+
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            border-bottom: 1px solid #374151;
+            padding-bottom: 10px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #3b82f6;
+            cursor: pointer;
+        }
+
+        .canvas-container {
+            position: relative;
+            background-color: #0b0f19;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        .zoom-container {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #374151;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .zoom-container input[type="range"] {
+            accent-color: #10b981;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <h2>Multi-Camera Kinematic Sync Error Distribution (With Acceleration & Curvature)</h2>
+    
+    <!-- Expanded Parameter Configuration Grid -->
+    <div class="control-grid">
+        <div class="control-group">
+            <label>Initial Velocity ($v_0$): <span id="val-velocity">5.0</span> m/s</label>
+            <input type="range" id="input-velocity" min="0" max="15" step="0.5" value="5">
+        </div>
+        <div class="control-group">
+            <label>Acceleration ($a$): <span id="val-accel">0.0</span> m/s²</label>
+            <input type="range" id="input-accel" min="-30" max="50" step="1" value="0">
+        </div>
+        <div class="control-group">
+            <label>Turn Rate ($\omega$): <span id="val-turn">0</span> °/s</label>
+            <input type="range" id="input-turn" min="0" max="720" step="10" value="0">
+        </div>
+        <div class="control-group">
+            <label>Camera Frame Rate: <span id="val-fps">30</span> fps</label>
+            <input type="range" id="input-fps" min="30" max="120" step="1" value="30">
+        </div>
+        <div class="control-group">
+            <label>Fixed Phase Offset: <span id="val-phase">16.6</span> ms</label>
+            <input type="range" id="input-phase" min="0" max="100" step="0.1" value="16.6">
+        </div>
+        <div class="control-group">
+            <label>Inter-Camera Jitter: <span id="val-jitter">10.0</span> ms</label>
+            <input type="range" id="input-jitter" min="0" max="100" step="0.1" value="10">
+        </div>
+    </div>
+
+    <!-- Canvas Visualization -->
+    <div class="canvas-container">
+        <canvas id="simCanvas" width="1600" height="800"></canvas>
+    </div>
+
+    <!-- Zoom Window Slider -->
+    <div class="zoom-container">
+        <label style="font-weight: bold; color: #10b981;">
+            X-Axis Zoom Window: <span id="val-zoom">500</span> mm
+        </label>
+        <input type="range" id="input-zoom" min="10" max="1000" step="10" value="500">
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const inVelocity = document.getElementById('input-velocity');
+    const inAccel = document.getElementById('input-accel');
+    const inTurn = document.getElementById('input-turn');
+    const inFps = document.getElementById('input-fps');
+    const inPhase = document.getElementById('input-phase');
+    const inJitter = document.getElementById('input-jitter');
+    const inZoom = document.getElementById('input-zoom');
+
+    const lblVelocity = document.getElementById('val-velocity');
+    const lblAccel = document.getElementById('val-accel');
+    const lblTurn = document.getElementById('val-turn');
+    const lblFps = document.getElementById('val-fps');
+    const lblPhase = document.getElementById('val-phase');
+    const lblJitter = document.getElementById('val-jitter');
+    const lblZoom = document.getElementById('val-zoom');
+
+    // Geometry Dimensions
+    const SAMPLE_SIZE = 2500;
+    const PADDING_LEFT = 80;
+    const PADDING_RIGHT = 40;
+    const PADDING_TOP = 40;
+    const PADDING_BOTTOM = 50;
+    const CHART_GAP = 60;
+    
+    const TOTAL_WIDTH = canvas.width;
+    const TOTAL_HEIGHT = canvas.height;
+    const CHART_WIDTH = TOTAL_WIDTH - PADDING_LEFT - PADDING_RIGHT;
+    const CHART_HEIGHT = (TOTAL_HEIGHT - PADDING_TOP - PADDING_BOTTOM - CHART_GAP) / 2;
+
+    const Y_FLOOR_CHART1 = PADDING_TOP + CHART_HEIGHT;
+    const Y_FLOOR_CHART2 = TOTAL_HEIGHT - PADDING_BOTTOM;
+
+    /**
+     * Analytical solution for 2D curvilinear kinematic displacement.
+     * Computes the exact position (x, y) in mm at time t (ms).
+     */
+    function getKinematicPosition(t, v0, a, omega) {
+        // Safe check for linear trajectory (no curve)
+        if (Math.abs(omega) < 1e-6) {
+            return {
+                x: v0 * t + 0.5 * a * t * t,
+                y: 0
+            };
+        }
+
+        // Analytical integration calculations
+        const wt = omega * t;
+        const sinWT = Math.sin(wt);
+        const cosWT = Math.cos(wt);
+
+        const x = (v0 / omega) * sinWT + a * ((t / omega) * sinWT + (cosWT - 1) / (omega * omega));
+        const y = (v0 / omega) * (1 - cosWT) + a * (sinWT / (omega * omega) - (t / omega) * cosWT);
+
+        return { x, y };
+    }
+
+    function runSimulation() {
+        const v0 = parseFloat(inVelocity.value);        // m/s -> mm/ms
+        const a_m_s2 = parseFloat(inAccel.value);       // m/s²
+        const omega_deg = parseFloat(inTurn.value);      // °/s
+        const fps = parseFloat(inFps.value);          
+        const phaseMs = parseFloat(inPhase.value);    
+        const jitterMs = parseFloat(inJitter.value);  
+        
+        const frameTimeMs = 1000 / fps;
+
+        // Unit Conversions to systemic baseline (mm, ms, rad)
+        const a = a_m_s2 / 1000;                        // m/s² to mm/ms²
+        const omega = (omega_deg * Math.PI / 180) / 1000; // °/s to rad/ms
+
+        let maxErrors = new Float32Array(SAMPLE_SIZE);
+        let rmseErrors = new Float32Array(SAMPLE_SIZE);
+
+        for (let i = 0; i < SAMPLE_SIZE; i++) {
+            const basePhase = Math.random() * frameTimeMs;
+            
+            // Box-Muller transformation for Gaussian sync jitter noise
+            let u1 = 1.0 - Math.random();
+            let u2 = 1.0 - Math.random();
+            const randGen = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+            
+            const t1 = basePhase;
+            const t2 = basePhase + phaseMs + (randGen * jitterMs);
+
+            // Fetch absolute coordinates via analytical equations
+            const p1 = getKinematicPosition(t1, v0, a, omega);
+            const p2 = getKinematicPosition(t2, v0, a, omega);
+
+            // Compute exact 2D spatial separation error vector magnitude
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const spatialError = Math.sqrt(dx * dx + dy * dy);
+
+            maxErrors[i] = spatialError;
+            rmseErrors[i] = spatialError / Math.sqrt(2); 
+        }
+
+        return { maxErrors, rmseErrors };
+    }
+
+    function calculateDensityCurve(data, maxZoomMM) {
+        const binCount = 300;
+        const densities = new Float32Array(binCount);
+        const step = maxZoomMM / binCount;
+        const bandwidth = Math.max(1.2, maxZoomMM * 0.02);
+
+        for (let i = 0; i < data.length; i++) {
+            const val = data[i];
+            if (val > maxZoomMM) continue; 
+
+            const startBin = Math.max(0, Math.floor((val - 3 * bandwidth) / step));
+            const endBin = Math.min(binCount - 1, Math.floor((val + 3 * bandwidth) / step));
+
+            for (let b = startBin; b <= endBin; b++) {
+                const binX = b * step;
+                const dist = (binX - val) / bandwidth;
+                densities[b] += Math.exp(-0.5 * dist * dist) / (Math.sqrt(2 * Math.PI) * bandwidth);
+            }
+        }
+
+        let maxDensity = 0;
+        for (let b = 0; b < binCount; b++) {
+            if (densities[b] > maxDensity) maxDensity = densities[b];
+        }
+        if (maxDensity > 0) {
+            for (let b = 0; b < binCount; b++) {
+                densities[b] = (densities[b] / maxDensity) * 0.85; 
+            }
+        }
+
+        return densities;
+    }
+
+    function drawGrid(yFloor, title, maxZoomMM) {
+        ctx.strokeStyle = '#27272a';
+        ctx.lineWidth = 1;
+        ctx.fillStyle = '#9ca3af'; 
+        ctx.font = '20px sans-serif';
+
+        ctx.textAlign = 'left';
+        ctx.fillText(title, PADDING_LEFT, yFloor - CHART_HEIGHT + 24);
+
+        ctx.textAlign = 'right';
+        const vTicks = [0.0, 0.5, 1.0];
+        vTicks.forEach(tick => {
+            const y = yFloor - (tick * CHART_HEIGHT);
+            ctx.beginPath();
+            ctx.moveTo(PADDING_LEFT, y);
+            ctx.lineTo(TOTAL_WIDTH - PADDING_RIGHT, y);
+            ctx.stroke();
+            ctx.fillText(tick.toFixed(1), PADDING_LEFT - 12, y + 6);
+        });
+
+        ctx.textAlign = 'center';
+        let tickStep = 50;
+        if (maxZoomMM <= 25) tickStep = 2;
+        else if (maxZoomMM <= 50) tickStep = 5;
+        else if (maxZoomMM <= 150) tickStep = 20;
+        else if (maxZoomMM <= 300) tickStep = 50;
+        else if (maxZoomMM <= 600) tickStep = 100;
+        else tickStep = 200;
+
+        for (let xMM = 0; xMM <= maxZoomMM; xMM += tickStep) {
+            const pct = xMM / maxZoomMM;
+            const xPixel = PADDING_LEFT + (pct * CHART_WIDTH);
+
+            ctx.beginPath();
+            ctx.moveTo(xPixel, yFloor);
+            ctx.lineTo(xPixel, yFloor - CHART_HEIGHT);
+            ctx.stroke();
+
+            ctx.fillText(xMM + "mm", xPixel, yFloor + 26);
+        }
+    }
+
+    function drawEnvelope(densities, yFloor, strokeColor, fillColor, maxZoomMM) {
+        if (densities.length === 0) return;
+        const step = CHART_WIDTH / densities.length;
+
+        ctx.beginPath();
+        ctx.moveTo(PADDING_LEFT, yFloor);
+
+        for (let i = 0; i < densities.length; i++) {
+            const x = PADDING_LEFT + (i * step);
+            const y = yFloor - (densities[i] * CHART_HEIGHT);
+            ctx.lineTo(x, y);
+        }
+
+        ctx.lineTo(PADDING_LEFT + CHART_WIDTH, yFloor);
+        ctx.closePath();
+
+        ctx.fillStyle = fillColor;
+        ctx.fill();
+
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    }
+
+    function drawStatisticalMarkers(data, yFloor, maxZoomMM) {
+        const sorted = [...data].sort((a, b) => a - b);
+        const avg = data.reduce((a, b) => a + b, 0) / data.length;
+        const median = sorted[Math.floor(sorted.length * 0.5)];
+        const high = sorted[Math.floor(sorted.length * 0.95)]; 
+
+        const metrics = [
+            { val: avg, label: 'Avg', color: '#10b981' },
+            { val: median, label: 'Med', color: '#a855f7' },
+            { val: high, label: '95%', color: '#f59e0b' }
+        ];
+
+        ctx.font = '16px monospace';
+        ctx.textAlign = 'left';
+
+        metrics.forEach(m => {
+            if (m.val > maxZoomMM) return; 
+            
+            const pct = m.val / maxZoomMM;
+            const xPixel = PADDING_LEFT + (pct * CHART_WIDTH);
+
+            ctx.strokeStyle = m.color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.beginPath();
+            ctx.moveTo(xPixel, yFloor);
+            ctx.lineTo(xPixel, yFloor - CHART_HEIGHT);
+            ctx.stroke();
+            ctx.setLineDash([]); 
+
+            ctx.fillStyle = m.color;
+            ctx.fillText(`${m.label}:${m.val.toFixed(1)}mm`, xPixel + 4, yFloor - CHART_HEIGHT + 20);
+        });
+    }
+
+    function updateDashboard() {
+        const fps = parseFloat(inFps.value);
+        const frameTimeMs = 1000 / fps;
+        const maxInputCeiling = frameTimeMs * 3;
+
+        inPhase.max = maxInputCeiling.toFixed(1);
+        inJitter.max = maxInputCeiling.toFixed(1);
+
+        lblVelocity.innerText = parseFloat(inVelocity.value).toFixed(1);
+        lblAccel.innerText = parseFloat(inAccel.value).toFixed(1);
+        lblTurn.innerText = inTurn.value;
+        lblFps.innerText = inFps.value;
+        lblPhase.innerText = inPhase.value;
+        lblJitter.innerText = inJitter.value;
+        
+        const currentZoom = parseInt(inZoom.value);
+        lblZoom.innerText = currentZoom;
+
+        ctx.clearRect(0, 0, TOTAL_WIDTH, TOTAL_HEIGHT);
+
+        const { maxErrors, rmseErrors } = runSimulation();
+        const maxZoomMM = currentZoom;
+
+        const maxDensityCurve = calculateDensityCurve(maxErrors, maxZoomMM);
+        const rmseDensityCurve = calculateDensityCurve(rmseErrors, maxZoomMM);
+
+        // Chart 1: Maximum Spatial Error (Red Container)
+        drawGrid(Y_FLOOR_CHART1, "Maximum Spatial Displacement Frame Offset Error Profile", maxZoomMM);
+        drawEnvelope(maxDensityCurve, Y_FLOOR_CHART1, '#ef4444', 'rgba(239, 68, 68, 0.15)', maxZoomMM);
+        drawStatisticalMarkers(maxErrors, Y_FLOOR_CHART1, maxZoomMM);
+
+        // Chart 2: Root-Mean-Square Error (Blue Container)
+        drawGrid(Y_FLOOR_CHART2, "Root-Mean-Square Error (RMSE) Kinematic Probability Volume", maxZoomMM);
+        drawEnvelope(rmseDensityCurve, Y_FLOOR_CHART2, '#3b82f6', 'rgba(59, 130, 246, 0.15)', maxZoomMM);
+        drawStatisticalMarkers(rmseErrors, Y_FLOOR_CHART2, maxZoomMM);
+    }
+
+    // Attach real-time input event tracking across control collection
+    [inVelocity, inAccel, inTurn, inFps, inPhase, inJitter, inZoom].forEach(input => {
+        input.addEventListener('input', updateDashboard);
+    });
+
+    // Boot execution lifecycle
+    updateDashboard();
+</script>
+
+</body>
+</html>

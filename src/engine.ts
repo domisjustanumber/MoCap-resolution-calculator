@@ -1,4 +1,22 @@
-import type { AppState, DerivedState, Results, BottleneckType, LensTier } from './types';
+import type { AppState, DerivedState, Results, ExposureOptimization, BottleneckType, MotionParams } from './types';
+import { lensTierScalar } from '../presets';
+import {
+  OLPF_PENALTY,
+  MOTION_MTF50_CONST,
+  FORMAT_EFFICIENCY_MJPG_BASE,
+  FORMAT_EFFICIENCY_MJPG_RANGE,
+  FORMAT_EFFICIENCY_H264_BASE,
+  FORMAT_EFFICIENCY_H264_RANGE,
+  H264_QP_MAX,
+  H264_BITRATE_REF_BPP,
+  CHROMA_UYVY_PENALTY,
+  CHROMA_OTHER_PENALTY,
+  CHROMA_UYVY_SNR_DB,
+  CHROMA_OTHER_SNR_DB,
+  BOTTLENECK_RATIO,
+  RAW_FORMATS,
+} from './constants';
+import { calculateExposureOptimizer } from './exposure';
 
 export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const pixelPitch = state.pixelPitch;
@@ -6,15 +24,47 @@ export function calculateDerived(state: Readonly<AppState>): DerivedState {
   const sensorHeight = (pixelPitch * state.nativeHeight) / 1000;
   const sensorDiagonal = Math.sqrt(sensorWidth ** 2 + sensorHeight ** 2);
 
+  let effectivePixelPitch: number;
+  let fovWidth: number;
+  let fovHeight: number;
+
+  if (state.selectedV4l2Mode >= 0) {
+    const pitchMult = state.readoutPitchMultiplier;
+    effectivePixelPitch = pixelPitch * pitchMult;
+    fovWidth = state.readoutFullFoV
+      ? sensorWidth
+      : (pixelPitch * state.extractedWidth) / 1000;
+    fovHeight = state.readoutFullFoV
+      ? sensorHeight
+      : (pixelPitch * state.extractedHeight) / 1000;
+  } else {
+    const skipH = Math.max(1, state.nativeWidth / state.extractedWidth);
+    const skipV = Math.max(1, state.nativeHeight / state.extractedHeight);
+    const skippingFactor = Math.max(skipH, skipV);
+
+    if (state.readoutMethod === 'cropping') {
+      effectivePixelPitch = pixelPitch;
+      fovWidth = (pixelPitch * state.extractedWidth) / 1000;
+      fovHeight = (pixelPitch * state.extractedHeight) / 1000;
+    } else if (state.readoutMethod === 'native') {
+      effectivePixelPitch = pixelPitch;
+      fovWidth = sensorWidth;
+      fovHeight = sensorHeight;
+    } else {
+      effectivePixelPitch = pixelPitch * skippingFactor;
+      fovWidth = sensorWidth;
+      fovHeight = sensorHeight;
+    }
+  }
+
+  const fovDiagonal = Math.sqrt(fovWidth ** 2 + fovHeight ** 2);
+  const diagonalFov = 2 * Math.atan(fovDiagonal / (2 * state.focalLength)) * (180 / Math.PI);
+  const horizontalFov = 2 * Math.atan(fovWidth / (2 * state.focalLength)) * (180 / Math.PI);
+  const verticalFov = 2 * Math.atan(fovHeight / (2 * state.focalLength)) * (180 / Math.PI);
+
   const skipH = Math.max(1, state.nativeWidth / state.extractedWidth);
   const skipV = Math.max(1, state.nativeHeight / state.extractedHeight);
   const skippingFactor = Math.max(skipH, skipV);
-  const binnedPitch = pixelPitch * state.pixelBinning;
-  const effectivePixelPitch = binnedPitch * skippingFactor;
-
-  const diagonalFov = 2 * Math.atan(sensorDiagonal / (2 * state.focalLength)) * (180 / Math.PI);
-  const horizontalFov = 2 * Math.atan(sensorWidth / (2 * state.focalLength)) * (180 / Math.PI);
-  const verticalFov = 2 * Math.atan(sensorHeight / (2 * state.focalLength)) * (180 / Math.PI);
 
   return {
     sensorDiagonal,
@@ -22,6 +72,7 @@ export function calculateDerived(state: Readonly<AppState>): DerivedState {
     sensorHeight,
     pixelPitch,
     effectivePixelPitch,
+    skippingFactor,
     diagonalFov,
     horizontalFov,
     verticalFov,
@@ -33,21 +84,22 @@ export function calculateDiffractionCutoff(aperture: number, wavelengthNm: numbe
   return 1 / (wavelengthMm * aperture);
 }
 
-function lensTierScalar(tier: LensTier): number {
-  return tier === 'cheap-plastic' ? 0.6 : tier === 'mid-glass' ? 0.8 : 0.95;
-}
-
-export function calculateResults(state: Readonly<AppState>, derived: Readonly<DerivedState>): Results {
+export function calculateResults(
+  state: Readonly<AppState>,
+  derived: Readonly<DerivedState>,
+  motion: MotionParams,
+  shutterTime: number,
+  fps: number,
+  syncErrorP95: number,
+  syncEnabled: boolean,
+  exposure?: ExposureOptimization,
+): Results {
   const fc = calculateDiffractionCutoff(state.aperture, state.wavelength);
   const fcAberrated = fc * lensTierScalar(state.lensTier);
 
-  const skipH = Math.max(1, state.nativeWidth / state.extractedWidth);
-  const skipV = Math.max(1, state.nativeHeight / state.extractedHeight);
-  const skippingFactor = Math.max(skipH, skipV);
+  const olpfPenalty = state.olpfPresent ? OLPF_PENALTY : 1.0;
 
-  const olpfPenalty = state.olpfPresent ? 0.85 : 1.0;
-
-  const nativePitchMm = (derived.pixelPitch * state.pixelBinning) / 1000;
+  const nativePitchMm = derived.pixelPitch / 1000;
   const fNyquistNative = (1 / (2 * nativePitchMm)) * olpfPenalty;
 
   const skippedPitchMm = derived.effectivePixelPitch / 1000;
@@ -55,31 +107,86 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
 
   let formatEfficiency = 1.0;
   if (state.outputFormat === 'mjpg') {
-    formatEfficiency = 0.4 + 0.6 * (state.mjpgQuality / 100);
+    formatEfficiency = FORMAT_EFFICIENCY_MJPG_BASE + FORMAT_EFFICIENCY_MJPG_RANGE * (state.mjpgQuality / 100);
   }
-  if (state.measurementMode === 'chroma') {
-    if (state.outputFormat === 'uyuv') {
-      formatEfficiency *= 0.5;
-    } else {
-      formatEfficiency *= 0.25;
-    }
+  if (state.outputFormat === 'h264') {
+    const qpEfficiency = FORMAT_EFFICIENCY_H264_BASE + FORMAT_EFFICIENCY_H264_RANGE * (1 - state.h264Qp / H264_QP_MAX);
+    const pixelsPerFrame = state.extractedWidth * state.extractedHeight;
+    const bpp = pixelsPerFrame > 0 ? (state.h264BitrateMbps * 1_000_000) / (pixelsPerFrame * Math.max(1, fps)) : 0;
+    const bitrateEfficiency = Math.min(1, bpp / H264_BITRATE_REF_BPP);
+    formatEfficiency = Math.min(qpEfficiency, bitrateEfficiency);
+  }
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
   }
 
-  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped);
+  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterTime;
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+  const vImg = vTotal * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const fTemporal50 = vImg > 1e-6 ? MOTION_MTF50_CONST / (vImg * shutterTime) : Infinity;
+
+  // Dynamic Range: minimum detectable contrast from noise floor
+  const effectiveDR = exposure?.photonStarved
+    ? Math.min(state.dynamicRangeDb, exposure.snrAtOptimalDb)
+    : state.dynamicRangeDb;
+  const contrastFloor = 1 / Math.pow(10, effectiveDR / 20);
+  const fDRLimited = fcAberrated * Math.sqrt(Math.max(0, 1 - contrastFloor / Math.max(0.01, formatEfficiency)));
+
+  const fSyncMTF50 = syncErrorP95 > 0.001 ? 0.1874 / syncErrorP95 : Infinity;
+
+  const limitingFrequency = Math.min(fcAberrated, fNyquistSkipped, fTemporal50, fDRLimited);
   const fEffective = limitingFrequency * formatEfficiency;
   const minFeatureSize = (1 / (2 * fEffective)) * 1000;
 
-  const featureSizeAtDistance =
+  const featureBase =
     (1 / (2 * fEffective) / state.focalLength) * (state.distanceToSubject * 1000);
 
+  const featureSizeAtDistance = syncEnabled && syncErrorP95 > 0
+    ? Math.hypot(featureBase, syncErrorP95)
+    : featureBase;
+
   let bottleneckType: BottleneckType = 'balanced';
-  if (formatEfficiency < 0.85 && state.outputFormat === 'mjpg') {
+  if (formatEfficiency < BOTTLENECK_RATIO && (state.outputFormat === 'mjpg' || state.outputFormat === 'h264')) {
     bottleneckType = 'compression-throttled';
   }
-  if (fNyquistSkipped < fcAberrated * 0.85) {
+  if (fDRLimited < fcAberrated * BOTTLENECK_RATIO && fDRLimited < fNyquistSkipped * BOTTLENECK_RATIO) {
+    bottleneckType = 'dr-limited';
+  }
+  if (fNyquistSkipped < fcAberrated * BOTTLENECK_RATIO && fNyquistSkipped < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'sensor-limited';
-  } else if (fcAberrated < fNyquistSkipped * 0.85) {
+  } else if (fcAberrated < fNyquistSkipped * BOTTLENECK_RATIO && fcAberrated < fDRLimited * BOTTLENECK_RATIO) {
     bottleneckType = 'lens-limited';
+  }
+  if (fTemporal50 < fcAberrated * BOTTLENECK_RATIO && fTemporal50 < fNyquistSkipped * BOTTLENECK_RATIO && fTemporal50 < fDRLimited * BOTTLENECK_RATIO) {
+    bottleneckType = 'motion-limited';
+  }
+  if (syncEnabled && fSyncMTF50 < fcAberrated * BOTTLENECK_RATIO && fSyncMTF50 < fNyquistSkipped * BOTTLENECK_RATIO && fSyncMTF50 < fDRLimited * BOTTLENECK_RATIO && fSyncMTF50 < fTemporal50 * BOTTLENECK_RATIO) {
+    bottleneckType = 'sync-limited';
+  }
+  if (exposure?.photonStarved) {
+    bottleneckType = 'photon-starved';
+  }
+
+  let finalExposure = exposure ?? {
+    illuminanceSensorLux: 0,
+    photonsPerPxPerSec: 0,
+    electronsPerPxPerSec: 0,
+    tMinusSnr: 0,
+    tMotionMax: 0,
+    tSaturation: 0,
+    tOptimal: shutterTime,
+    optimalGain: 1,
+    optimalFps: fps,
+    snrAtOptimalDb: 0,
+    photonStarved: false,
+    signalPercentFwc: 0,
+    headroomStops: 0,
+  };
+
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    const snrPenaltyDb = state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
+    finalExposure = { ...finalExposure, snrAtOptimalDb: Math.max(0, finalExposure.snrAtOptimalDb - snrPenaltyDb) };
   }
 
   return {
@@ -87,13 +194,19 @@ export function calculateResults(state: Readonly<AppState>, derived: Readonly<De
     fcAberrated,
     fNyquistNative,
     fNyquistSkipped,
-    skippingFactor,
+    skippingFactor: derived.skippingFactor,
     olpfPenalty,
     formatEfficiency,
     fEffective,
+    fTemporal50,
     bottleneckType,
     minFeatureSize,
     featureSizeAtDistance,
+    fDRLimited,
+    contrastFloor,
+    fSyncMTF50,
+    syncErrorP95,
+    exposure: finalExposure,
   };
 }
 

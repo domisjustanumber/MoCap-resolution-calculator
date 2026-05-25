@@ -1,0 +1,6 @@
+{
+  "name": "ov9281-module",
+  "label": "OV9281 Module",
+  "sensorName": "ov9281",
+  "lensName": "cheap-plastic"
+}

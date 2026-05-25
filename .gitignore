@@ -3,3 +3,7 @@ dist/
 *.local
 test-results/
 .playwright-mcp/
+.claude/
+*.png
+page-initial.yml
+spatial-tab-initial.txt

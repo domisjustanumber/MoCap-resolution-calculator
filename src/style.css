@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --slider-track: #334155;
+  --slider-thumb: #334155;
+  --slider-accent: #3b82f6;
+  --slider-track-h: 8px;
+  --slider-thumb-size: 14px;
+}
+
 html {
   font-size: 17.6px;
 }
@@ -13,22 +21,173 @@ html {
 }
 
 @layer components {
+  /* ── Typography ── */
+  .section-label {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-slate-400;
+  }
+
+  .section-label-muted {
+    @apply text-[10px] font-semibold uppercase tracking-wider text-slate-500;
+  }
+
+  .field-label {
+    @apply text-[10px] font-medium text-slate-500;
+  }
+
+  .field-label-xs {
+    @apply text-[9px] font-medium text-slate-500;
+  }
+
+  .mono-value-sm {
+    @apply text-[10px] font-mono text-slate-400;
+  }
+
+  .mono-value-xs {
+    @apply text-[9px] font-mono text-slate-500;
+  }
+
+  .unit-text {
+    @apply text-[10px] text-slate-500;
+  }
+
+  .unit-text-xs {
+    @apply text-[9px] text-slate-600;
+  }
+
+  /* ── Panels & cards ── */
+  .chart-panel {
+    @apply rounded-lg border border-slate-800 bg-slate-950 p-3;
+  }
+
+  .stat-card {
+    @apply rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-center;
+  }
+
+  .metric-card {
+    @apply rounded-lg border border-slate-800 bg-slate-900/50 p-2.5;
+  }
+
+  .quick-ctrl {
+    @apply relative rounded-lg border border-slate-800 bg-slate-900/50 px-1.5 pb-1.5 pt-3;
+  }
+
+  .quick-ctrl-title {
+    @apply absolute top-0 left-2.5 -translate-y-1/2 pr-1.5 pl-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-950 whitespace-nowrap z-10;
+  }
+
+  /* ── Preset / toggle chips ── */
+  .preset-chip,
+  .vel-preset,
+  .fps-preset,
+  .shutter-preset,
+  .region-preset,
+  .chart-tab,
+  .lux-preset,
+  .sensor-model-chip {
+    @apply border border-slate-700 bg-slate-800/50 text-slate-400 transition hover:border-slate-500 hover:text-slate-300;
+  }
+
+  .vel-preset,
+  .fps-preset,
+  .shutter-preset,
+  .region-preset,
+  .lux-preset,
+  .sync-toggle,
+  .action-btn {
+    @apply rounded px-1 py-1 text-[11px] font-medium leading-none whitespace-nowrap;
+  }
+
+  .preset-chip.active,
+  .vel-preset.active,
+  .fps-preset.active,
+  .shutter-preset.active,
+  .region-preset.active,
+  .chart-tab.active,
+  .lux-preset.active,
+  .sensor-model-chip.active {
+    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  }
+
+  .sync-toggle {
+    @apply border border-slate-700 bg-slate-800/50 text-slate-400 transition hover:border-pink-500 hover:text-pink-300;
+  }
+
+  .sync-toggle.active {
+    @apply border-pink-500 bg-pink-900/30 text-pink-300;
+  }
+
+  .action-btn {
+    @apply border border-slate-700 bg-slate-800/50 text-slate-400 transition hover:border-blue-500 whitespace-nowrap;
+  }
+
+  /* ── Inputs ── */
   .input-field {
     @apply rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm text-slate-200
            placeholder-slate-500 transition-colors
            focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50;
   }
 
-  .input-field[type="range"] {
-    @apply h-2 cursor-pointer appearance-none bg-slate-700 px-0 accent-blue-500;
+  .input-compact {
+    @apply input-field no-spinner text-[11px] h-6 py-0;
   }
 
-  .input-field:disabled {
+  .input-compact-sm {
+    @apply input-field no-spinner text-[11px] h-[22px] py-0;
+  }
+
+  .input-field[type="range"],
+  .input-compact[type="range"],
+  .input-compact-sm[type="range"] {
+    @apply px-0;
+  }
+
+  .input-field:disabled,
+  .input-compact:disabled,
+  .input-compact-sm:disabled {
     @apply cursor-not-allowed opacity-40;
   }
 
-  .preset-chip.active {
-    @apply border-blue-500 bg-blue-900/30 text-blue-300;
+  .quick-ctrl .input-field,
+  .quick-ctrl .input-compact,
+  .quick-ctrl .input-compact-sm {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .vel-input-active {
+    @apply border-blue-500 ring-1 ring-blue-500/50;
+  }
+
+  .disabled-preset {
+    @apply opacity-30 cursor-not-allowed;
+    transition: none;
+  }
+
+  /* ── Exposure optimizer bars ── */
+  .exp-bar-track {
+    @apply relative h-1.5 rounded-full bg-slate-800;
+  }
+
+  .exp-bar-fill {
+    @apply h-full rounded-full transition-all;
+  }
+
+  .exp-target-marker {
+    @apply absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none;
+    width: 10px;
+    height: 14px;
+    border-radius: 2px;
+    background: rgb(226 232 240 / 0.85);
+    box-shadow: 0 0 0 1px rgb(15 23 42 / 0.5);
+  }
+
+  .exp-target-marker:active {
+    @apply cursor-grabbing;
+  }
+
+  /* ── Distance chart Y-axis slider column ── */
+  .vertical-slider-col {
+    @apply flex flex-col items-center w-4;
   }
 }
 
@@ -36,4 +195,123 @@ html {
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   opacity: 0.4;
+}
+
+input[type="number"].no-spinner::-webkit-inner-spin-button,
+input[type="number"].no-spinner::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].no-spinner {
+  -moz-appearance: textfield;
+}
+
+/* ── Horizontal range sliders ── */
+input[type="range"]:not(.vertical-slider) {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: var(--slider-track-h);
+  border-radius: 4px;
+  background: var(--slider-track);
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--slider-accent);
+}
+
+input[type="range"]:not(.vertical-slider):disabled {
+  @apply cursor-not-allowed opacity-40;
+}
+
+input[type="range"]:not(.vertical-slider)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  border: 2px solid var(--slider-accent);
+  cursor: pointer;
+}
+
+input[type="range"]:not(.vertical-slider)::-moz-range-track {
+  height: var(--slider-track-h);
+  border-radius: 4px;
+  background: var(--slider-track);
+}
+
+input[type="range"]:not(.vertical-slider)::-moz-range-progress {
+  height: var(--slider-track-h);
+  border-radius: 4px;
+  background: var(--slider-accent);
+}
+
+input[type="range"]:not(.vertical-slider)::-moz-range-thumb {
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  border: 2px solid var(--slider-accent);
+  cursor: pointer;
+}
+
+/* ── Vertical range slider (distance chart Y-axis) ── */
+.vertical-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: var(--slider-track-h);
+  height: auto;
+  min-height: 0;
+  flex: 1 1 0%;
+  padding: 0;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  accent-color: var(--slider-accent);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.vertical-slider::-webkit-slider-container {
+  height: 100%;
+}
+
+.vertical-slider::-webkit-slider-runnable-track {
+  width: var(--slider-track-h);
+  height: 100%;
+  border-radius: 4px;
+  background: var(--slider-track);
+  border: none;
+}
+
+.vertical-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  border: 2px solid var(--slider-accent);
+  margin-left: -3px;
+  cursor: pointer;
+}
+
+.vertical-slider::-moz-range-track {
+  width: var(--slider-track-h);
+  height: 100%;
+  border-radius: 4px;
+  background: var(--slider-track);
+}
+
+.vertical-slider::-moz-range-progress {
+  width: var(--slider-track-h);
+  border-radius: 4px;
+  background: var(--slider-accent);
+}
+
+.vertical-slider::-moz-range-thumb {
+  width: var(--slider-thumb-size);
+  height: var(--slider-thumb-size);
+  border-radius: 50%;
+  background: var(--slider-thumb);
+  border: 2px solid var(--slider-accent);
+  cursor: pointer;
 }

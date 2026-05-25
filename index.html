@@ -7,282 +7,677 @@
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body class="min-h-screen">
-  <header class="border-b border-slate-800 px-6 py-4">
-    <h1 class="text-xl font-semibold tracking-tight text-slate-100">
+
+  <header class="flex items-center justify-between border-b border-slate-800 px-6 py-3">
+    <h1 class="text-lg font-semibold tracking-tight text-slate-100">
       Optical System Spatial Resolution Calculator
     </h1>
+    <div class="flex gap-1">
+      <button id="tab-spatial" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium active">Spatial Resolution</button>
+      <button id="tab-temporal" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Camera sync</button>
+      <button id="tab-acceleration" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Acceleration</button>
+    </div>
   </header>
 
-  <main class="mx-auto max-w-7xl px-4 py-6 lg:px-6">
-    <!-- Preset chips -->
-    <div id="preset-bar" class="mb-6 flex flex-wrap gap-2">
-      <button data-preset="ov5647" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-200 transition hover:border-blue-500">
-        Pi Cam&nbsp;v1 (OV5647)
+  <main class="flex gap-4 px-4 pt-4 pb-6 lg:px-6">
+
+    <!-- Left sidebar: Camera preset buttons (sticky) -->
+    <div id="preset-bar" class="sticky top-4 w-36 shrink-0 flex flex-col gap-0.5 self-start max-h-[calc(100vh-4rem)] overflow-y-auto">
+      <p class="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">Camera</p>
+      <button data-preset="pi-cam-v1" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-200 hover:border-blue-500 bg-slate-800">
+        Pi Cam v1 (OV5647)
       </button>
-      <button data-preset="imx219" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Pi Cam&nbsp;v2 (IMX219)
+      <button data-preset="pi-cam-v2" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+        Pi Cam v2 (IMX219)
       </button>
-      <button data-preset="imx708" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Pi Cam&nbsp;v3 (IMX708)
+      <button data-preset="pi-hq-cam" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+        Pi HQ Cam (IMX477)
       </button>
-      <button data-preset="imx708-wide" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Pi Cam&nbsp;v3 Wide
+      <button data-preset="ov9281-module" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
+        OV9281 Module
       </button>
-      <button data-preset="imx477" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Pi HQ&nbsp;Cam (IMX477)
-      </button>
-      <button data-preset="flagship-smartphone" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
-        Smartphone
-      </button>
-      <button data-preset="custom" class="preset-chip rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm font-medium text-slate-400 transition hover:border-blue-500">
+      <button data-preset="custom" class="preset-chip w-full rounded-md px-3 py-2 text-left text-xs font-medium text-slate-400 hover:border-blue-500 bg-slate-800">
         Custom
       </button>
     </div>
 
-    <div class="grid gap-6 lg:grid-cols-5">
+    <!-- Right content area -->
+    <div class="min-w-0 flex-1">
 
-      <!-- Left column: inputs -->
-      <div class="space-y-5 lg:col-span-2">
+      <!-- Charts + quick controls -->
+      <div class="bg-slate-950">
 
-        <!-- LENS -->
-        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-blue-400">Lens</legend>
-          <div class="space-y-3">
+        <!-- Tab: Spatial Resolution -->
+        <div id="panel-spatial" class="grid gap-4 lg:grid-cols-2">
 
-            <div class="flex gap-3">
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="focalLength">Focal Length (mm)</label>
-                <input id="focalLength" class="calc-input input-field w-full" type="number" step="0.1" min="0.1" value="3.6" />
-              </div>
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="diagonalFov">Diagonal FoV (&deg;)</label>
-                <input id="diagonalFov" class="calc-input input-field w-full" type="number" step="0.1" min="0.1" value="" />
-              </div>
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="aperture">Aperture (f/)</label>
-                <input id="aperture" class="calc-input input-field w-full" type="number" step="0.1" min="0.1" max="32" value="2.4" />
-              </div>
+          <!-- MTF Chart -->
+          <div class="chart-panel">
+            <div class="mb-1 flex items-center justify-between">
+              <span class="section-label">Spatial Resolution</span>
             </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-400">Lens Quality</label>
-              <div class="flex flex-wrap gap-1.5">
-                <button data-preset="lens-cheap" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Plastic</button>
-                <button data-preset="lens-mid" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Glass</button>
-                <button data-preset="lens-premium" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">Premium</button>
-              </div>
-            </div>
-
-            <div>
-              <label class="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
-                Light Wavelength
-                <span id="wavelength-color-dot" class="inline-block h-2.5 w-2.5 rounded-full" style="background:#22c55e"></span>
-                <span id="wavelength-color-label" class="text-[10px] text-slate-500">Green</span>
-                <span id="ir-badge" class="ml-1 hidden rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-400">IR</span>
-              </label>
-              <div class="flex flex-wrap gap-1.5" id="wavelength-chips"></div>
-            </div>
-
+            <canvas id="mtf-chart"></canvas>
+            <p class="mt-1 text-[10px] leading-relaxed text-slate-600">
+              Curves use diffraction-theoretical lens MTF. Real aberrated lenses degrade faster — consult actual MTF charts when available.
+            </p>
           </div>
-        </fieldset>
 
-        <!-- SENSOR -->
-        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-orange-400">Sensor</legend>
-          <div class="space-y-3">
-
-            <div class="flex flex-wrap gap-1.5">
-              <button data-preset="ov5647" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV5647</button>
-              <button data-preset="imx219" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX219</button>
-              <button data-preset="imx708" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708</button>
-              <button data-preset="imx708-wide" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX708 W</button>
-              <button data-preset="imx477" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">IMX477</button>
-              <button data-preset="ov9281" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">OV9281</button>
-              <button data-preset="ar0234" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">AR0234</button>
+          <!-- Min Resolvable Feature vs Distance Chart -->
+          <div class="chart-panel">
+            <div class="mb-1 flex items-center justify-between">
+              <span class="section-label">Minimum resolvable feature</span>
+              <span class="text-[10px] leading-relaxed text-slate-600">
+                <span class="text-indigo-400">&#9650; Hover</span> or click to pin
+              </span>
             </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-400" for="pixelPitch">Pixel Pitch</label>
-              <div class="flex items-center gap-2">
-                <input id="pixelPitch" class="calc-input input-field" type="number" step="0.1" min="0.1" value="2.4" />
-                <span class="text-xs text-slate-500">&mu;m</span>
+            <div class="flex gap-1">
+              <div class="vertical-slider-col">
+                <span class="text-[9px] font-mono text-slate-500 mb-1" id="dist-y-range-label">100</span>
+                <input id="dist-y-range" class="vertical-slider flex-1" type="range" min="20" max="500" step="10" value="100" />
+                <span class="text-[9px] font-mono text-slate-500 mt-1">0</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <canvas id="distance-chart"></canvas>
+                <div class="mt-1.5 flex items-center gap-2 px-1">
+                  <label class="text-[10px] font-medium text-slate-500" for="dist-range">X</label>
+                  <input id="dist-range" class="w-full" type="range" min="1" max="10" step="1" value="3" />
+                  <span id="dist-range-label" class="min-w-[3ch] text-right text-[10px] font-mono text-slate-400">3m</span>
+                </div>
               </div>
             </div>
-
-            <div class="flex gap-3">
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeWidth">Native Horiz. Pixels</label>
-                <input id="nativeWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="1920" />
-              </div>
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeHeight">Native Vert. Pixels</label>
-                <input id="nativeHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="1080" />
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <input id="olpfPresent" class="calc-input h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500" type="checkbox" checked />
-              <label class="text-xs font-medium text-slate-400" for="olpfPresent">OLPF Present (Optical Low-Pass / Anti-Aliasing Filter<span class="text-slate-500">, typically yes on webcams</span>)</label>
-            </div>
-
-            <details class="rounded border border-slate-800 bg-slate-950/50">
-              <summary class="cursor-pointer select-none px-2.5 py-2 text-[11px] font-medium text-slate-400 hover:text-slate-300 transition-colors [&::-webkit-details-marker]:hidden">
-                Sensor Details
-              </summary>
-              <div class="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-slate-800 px-2.5 py-2 text-xs">
-                <span class="text-slate-500">Sensor Width</span>
-                <span id="derived-width" class="font-mono text-slate-300">—</span>
-                <span class="text-slate-500">Sensor Height</span>
-                <span id="derived-height" class="font-mono text-slate-300">—</span>
-                <span class="text-slate-500">Sensor Diagonal</span>
-                <span id="derived-diagonal" class="font-mono text-slate-300">—</span>
-                <span class="text-slate-500">Sensor Size</span>
-                <span id="derived-size" class="font-mono text-slate-300">—</span>
-                <span class="text-slate-500">Native Nyquist</span>
-                <span id="derived-nyquist" class="font-mono text-slate-300">—</span>
-              </div>
-            </details>
           </div>
-        </fieldset>
 
-        <!-- PROCESSING -->
-        <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
-          <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-purple-400">Processing</legend>
-          <div class="space-y-3">
+        </div>
 
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-400">Res. Mode</label>
-              <div class="flex flex-wrap gap-1.5">
-                <button data-res="sd-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">SD MJPG</button>
-                <button data-res="sd-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">SD NV12</button>
-                <button data-res="720p-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">720p MJPG</button>
-                <button data-res="720p-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">720p NV12</button>
-                <button data-res="1080p-mjpg" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">1080p MJPG</button>
-                <button data-res="1080p-nv12" class="preset-chip rounded border border-slate-700 bg-slate-800/50 px-2 py-1 text-[11px] font-medium text-slate-400 transition hover:border-blue-500">1080p NV12</button>
+        <!-- Tab: Camera Sync Error -->
+        <div id="panel-temporal" class="hidden">
+          <div class="rounded-lg border border-slate-800 bg-slate-950 p-2">
+            <div class="mb-1 flex items-center justify-between">
+              <span class="section-label">Camera Sync Error Distribution</span>
+              <span id="temporal-fps-label" class="text-xs text-slate-600">Kinematic @ 30 fps</span>
+            </div>
+            <canvas id="temporal-chart"></canvas>
+            <div class="mt-1.5">
+              <label class="text-xs font-medium text-slate-500" for="temporal-zoom">X-axis scale</label>
+              <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
+              <span id="temporal-zoom-label" class="text-xs font-mono text-slate-400">200 mm</span>
+            </div>
+            <div class="mt-1.5 grid grid-cols-4 gap-1.5">
+              <div class="space-y-1.5">
+                <div class="flex items-center gap-0.5" id="temporal-velocity-presets">
+                  <button data-velocity="static" class="vel-preset">Static</button>
+                  <button data-velocity="walking" class="vel-preset">Walking</button>
+                  <button data-velocity="sports" class="vel-preset">Sports</button>
+                </div>
+                <div>
+                  <label class="text-[10px] font-medium text-slate-500">Acceleration</label>
+                  <div class="flex items-center gap-1">
+                    <input id="temporal-motion-accel" class="w-full" type="range" min="0" max="20" step="0.1" value="0" />
+                    <input id="temporal-motion-accel-input" class="calc-input input-compact-sm w-10" type="number" step="0.1" min="0" max="20" value="0" />
+                    <span class="text-[10px] text-slate-500">m/s²</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-[10px] font-medium text-slate-500">Angular velocity</label>
+                  <div class="flex items-center gap-1">
+                    <input id="temporal-motion-angular" class="w-full" type="range" min="0" max="360" step="1" value="0" />
+                    <input id="temporal-motion-angular-input" class="calc-input input-compact-sm w-10" type="number" step="1" min="0" max="360" value="0" />
+                    <span class="text-[10px] text-slate-500">°/s</span>
+                  </div>
+                </div>
+
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-500" for="temporal-distance">Distance from camera</label>
+                <input id="temporal-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="2" />
+                <span id="temporal-distance-label" class="text-xs font-mono text-slate-400">2.0 m</span>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-500" for="temporal-phase">Camera timing offset</label>
+                <input id="temporal-phase" class="w-full" type="range" min="0" max="100" step="0.1" value="16.6" />
+                <span id="temporal-phase-label" class="text-xs font-mono text-slate-400">16.6 ms</span>
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-500" for="temporal-jitter">Camera timing jitter</label>
+                <input id="temporal-jitter" class="w-full" type="range" min="0" max="100" step="0.1" value="10" />
+                <span id="temporal-jitter-label" class="text-xs font-mono text-slate-400">10.0 ms</span>
               </div>
             </div>
-
-            <div class="flex gap-3">
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedWidth">Extracted Horiz. Pixels</label>
-                <input id="extractedWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="640" />
-              </div>
-              <div class="flex-1">
-                <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedHeight">Extracted Vert. Pixels</label>
-                <input id="extractedHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="480" />
-              </div>
-            </div>
-            <p id="extracted-warning" class="hidden text-[11px] text-amber-400"></p>
-
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-400" for="subsamplingMethod">Subsampling Method</label>
-              <select id="subsamplingMethod" class="calc-input input-field w-full">
-                <option value="line-skip">Line Skip</option>
-                <option value="binning-average">Binning / Averaging</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="mb-1 block text-xs font-medium text-slate-400" for="outputFormat">Output Format</label>
-              <select id="outputFormat" class="calc-input input-field w-full">
-                <option value="mjpg">MJPG (Motion JPEG)</option>
-                <option value="uyuv">UYVY (YUV 4:2:2)</option>
-                <option value="nv12">NV12 (YUV 4:2:0)</option>
-              </select>
-            </div>
-
-            <div id="mjpg-quality-group">
-              <label class="mb-1 block text-xs font-medium text-slate-400" for="mjpgQuality">
-                MJPG Quality (Q)
-                <span id="mjpg-quality-value" class="ml-1 font-mono text-slate-300">60</span>
-              </label>
-              <input id="mjpgQuality" class="calc-input w-full" type="range" min="1" max="100" value="60" />
-            </div>
-
-            <div class="flex gap-6">
-              <label class="flex items-center gap-2 text-xs text-slate-400">
-                <input id="mode-luma" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="luma" checked />
-                Luma
-              </label>
-              <label class="flex items-center gap-2 text-xs text-slate-400">
-                <input id="mode-chroma" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="chroma" />
-                Chroma
-              </label>
-            </div>
-
           </div>
-        </fieldset>
+        </div>
+
+        <!-- Tab: Acceleration -->
+        <div id="panel-acceleration" class="hidden">
+          <div class="rounded-lg border border-slate-800 bg-slate-950 p-4">
+            <div class="mb-1">
+              <span class="section-label">Kinematic Motion Resolution Limits</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mb-4">
+              <div class="stat-card">
+                <p class="section-label text-sky-400">Max Acceleration</p>
+                <p id="accel-m-s2" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+                <p id="accel-g" class="text-[10px] text-slate-500">—</p>
+              </div>
+              <div class="stat-card">
+                <p class="section-label text-sky-400">Nyquist Boundary</p>
+                <p id="accel-turn" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+                <p class="text-[10px] text-slate-500">Max Turn Rate</p>
+              </div>
+              <div class="stat-card">
+                <p class="section-label text-sky-400">State Latency</p>
+                <p id="accel-latency" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+                <p class="text-[10px] text-slate-500">2-Frame Window</p>
+              </div>
+              <div class="stat-card">
+                <p class="section-label text-emerald-400">Subject Accel</p>
+                <p id="accel-subject-accel" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+                <p class="text-[10px] text-slate-500">from motion preset</p>
+              </div>
+              <div class="stat-card">
+                <p class="section-label text-emerald-400">Subject Rotation</p>
+                <p id="accel-subject-rot" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
+                <p class="text-[10px] text-slate-500">from motion preset</p>
+              </div>
+            </div>
+            <div class="grid gap-4 lg:grid-cols-2 mb-4">
+              <div>
+                <label class="text-xs font-medium text-slate-400">
+                  Frame Rate: <span id="accel-fps-label" class="font-bold text-sky-400">30</span> FPS
+                </label>
+                <input id="accel-fps" class="w-full" type="range" min="15" max="240" step="1" value="30" />
+              </div>
+              <div>
+                <label class="text-xs font-medium text-slate-400">
+                  Error Budget: <span id="accel-budget-label" class="font-bold text-sky-400">5.0</span> mm
+                </label>
+                <input id="accel-budget" class="w-full" type="range" min="0.5" max="25" step="0.5" value="5" />
+              </div>
+            </div>
+            <p class="mt-3 text-[11px] leading-relaxed text-slate-500">
+              <strong>Tracking Takeaway:</strong> Acceleration error scales <em>quadratically</em> with frame rate (a ∝ FPS²). Doubling frame rate gives <strong>4×</strong> tracking protection against sudden direction changes and velocity spikes.
+            </p>
+          </div>
+        </div>
+
+        <!-- Quick controls -->
+        <div id="quick-controls" class="mt-3 flex gap-1.5 items-stretch">
+          <!-- Target Motion -->
+          <div class="shrink-0 quick-ctrl">
+            <p class="quick-ctrl-title">Target Motion</p>
+            <div class="flex items-center gap-0.5 mb-0.5" id="qc-velocity-presets">
+              <button data-velocity="static" class="vel-preset">Static</button>
+              <button data-velocity="walking" class="vel-preset">Walking</button>
+              <button data-velocity="sports" class="vel-preset">Sports</button>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Velocity</span>
+                <div class="flex-1 min-w-0">
+                  <input id="velocity-slider" class="w-full" type="range" min="0" max="100" step="0.1" value="0" />
+                </div>
+                <input id="velocity-custom" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="100" placeholder="m/s" />
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Acceleration</span>
+                <div class="flex-1 min-w-0">
+                  <input id="accel-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="0.5" />
+                </div>
+                <input id="accel-custom" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="0.5" />
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Rotation</span>
+                <div class="flex-1 min-w-0">
+                  <input id="angular-slider" class="w-full" type="range" min="0" max="360" step="1" value="10" />
+                </div>
+                <input id="angular-custom" class="calc-input input-compact w-10" type="number" step="1" min="0" max="360" value="10" />
+              </div>
+            </div>
+          </div>
+
+
+
+          <!-- Region + FPS (stacked) -->
+          <div class="shrink-0 flex flex-col gap-1.5 w-[8.8rem]">
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Region</p>
+              <div class="flex items-center gap-0.5" id="region-presets">
+                <button data-region="50" class="region-preset">50Hz</button>
+                <button data-region="60" class="region-preset">60Hz</button>
+                <button data-region="0" class="region-preset">Free</button>
+              </div>
+            </div>
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">FPS</p>
+              <div class="flex items-center gap-0.5" id="fps-presets">
+                <input id="fps-custom" class="calc-input input-compact w-10" type="number" step="1" min="1" max="240" placeholder="fps" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Shutter + Gain (stacked) -->
+          <div class="shrink-0 flex flex-col gap-1.5 w-56">
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Shutter speed</p>
+              <div class="grid grid-cols-5 gap-0.5" id="shutter-presets">
+                <div class="flex items-center gap-0.5">
+                  <span class="text-[10px] text-slate-500">1/</span>
+                  <input id="shutter-custom" class="calc-input input-compact w-full" type="number" step="1" min="1" max="8000" placeholder="N" />
+                </div>
+              </div>
+            </div>
+            <div class="flex-1 quick-ctrl">
+              <p class="quick-ctrl-title">Gain</p>
+              <div class="flex items-center gap-1">
+                <div class="flex-1 min-w-0">
+                  <input id="gain-slider" class="w-full" type="range" min="1.0" max="8.0" step="0.1" value="1.0" />
+                  <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
+                    <span>1× Unity</span>
+                    <span>2×</span>
+                    <span>4×</span>
+                    <span>8× Max</span>
+                  </div>
+                </div>
+                <input id="gain-value" class="calc-input input-compact w-10" type="number" step="0.1" min="1.0" max="8.0" value="1.0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Exposure Optimizer + SNR bar -->
+          <div class="shrink-0 quick-ctrl w-60">
+            <p class="quick-ctrl-title">Exposure Optimizer</p>
+            <div class="flex items-center gap-1">
+              <button id="optimize-btn" class="action-btn">Optimize</button>
+              <input id="snr-undershoot-pct" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="0" max="50" value="10" title="Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" />
+              <span class="text-[9px] text-slate-600 whitespace-nowrap">% SNR slack</span>
+            </div>
+            <div id="exp-snr-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Current SNR</div>
+              <div class="flex items-center gap-1">
+                <div id="exp-snr-track" class="exp-bar-track flex-1">
+                  <div id="exp-snr-bar" class="exp-bar-fill" style="width:0%"></div>
+                  <div id="exp-snr-target-marker" class="exp-target-marker" role="slider" aria-label="Target SNR" tabindex="0"></div>
+                </div>
+                <span id="exp-snr-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap min-w-[4.5ch] text-right">—</span>
+                <input id="desiredSnrDb" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="5" max="50" value="20" title="Target SNR" />
+                <span class="text-[9px] text-slate-600 whitespace-nowrap">dB</span>
+              </div>
+            </div>
+            <div id="exp-accel-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Acceleration</div>
+              <div class="flex items-center gap-1">
+                <div id="exp-accel-track" class="exp-bar-track flex-1">
+                  <div id="exp-accel-bar" class="exp-bar-fill" style="width:0%"></div>
+                  <div id="exp-accel-target-marker" class="exp-target-marker" role="slider" aria-label="Target acceleration" tabindex="0"></div>
+                </div>
+                <span id="exp-accel-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap min-w-[4.5ch] text-right">—</span>
+                <input id="exp-accel-target" class="calc-input input-compact-sm w-9 text-right" type="number" step="0.1" min="0" max="20" value="0" title="Target acceleration" />
+                <span class="text-[9px] text-slate-600 whitespace-nowrap">m/s²</span>
+              </div>
+            </div>
+            <div id="exp-rot-container" class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Rotation</div>
+              <div class="flex items-center gap-1">
+                <div id="exp-rot-track" class="exp-bar-track flex-1">
+                  <div id="exp-rot-bar" class="exp-bar-fill" style="width:0%"></div>
+                  <div id="exp-rot-target-marker" class="exp-target-marker" role="slider" aria-label="Target rotation" tabindex="0"></div>
+                </div>
+                <span id="exp-rot-label" class="text-[9px] font-mono text-slate-500 whitespace-nowrap min-w-[4.5ch] text-right">—</span>
+                <input id="exp-rot-target" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="0" max="360" value="0" title="Target rotation" />
+                <span class="text-[9px] text-slate-600 whitespace-nowrap">°/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Light level -->
+          <div class="shrink-0 quick-ctrl">
+            <p class="quick-ctrl-title">Light level</p>
+            <div class="flex flex-nowrap gap-0.5" id="lux-presets">
+              <button data-lux="0.2" class="lux-preset">Moonlight</button>
+              <button data-lux="100" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none active">Indoor</button>
+              <button data-lux="1000" class="lux-preset">Overcast</button>
+              <button data-lux="10000" class="lux-preset">Daylight</button>
+              <button data-lux="100000" class="lux-preset">Sunlight</button>
+            </div>
+            <div class="mt-1 flex items-center gap-1">
+              <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Lux</label>
+              <input id="lux-slider" class="w-full" type="range" min="0" max="110000" step="1" value="100" />
+              <input id="luxAtSubject" class="calc-input input-compact w-14" type="number" step="1" min="0.01" max="110000" value="100" />
+              <span class="text-[10px] text-slate-600">lux</span>
+            </div>
+            <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
+              <span>0.2 Moon</span>
+              <span>100 Ind.</span>
+              <span>10000 Day</span>
+              <span>100000 Sun</span>
+            </div>
+          </div>
+
+          <!-- Sync Error Toggle -->
+          <div class="shrink-0 quick-ctrl max-w-28">
+            <p class="quick-ctrl-title">Include camera sync error</p>
+            <button id="sync-toggle" class="sync-toggle">Off</button>
+          </div>
+        </div>
 
       </div>
 
-      <!-- Right column: outputs -->
-      <div class="space-y-5 lg:col-span-3">
+      <!-- Bottleneck banner -->
+      <div id="bottleneck-banner" class="mt-3 mb-3 rounded-lg border border-slate-800 bg-slate-900/50 p-2.5 text-xs text-slate-400">
+        —
+      </div>
 
-        <!-- Distance vs Resolution Chart -->
-        <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <div class="mb-2 flex items-center justify-between">
-            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Min Resolvable Feature vs Distance</span>
-            <span class="text-[10px] leading-relaxed text-slate-600">
-              <span class="text-indigo-400">&#9650; Hover</span> or click to pin
-            </span>
+
+
+      <!-- Conditional notes (hidden - moved to Processing section) -->
+
+      <!-- Scrollable detailed controls section -->
+      <div id="detailed-controls" class="rounded-lg border border-slate-800 bg-slate-950/30 p-4">
+        <div class="grid gap-4 lg:grid-cols-5">
+
+          <!-- LENS -->
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-blue-400">Lens</legend>
+            <div class="space-y-3">
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="focalLength">Focal Length</label>
+                <div class="flex items-center gap-2">
+                  <input id="focalLength" class="calc-input input-field" type="number" step="0.1" min="0.1" value="3.6" />
+                  <span class="text-xs text-slate-500">mm</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="diagonalFov">Diagonal FoV</label>
+                <div class="flex items-center gap-2">
+                  <input id="diagonalFov" class="calc-input input-field" type="number" step="0.1" min="0.1" value="" />
+                  <span class="text-xs text-slate-500">&deg;</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="aperture">Aperture</label>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-500">f/</span>
+                  <input id="aperture" class="calc-input input-field" type="number" step="0.1" min="0.1" max="32" value="2.4" />
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Lens Quality</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button data-preset="lens-cheap" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Plastic</button>
+                  <button data-preset="lens-mid" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Glass</button>
+                  <button data-preset="lens-premium" class="preset-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Premium</button>
+                </div>
+                <div class="mt-2">
+                  <label class="mb-1 block text-xs font-medium text-slate-400">Dynamic Range</label>
+                  <div class="flex items-center gap-2">
+                    <input id="dr-slider" class="w-full dr-slider" type="range" min="20" max="140" step="1" value="66" />
+                    <input id="dynamicRangeDb" class="calc-input input-field w-16" type="number" step="1" min="20" max="140" value="66" />
+                    <span class="text-xs text-slate-500">dB</span>
+                  </div>
+                  <div class="mt-0.5 flex items-center gap-3 text-[10px] text-slate-500">
+                    <span>50–65 dB Consumer</span>
+                    <span>65–90 dB Industrial</span>
+                    <span>90–140 dB Scientific</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="lensTransmission">Lens light transmission</label>
+                <div class="flex items-center gap-2">
+                  <input id="lensTransmission" class="calc-input input-field w-20" type="number" step="0.01" min="0.01" max="1" value="0.85" />
+                  <span class="text-xs text-slate-500">(0–1)</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 flex items-center gap-2 text-xs font-medium text-slate-400">
+                  Light Wavelength
+                  <span id="wavelength-color-dot" class="inline-block h-2.5 w-2.5 rounded-full" style="background:#22c55e"></span>
+                  <span id="wavelength-color-label" class="text-[10px] text-slate-500">Green</span>
+                  <span id="ir-badge" class="ml-1 hidden rounded bg-amber-900/50 px-1.5 py-0.5 text-[10px] text-amber-400">IR</span>
+                </label>
+                <div class="flex flex-wrap gap-1.5" id="wavelength-chips"></div>
+                <div id="wavelength-notes" class="mt-1 space-y-1"></div>
+              </div>
+
+            <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+              <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <span class="text-slate-500">Lens Cutoff</span>
+                <span id="card-fc" class="font-mono text-slate-300">—</span>
+              </div>
+            </div>
+            </div>
+          </fieldset>
+
+          <!-- SENSOR -->
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-orange-400">Sensor</legend>
+            <div class="space-y-3">
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Sensor model</label>
+                <div class="flex flex-wrap gap-1.5">
+                  <button data-preset="ov5647" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">OV5647</button>
+                  <button data-preset="imx219" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">IMX219</button>
+                  <button data-preset="imx477" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">IMX477</button>
+                  <button data-preset="ov9281" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">OV9281</button>
+                  <button data-preset="custom" class="sensor-model-chip rounded px-2 py-1 text-[11px] font-medium hover:border-blue-500">Custom</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400">Shutter Type</label>
+                <div class="flex gap-4">
+                  <label class="flex items-center gap-2 text-xs text-slate-400">
+                    <input id="shutter-global" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="shutterType" value="global" />
+                    Global
+                  </label>
+                  <label class="flex items-center gap-2 text-xs text-slate-400">
+                    <input id="shutter-rolling" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="shutterType" value="rolling" checked />
+                    Rolling
+                  </label>
+                </div>
+              </div>
+
+              <div class="flex gap-6">
+                <label class="flex items-center gap-2 text-xs text-slate-400">
+                  <input id="mode-monochrome" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="monochrome" checked />
+                  Monochrome
+                </label>
+                <label class="flex items-center gap-2 text-xs text-slate-400">
+                  <input id="mode-colour" class="calc-input h-3.5 w-3.5 accent-blue-500" type="radio" name="measurementMode" value="colour" />
+                  Colour
+                </label>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="pixelPitch">Pixel Pitch</label>
+                <div class="flex items-center gap-2">
+                  <input id="pixelPitch" class="calc-input input-field" type="number" step="0.1" min="0.1" value="2.4" />
+                  <span class="text-xs text-slate-500">&mu;m</span>
+                </div>
+              </div>
+
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeWidth">Native Horiz. Pixels</label>
+                  <input id="nativeWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="1920" />
+                </div>
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-slate-400" for="nativeHeight">Native Vert. Pixels</label>
+                  <input id="nativeHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="1080" />
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input id="olpfPresent" class="calc-input h-4 w-4 rounded border-slate-600 bg-slate-800 text-blue-500" type="checkbox" checked />
+                <label class="text-xs font-medium text-slate-400" for="olpfPresent">OLPF Present (Optical Low-Pass / Anti-Aliasing Filter<span class="text-slate-500">, typically yes on webcams</span>)</label>
+              </div>
+
+              <!-- Sensor details -->
+              <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span class="text-slate-500">Sensor Width</span>
+                  <span id="derived-width" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Sensor Height</span>
+                  <span id="derived-height" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Sensor Diagonal</span>
+                  <span id="derived-diagonal" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Sensor Size</span>
+                  <span id="derived-size" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Native Nyquist</span>
+                  <span id="derived-nyquist" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">QE @ 550nm</span>
+                  <span id="as-qe" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Full-well capacity</span>
+                  <span id="as-fwc" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Read noise</span>
+                  <span id="as-rn" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Dark current @ 25°C</span>
+                  <span id="as-dc" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Conversion gain</span>
+                  <span id="as-cg" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">ADC bits</span>
+                  <span id="as-adc" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Readout time</span>
+                  <span id="as-readout" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">CFA factor</span>
+                  <span id="as-cfa" class="font-mono text-slate-300">—</span>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- LIGHT & EXPOSURE -->
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">Light &amp; Temperature</legend>
+            <div class="space-y-3">
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="subjectReflectance">Subject reflectance</label>
+                <div class="flex items-center gap-2">
+                  <input id="subjectReflectance" class="calc-input input-field w-16" type="number" step="0.01" min="0.01" max="1" value="0.18" />
+                  <span class="text-xs text-slate-500">(0–1)</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="temperatureC">Sensor temperature</label>
+                <div class="flex items-center gap-2">
+                  <input id="temperatureC" class="calc-input input-field w-16" type="number" step="1" min="-20" max="70" value="25" />
+                  <span class="text-xs text-slate-500">&deg;C</span>
+                </div>
+              </div>
+
+            </div>
+          </fieldset>
+
+          <!-- PROCESSING + COMPRESSION (stacked) -->
+          <div class="flex flex-col gap-4">
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-purple-400">Sensor Output</legend>
+            <div class="space-y-3">
+
+              <div id="v4l2-mode-group" class="hidden">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="v4l2Mode">Output Resolution</label>
+                <select id="v4l2Mode" class="calc-input input-field w-full"></select>
+              </div>
+
+              <div class="flex gap-3">
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedWidth">Extracted Horiz. Pixels</label>
+                  <input id="extractedWidth" class="calc-input input-field w-full" type="number" step="1" min="1" value="640" />
+                </div>
+                <div class="flex-1">
+                  <label class="mb-1 block text-xs font-medium text-slate-400" for="extractedHeight">Extracted Vert. Pixels</label>
+                  <input id="extractedHeight" class="calc-input input-field w-full" type="number" step="1" min="1" value="480" />
+                </div>
+              </div>
+
+              <div id="readout-method-group">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="readoutMethod">Readout Method</label>
+                <select id="readoutMethod" class="calc-input input-field w-full">
+                  <option value="native">Native (Full Sensor)</option>
+                  <option value="binning">Binning</option>
+                  <option value="subsampling">Subsampling (line-skip / average)</option>
+                  <option value="cropping">Cropping</option>
+                </select>
+              </div>
+
+              <div class="rounded border border-slate-800 bg-slate-950/50 p-2.5">
+                <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <span class="text-slate-500">Effective Nyquist</span>
+                  <span id="card-nyquist" class="font-mono text-slate-300">—</span>
+                  <span class="text-slate-500">Effective Diagonal FoV</span>
+                  <span id="card-fov" class="font-mono text-slate-300">—</span>
+                </div>
+              </div>
+
+              <p id="extracted-warning" class="hidden text-[11px] text-amber-400"></p>
+
+              <div id="processing-notes" class="mt-3 space-y-1"></div>
+
+            </div>
+          </fieldset>
+
+          <!-- COMPRESSION -->
+          <fieldset class="rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+            <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-teal-400">Compression</legend>
+            <div class="space-y-3">
+
+              <div>
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="outputFormat">Output Format</label>
+                <select id="outputFormat" class="calc-input input-field w-full">
+                  <option value="mjpg">MJPG (Motion JPEG)</option>
+                  <option value="uyuv">UYVY (YUV 4:2:2)</option>
+                  <option value="nv12">NV12 (YUV 4:2:0)</option>
+                  <option value="h264">H.264 (AVC)</option>
+                  <option value="raw8">RAW8 (Bayer 8-bit)</option>
+                  <option value="raw10">RAW10 (Bayer 10-bit)</option>
+                </select>
+              </div>
+
+              <div id="mjpg-quality-group">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="mjpgQuality">
+                  MJPG Quality (Q)
+                  <span id="mjpg-quality-value" class="ml-1 font-mono text-slate-300">60</span>
+                </label>
+                <input id="mjpgQuality" class="calc-input w-full" type="range" min="1" max="100" value="60" />
+              </div>
+
+              <div id="h264-qp-group">
+                <label class="mb-1 block text-xs font-medium text-slate-400" for="h264Qp">
+                  H.264 QP
+                  <span id="h264-qp-value" class="ml-1 font-mono text-slate-300">23</span>
+                </label>
+                <input id="h264Qp" class="calc-input w-full" type="range" min="0" max="51" value="23" />
+                <label class="mb-1 mt-2 block text-xs font-medium text-slate-400" for="h264BitrateMbps">
+                  Target Bitrate
+                  <span id="h264-bitrate-value" class="ml-1 font-mono text-slate-300">4.0 Mbps</span>
+                </label>
+                <input id="h264BitrateMbps" class="calc-input w-full" type="range" min="0.5" max="50" step="0.5" value="4.0" />
+              </div>
+
+              <div class="border-t border-slate-800 pt-3">
+                <p class="text-xs font-medium text-slate-400">Estimated Bitrate</p>
+                <p id="compression-bitrate" class="mt-0.5 text-sm font-mono text-indigo-300">—</p>
+              </div>
+
+              <div id="compression-notes" class="mt-3 space-y-1"></div>
+
+            </div>
+          </fieldset>
           </div>
-          <canvas id="distance-chart"></canvas>
-          <div class="mt-2 flex items-center gap-3 px-1">
-            <label class="text-[10px] font-medium text-slate-500" for="dist-range">Range</label>
-            <input id="dist-range" class="w-full" type="range" min="1" max="10" step="1" value="5" />
-            <span id="dist-range-label" class="min-w-[3ch] text-right text-[11px] font-mono text-slate-400">5m</span>
-          </div>
+
+
         </div>
-
-        <!-- Metric cards -->
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-400">Lens Cutoff</p>
-            <p id="card-fc" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
-          </div>
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-orange-400">Sensor Nyquist</p>
-            <p id="card-nyquist" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
-          </div>
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-teal-400">Diagonal FoV</p>
-            <p id="card-fov" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Skip Factor</p>
-            <p id="card-skip" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
-          </div>
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">Effective Res.</p>
-            <p id="card-effective" class="mt-1 text-xl font-bold font-mono text-slate-100">—</p>
-          </div>
-          <div class="metric-card rounded-lg border border-slate-800 bg-slate-900/50 p-3">
-            <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-400">Feature @ Distance</p>
-            <p id="card-feature-distance" class="mt-1 text-sm font-mono text-slate-500">Hover chart</p>
-          </div>
-        </div>
-
-        <!-- Bottleneck banner -->
-        <div id="bottleneck-banner" class="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-xs text-slate-400">
-          —
-        </div>
-
-        <!-- Conditional notes -->
-        <div id="conditional-notes" class="space-y-1"></div>
-
-        <!-- MTF Chart -->
-        <div class="rounded-lg border border-slate-800 bg-slate-950 p-3">
-          <canvas id="mtf-chart"></canvas>
-          <p class="mt-1 text-[10px] leading-relaxed text-slate-600">
-            Curves use diffraction-theoretical lens MTF. Real aberrated lenses degrade faster — consult actual MTF charts when available.
-          </p>
-        </div>
-
       </div>
 
     </div>
+
   </main>
 
   <script type="module" src="/src/main.ts"></script>

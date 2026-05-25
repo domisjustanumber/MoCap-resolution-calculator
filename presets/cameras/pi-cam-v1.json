@@ -1,0 +1,6 @@
+{
+  "name": "pi-cam-v1",
+  "label": "Pi Cam v1 (OV5647)",
+  "sensorName": "ov5647",
+  "lensName": "cheap-plastic"
+}

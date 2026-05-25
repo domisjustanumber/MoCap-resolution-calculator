@@ -1,0 +1,42 @@
+{
+  "name": "ov5647",
+  "label": "Omnivision OV5647",
+  "pixelPitch": 1.4,
+  "nativeWidth": 2592,
+  "nativeHeight": 1944,
+  "olpfPresent": true,
+  "dynamicRangeDb": 59,
+  "radiometry": {
+    "qePercent": 55,
+    "fullWellCapacity": 3500,
+    "readNoiseE": 4.0,
+    "darkCurrentE": 25,
+    "conversionGainUvPerE": 150,
+    "adcBits": 10,
+    "readoutTimeUs": 32,
+    "cfaFactor": 0.55,
+    "hasDualCG": false
+  },
+  "v4l2": {
+    "chipId": 22087,
+    "nativeSize": { "width": 2624, "height": 1956 },
+    "activeArray": { "left": 16, "top": 6, "width": 2592, "height": 1944 },
+    "pixelRates": [87500000, 58333000],
+    "linkFreqs": [218750000, 145833300],
+    "mipiLanes": 2,
+    "xclk": 25000000,
+    "busFormats": ["SBGGR10_1X10"],
+    "supplies": ["avdd", "dovdd", "dvdd"],
+    "modes": [
+      { "width": 2592, "height": 1944, "maxFps": 15, "pixelRateIndex": 0, "hts": 2844, "vts": 1968, "readoutType": "native", "pitchMultiplier": 1.0, "fullFoV": true },
+      { "width": 1920, "height": 1080, "maxFps": 30, "pixelRateIndex": 0, "hts": 2416, "vts": 1104, "readoutType": "cropping", "pitchMultiplier": 1.0, "fullFoV": false },
+      { "width": 1296, "height": 972, "maxFps": 30, "pixelRateIndex": 0, "hts": 1896, "vts": 1435, "readoutType": "binning", "pitchMultiplier": 2.0, "fullFoV": true },
+      { "width": 640, "height": 480, "maxFps": 60, "pixelRateIndex": 1, "hts": 1852, "vts": 504, "readoutType": "subsampling+cropping", "pitchMultiplier": 4.0, "fullFoV": false }
+    ],
+    "exposure": { "min": 4, "max": 65535, "step": 1, "default": 1000 },
+    "analogueGain": { "min": 16, "max": 1023, "step": 1, "default": 32 },
+    "hblank": { "min": 252, "max": 5935, "default": 252 },
+    "vblank": { "min": 24, "max": 30823, "default": 24 }
+  },
+  "shutterType": "rolling"
+}

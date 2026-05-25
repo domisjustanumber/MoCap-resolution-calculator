@@ -1,50 +1,54 @@
-import type { AppStateFull, AppState, Preset } from '../types';
-import { setField, applyPreset, recalculate } from '../state';
-import { PRESETS } from '../presets';
+import type { AppStateFull, AppState, ReadoutMethod } from '../types';
+import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
+import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
 import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
-import { drawDistanceChart } from './distanceChart';
+import { drawDistanceChart, setMaxDistance } from './distanceChart';
+import { drawTemporalChart } from './temporalChart';
+import { updateAdvancedSensorSpecs } from '../main';
+import { updateShutterPresetStyles } from '../main';
+import { updateFpsPresetStyles } from '../main';
 
 let app: AppStateFull;
-let renderCallback: (() => void) | null = null;
 
-const RES_PRESETS: Record<string, { w: number; h: number; fmt: string }> = {
-  'sd-mjpg': { w: 640, h: 480, fmt: 'mjpg' },
-  'sd-nv12': { w: 640, h: 480, fmt: 'nv12' },
-  '720p-mjpg': { w: 1280, h: 720, fmt: 'mjpg' },
-  '720p-nv12': { w: 1280, h: 720, fmt: 'nv12' },
-  '1080p-mjpg': { w: 1920, h: 1080, fmt: 'mjpg' },
-  '1080p-nv12': { w: 1920, h: 1080, fmt: 'nv12' },
-};
-
-export function initInputs(state: AppStateFull, onUpdate: () => void): void {
+export function initInputs(state: AppStateFull): void {
   app = state;
-  renderCallback = onUpdate;
 
   bindNumberInput('focalLength', 'focalLength');
   bindFovInput();
   bindNumberInput('aperture', 'aperture');
+  bindNumberInput('lensTransmission', 'lensTransmission');
   bindNumberInput('wavelength', 'wavelength');
   bindNumberInput('pixelPitch', 'pixelPitch');
   bindNumberInput('nativeWidth', 'nativeWidth');
   bindNumberInput('nativeHeight', 'nativeHeight');
   bindCheckboxInput('olpfPresent', 'olpfPresent');
+  bindNumberInput('dynamicRangeDb', 'dynamicRangeDb');
+  bindDrSlider();
   bindNumberInput('extractedWidth', 'extractedWidth');
   bindNumberInput('extractedHeight', 'extractedHeight');
-  bindSelectInput('subsamplingMethod', 'subsamplingMethod');
+  bindSelectInput('readoutMethod', 'readoutMethod');
   bindSelectInput('outputFormat', 'outputFormat');
+  bindV4l2ModeSelect();
+  bindNumberInput('luxAtSubject', 'luxAtSubject');
+  bindNumberInput('subjectReflectance', 'subjectReflectance');
+  bindNumberInput('desiredSnrDb', 'desiredSnrDb');
+  bindNumberInput('temperatureC', 'temperatureC');
   bindRangeInput('mjpgQuality', 'mjpgQuality');
+  bindH264QpInput();
+  bindH264BitrateInput();
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
   bindLensTierChips();
-  bindProcessingChips();
+  bindShutterRadios();
   bindPresetChips();
+  bindSensorModelChips();
   buildWavelengthChips();
 
   syncInputsFromState();
   updateLensTierChipStyles();
-  updateMjpgQualityState();
+  updateCompressionControlsState();
 }
 
 function bindNumberInput(id: string, key: keyof AppState): void {
@@ -54,7 +58,7 @@ function bindNumberInput(id: string, key: keyof AppState): void {
     setField(app, key, parseFloat(el.value) || 0);
     handleExtractedClamp();
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
   el.addEventListener('blur', () => {
@@ -68,7 +72,7 @@ function bindSelectInput(id: string, key: keyof AppState): void {
   el.addEventListener('change', () => {
     setField(app, key, el.value as AppState[typeof key]);
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
 }
@@ -94,21 +98,45 @@ function bindRangeInput(id: string, key: keyof AppState): void {
   });
 }
 
+function bindH264QpInput(): void {
+  const el = document.getElementById('h264Qp') as HTMLInputElement | null;
+  if (!el) return;
+  const valueSpan = document.getElementById('h264-qp-value');
+  el.addEventListener('input', () => {
+    const v = parseInt(el.value, 10);
+    setField(app, 'h264Qp', v);
+    if (valueSpan) valueSpan.textContent = String(v);
+    refresh();
+  });
+}
+
+function bindH264BitrateInput(): void {
+  const el = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  if (!el) return;
+  const valueSpan = document.getElementById('h264-bitrate-value');
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    setField(app, 'h264BitrateMbps', v);
+    if (valueSpan) valueSpan.textContent = v.toFixed(1) + ' Mbps';
+    refresh();
+  });
+}
+
 function bindRadioGroup(_name: string, key: keyof AppState): void {
-  const luma = document.getElementById('mode-luma') as HTMLInputElement | null;
-  const chroma = document.getElementById('mode-chroma') as HTMLInputElement | null;
-  if (luma) {
-    luma.addEventListener('change', () => {
-      if (luma.checked) {
-        setField(app, key, 'luma');
+  const monochrome = document.getElementById('mode-monochrome') as HTMLInputElement | null;
+  const colour = document.getElementById('mode-colour') as HTMLInputElement | null;
+  if (monochrome) {
+    monochrome.addEventListener('change', () => {
+      if (monochrome.checked) {
+        setField(app, key, 'monochrome');
         refresh();
       }
     });
   }
-  if (chroma) {
-    chroma.addEventListener('change', () => {
-      if (chroma.checked) {
-        setField(app, key, 'chroma');
+  if (colour) {
+    colour.addEventListener('change', () => {
+      if (colour.checked) {
+        setField(app, key, 'colour');
         refresh();
       }
     });
@@ -124,7 +152,7 @@ function bindFovInput(): void {
       setField(app, 'diagonalFov', fov);
     }
     syncInputsFromState();
-    updateMjpgQualityState();
+    updateCompressionControlsState();
     refresh();
   });
   el.addEventListener('blur', () => {
@@ -133,49 +161,35 @@ function bindFovInput(): void {
 }
 
 function bindLensTierChips(): void {
-  const map: Record<string, string> = { 'lens-cheap': 'cheap-plastic', 'lens-mid': 'mid-glass', 'lens-premium': 'premium-stack' };
-  Object.entries(map).forEach(([preset, tier]) => {
+  const map: Record<string, { tier: string; dr: number }> = {
+    'lens-cheap': { tier: 'cheap-plastic', dr: 59 },
+    'lens-mid': { tier: 'mid-glass', dr: 66 },
+    'lens-premium': { tier: 'premium-stack', dr: 90 },
+  };
+  Object.entries(map).forEach(([preset, spec]) => {
     const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;
     if (!chip) return;
     chip.addEventListener('click', () => {
-      setField(app, 'lensTier', tier as AppState['lensTier']);
+      setField(app, 'lensTier', spec.tier as AppState['lensTier']);
+      setField(app, 'dynamicRangeDb', spec.dr);
       syncInputsFromState();
-      updateMjpgQualityState();
+      updateCompressionControlsState();
       refresh();
     });
   });
 }
 
-function bindProcessingChips(): void {
-  Object.keys(RES_PRESETS).forEach((key) => {
-    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
-    if (!chip) return;
-    chip.addEventListener('click', () => {
-      const { w, h, fmt } = RES_PRESETS[key];
-      app.state.extractedWidth = w;
-      app.state.extractedHeight = h;
-      app.state.outputFormat = fmt as AppState['outputFormat'];
-      recalculate(app);
+function bindShutterRadios(): void {
+  const globalEl = document.getElementById('shutter-global') as HTMLInputElement | null;
+  const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
+  [globalEl, rollingEl].forEach((el) => {
+    if (!el) return;
+    el.addEventListener('change', () => {
+      if (!el.checked) return;
+      setField(app, 'shutterType', el.value as AppState['shutterType']);
       syncInputsFromState();
-      updateMjpgQualityState();
       refresh();
-
-      document.querySelectorAll('[data-res]').forEach((el) => el.classList.remove('active'));
-      chip.classList.add('active');
     });
-  });
-}
-
-function updateResChipStyles(): void {
-  Object.keys(RES_PRESETS).forEach((key) => {
-    const chip = document.querySelector(`[data-res="${key}"]`) as HTMLButtonElement | null;
-    if (!chip) return;
-    const { w, h, fmt } = RES_PRESETS[key];
-    if (app.state.extractedWidth === w && app.state.extractedHeight === h && app.state.outputFormat === fmt) {
-      chip.classList.add('active');
-    } else {
-      chip.classList.remove('active');
-    }
   });
 }
 
@@ -186,10 +200,8 @@ function bindDistanceRange(): void {
   el.addEventListener('input', () => {
     const v = parseInt(el.value, 10);
     if (label) label.textContent = v + 'm';
-    import('../ui/distanceChart').then(({ setMaxDistance, drawDistanceChart }) => {
-      setMaxDistance(v);
-      drawDistanceChart(app, true);
-    });
+    setMaxDistance(v);
+    drawDistanceChart(app, true);
   });
 }
 
@@ -221,25 +233,128 @@ function handleExtractedClamp(): void {
 }
 
 function bindPresetChips(): void {
-  const chips = document.querySelectorAll('.preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  const chips = document.querySelectorAll('#preset-bar .preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   chips.forEach((chip) => {
     chip.addEventListener('click', () => {
       const name = chip.dataset.preset;
       if (!name || name === 'custom') return;
-      const preset: Preset | undefined = PRESETS.find((p) => p.name === name);
+      const preset = PRESETS.find((p) => p.name === name);
       if (!preset) return;
-      applyPreset(app, preset.values, preset.name);
+      applyPreset(app, preset.values, preset.name as import('../types').PresetName);
       syncInputsFromState();
-      updateMjpgQualityState();
+      updateCompressionControlsState();
       refresh();
     });
   });
 }
 
+function bindSensorModelChips(): void {
+  const chips = document.querySelectorAll('.sensor-model-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const name = chip.dataset.preset;
+      if (!name || name === 'custom') return;
+      setSensorPreset(app, name);
+      syncInputsFromState();
+      refresh();
+    });
+  });
+}
+
+function populateV4l2Modes(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  const group = document.getElementById('v4l2-mode-group');
+  if (!select || !group) return;
+
+  const sensor = SENSOR_GEOMETRY[app.activeSensorPreset];
+  const hasModes = sensor?.v4l2?.modes && sensor.v4l2.modes.length > 0;
+
+  if (!hasModes) {
+    group.classList.add('hidden');
+    return;
+  }
+
+  group.classList.remove('hidden');
+  const modes = sensor.v4l2!.modes;
+  select.innerHTML = '';
+  modes.forEach((mode, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `${mode.width}x${mode.height} — ${mode.readoutType || `mode ${i}`}`;
+    select.appendChild(opt);
+  });
+  select.value = String(Math.max(0, app.state.selectedV4l2Mode));
+
+  if (app.state.selectedV4l2Mode < 0 && modes.length > 0) {
+    onV4l2ModeChange();
+  }
+}
+
+function onV4l2ModeChange(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  if (!select) return;
+  const index = parseInt(select.value, 10);
+  if (isNaN(index) || index < 0) return;
+
+  const sensor = SENSOR_GEOMETRY[app.activeSensorPreset];
+  if (!sensor?.v4l2?.modes) return;
+  const mode = sensor.v4l2.modes[index];
+  if (!mode) return;
+
+  app.state.selectedV4l2Mode = index;
+  app.state.readoutPitchMultiplier = mode.pitchMultiplier ?? 1;
+  app.state.readoutFullFoV = mode.fullFoV ?? true;
+  app.state.extractedWidth = mode.width;
+  app.state.extractedHeight = mode.height;
+  app.state.readoutMethod = readoutTypeToMethod(mode.readoutType);
+  recalculate(app);
+  syncInputsFromState();
+  refresh();
+}
+
+function bindV4l2ModeSelect(): void {
+  const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
+  if (!select) return;
+  select.addEventListener('change', onV4l2ModeChange);
+}
+
+function readoutTypeToMethod(readoutType?: string): ReadoutMethod {
+  if (!readoutType) return 'native';
+  if (readoutType.includes('native')) return 'native';
+  if (readoutType.includes('subsampling')) return 'subsampling';
+  if (readoutType.includes('binning')) return 'binning';
+  if (readoutType.includes('cropping')) return 'cropping';
+  return 'native';
+}
+
+function bindDrSlider(): void {
+  const slider = document.getElementById('dr-slider') as HTMLInputElement | null;
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const v = parseInt(slider.value, 10);
+    setField(app, 'dynamicRangeDb', v);
+    syncInputsFromState();
+    refresh();
+  });
+}
+
+function updateDrBar(): void {
+  const slider = document.getElementById('dr-slider') as HTMLInputElement | null;
+  if (slider) slider.value = String(app.state.dynamicRangeDb);
+}
+
 export function updatePresetChipStyles(): void {
-  const chips = document.querySelectorAll('.preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  const chips = document.querySelectorAll('#preset-bar .preset-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   chips.forEach((chip) => {
     if (chip.dataset.preset === app.activePreset) {
+      chip.classList.add('active');
+    } else {
+      chip.classList.remove('active');
+    }
+  });
+  const sensorChips = document.querySelectorAll('.sensor-model-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
+  sensorChips.forEach((chip) => {
+    if (chip.dataset.preset === app.activeSensorPreset) {
       chip.classList.add('active');
     } else {
       chip.classList.remove('active');
@@ -319,20 +434,45 @@ export function updateIrBadge(): void {
   }
 }
 
-export function updateMjpgQualityState(): void {
-  const group = document.getElementById('mjpg-quality-group');
-  const slider = document.getElementById('mjpgQuality') as HTMLInputElement | null;
-  const valueSpan = document.getElementById('mjpg-quality-value');
+export function updateCompressionControlsState(): void {
+  const mjpqGroup = document.getElementById('mjpg-quality-group');
+  const mjpqSlider = document.getElementById('mjpgQuality') as HTMLInputElement | null;
+  const mjpqValueSpan = document.getElementById('mjpg-quality-value');
   const isMjpg = app.state.outputFormat === 'mjpg';
 
-  if (group) group.style.opacity = isMjpg ? '1' : '0.4';
-  if (slider) {
-    slider.disabled = !isMjpg;
-    slider.value = String(app.state.mjpgQuality);
+  if (mjpqGroup) mjpqGroup.style.opacity = isMjpg ? '1' : '0.4';
+  if (mjpqSlider) {
+    mjpqSlider.disabled = !isMjpg;
+    mjpqSlider.value = String(app.state.mjpgQuality);
   }
-  if (valueSpan) {
-    valueSpan.textContent = isMjpg ? String(app.state.mjpgQuality) : 'N/A';
-    valueSpan.style.opacity = isMjpg ? '1' : '0.4';
+  if (mjpqValueSpan) {
+    mjpqValueSpan.textContent = isMjpg ? String(app.state.mjpgQuality) : 'N/A';
+    mjpqValueSpan.style.opacity = isMjpg ? '1' : '0.4';
+  }
+
+  const h264Group = document.getElementById('h264-qp-group');
+  const h264Slider = document.getElementById('h264Qp') as HTMLInputElement | null;
+  const h264ValueSpan = document.getElementById('h264-qp-value');
+  const isH264 = app.state.outputFormat === 'h264';
+
+  if (h264Group) h264Group.style.opacity = isH264 ? '1' : '0.4';
+  if (h264Slider) {
+    h264Slider.disabled = !isH264;
+    h264Slider.value = String(app.state.h264Qp);
+  }
+  if (h264ValueSpan) {
+    h264ValueSpan.textContent = isH264 ? String(app.state.h264Qp) : 'N/A';
+    h264ValueSpan.style.opacity = isH264 ? '1' : '0.4';
+  }
+  const h264BrSlider = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  const h264BrValueSpan = document.getElementById('h264-bitrate-value');
+  if (h264BrSlider) {
+    h264BrSlider.disabled = !isH264;
+    h264BrSlider.value = String(app.state.h264BitrateMbps);
+  }
+  if (h264BrValueSpan) {
+    h264BrValueSpan.textContent = isH264 ? app.state.h264BitrateMbps.toFixed(1) + ' Mbps' : 'N/A';
+    h264BrValueSpan.style.opacity = isH264 ? '1' : '0.4';
   }
 }
 
@@ -345,6 +485,12 @@ export function syncInputsFromState(): void {
     'nativeHeight',
     'extractedWidth',
     'extractedHeight',
+    'dynamicRangeDb',
+    'luxAtSubject',
+    'subjectReflectance',
+    'desiredSnrDb',
+    'temperatureC',
+    'lensTransmission',
   ];
   numberFields.forEach((key) => {
     const el = document.getElementById(key) as HTMLInputElement | null;
@@ -352,18 +498,21 @@ export function syncInputsFromState(): void {
       if (key === 'aperture') el.value = app.state.aperture.toFixed(1);
       else if (key === 'pixelPitch') el.value = app.state.pixelPitch.toFixed(1);
       else if (key === 'focalLength') el.value = app.state.focalLength.toFixed(1);
+      else if (key === 'lensTransmission') el.value = app.state.lensTransmission.toFixed(2);
       else el.value = String(app.state[key]);
     }
   });
 
   const selectFields: Array<[string, keyof AppState]> = [
-    ['subsamplingMethod', 'subsamplingMethod'],
+    ['readoutMethod', 'readoutMethod'],
     ['outputFormat', 'outputFormat'],
   ];
   selectFields.forEach(([id, key]) => {
     const el = document.getElementById(id) as HTMLSelectElement | null;
     if (el) el.value = String(app.state[key]);
   });
+
+  populateV4l2Modes();
 
   const olpfEl = document.getElementById('olpfPresent') as HTMLInputElement | null;
   if (olpfEl) olpfEl.checked = app.state.olpfPresent;
@@ -377,10 +526,33 @@ export function syncInputsFromState(): void {
     mjpgValueSpan.textContent = String(app.state.mjpgQuality);
   }
 
-  const lumaEl = document.getElementById('mode-luma') as HTMLInputElement | null;
-  const chromaEl = document.getElementById('mode-chroma') as HTMLInputElement | null;
-  if (lumaEl) lumaEl.checked = app.state.measurementMode === 'luma';
-  if (chromaEl) chromaEl.checked = app.state.measurementMode === 'chroma';
+  const h264Slider = document.getElementById('h264Qp') as HTMLInputElement | null;
+  if (h264Slider && h264Slider !== document.activeElement) {
+    h264Slider.value = String(app.state.h264Qp);
+  }
+  const h264ValueSpan = document.getElementById('h264-qp-value');
+  if (h264ValueSpan && app.state.outputFormat === 'h264') {
+    h264ValueSpan.textContent = String(app.state.h264Qp);
+  }
+
+  const h264BrSlider = document.getElementById('h264BitrateMbps') as HTMLInputElement | null;
+  if (h264BrSlider && h264BrSlider !== document.activeElement) {
+    h264BrSlider.value = String(app.state.h264BitrateMbps);
+  }
+  const h264BrValueSpan = document.getElementById('h264-bitrate-value');
+  if (h264BrValueSpan && app.state.outputFormat === 'h264') {
+    h264BrValueSpan.textContent = app.state.h264BitrateMbps.toFixed(1) + ' Mbps';
+  }
+
+  const luxSlider = document.getElementById('lux-slider') as HTMLInputElement | null;
+  if (luxSlider && luxSlider !== document.activeElement) {
+    luxSlider.value = String(app.state.luxAtSubject);
+  }
+
+  const monochromeEl = document.getElementById('mode-monochrome') as HTMLInputElement | null;
+  const colourEl = document.getElementById('mode-colour') as HTMLInputElement | null;
+  if (monochromeEl) monochromeEl.checked = app.state.measurementMode === 'monochrome';
+  if (colourEl) colourEl.checked = app.state.measurementMode === 'colour';
 
   const fovEl = document.getElementById('diagonalFov') as HTMLInputElement | null;
   if (fovEl && fovEl !== document.activeElement) {
@@ -388,13 +560,17 @@ export function syncInputsFromState(): void {
   }
 
   updatePresetChipStyles();
-  updateResChipStyles();
   updateWavelengthChipStyles();
   updateWavelengthColorIndicator();
   updateIrBadge();
   updateLensTierChipStyles();
 
   handleExtractedClamp();
+
+  updateFpsPresetStyles();
+  updateShutterPresetStyles();
+
+  updateDrBar();
 }
 
 function refresh(): void {
@@ -402,5 +578,8 @@ function refresh(): void {
   updateOutputs(app);
   drawChart(app);
   drawDistanceChart(app);
-  if (renderCallback) renderCallback();
+  drawTemporalChart(app);
+  updateAdvancedSensorSpecs();
+  updateShutterPresetStyles();
+  updateFpsPresetStyles();
 }
