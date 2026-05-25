@@ -90,6 +90,10 @@ export const LUX_MIN = 0.01;
 export const LUX_MAX = 110000;
 export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
+export const DEFAULT_SNR_UNDERSHOOT_PCT = 10;
+export const SNR_UNDERSHOOT_PCT_MIN = 0;
+export const SNR_UNDERSHOOT_PCT_MAX = 50;
+export const MOTION_UNDERSHOOT_IMPROVEMENT_PCT = 20;
 
 export const DEFAULT_RADIOMETRY: SensorRadiometry = {
   qePercent: 60,

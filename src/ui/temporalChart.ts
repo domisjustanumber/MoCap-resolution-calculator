@@ -19,7 +19,10 @@ let cachedMaxDensity: Float32Array | null = null;
 let cachedRmseDensity: Float32Array | null = null;
 let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
 
-import type { MotionParams } from '../types';
+import type { MotionParams, AppStateFull } from '../types';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
+import { snapFpsToRegion, snapShutterToRegion } from '../temporalQuantize';
+import { DEFAULT_SNR_UNDERSHOOT_PCT } from '../constants';
 
 // Motion parameters — shared across spatial chart, engine, and temporal sim
 let motionParams: MotionParams = {
@@ -38,6 +41,7 @@ let phaseOffset = 16.6; // ms
 let jitterMs = 10.0;    // ms
 
 let errorBudgetMm = 5;
+let snrUndershootPct = DEFAULT_SNR_UNDERSHOOT_PCT;
 
 let syncToggle = false;
 export function isSyncToggleOn(): boolean { return syncToggle; }
@@ -72,13 +76,13 @@ export function setMotionParams(p: Partial<MotionParams>): void {
   if (p.linearVelocity !== undefined) motionParams.linearVelocity = Math.max(0, Math.min(20, p.linearVelocity));
   if (p.acceleration !== undefined) motionParams.acceleration = Math.max(0, Math.min(20, p.acceleration));
   if (p.angularVelocity !== undefined) motionParams.angularVelocity = Math.max(0, Math.min(360, p.angularVelocity));
-  if (p.subjectHalfWidth !== undefined) motionParams.subjectHalfWidth = Math.max(0.1, Math.min(2, p.subjectHalfWidth));
+  motionParams.subjectHalfWidth = 0.5;
 }
 export function getLinearVelocity(): number { return motionParams.linearVelocity; }
 export function setLinearVelocity(v: number): void { motionParams.linearVelocity = Math.max(0, Math.min(20, v)); }
 export function setAcceleration(v: number): void { motionParams.acceleration = Math.max(0, Math.min(20, v)); }
 export function setAngularVelocity(v: number): void { motionParams.angularVelocity = Math.max(0, Math.min(360, v)); }
-export function setSubjectHalfWidth(v: number): void { motionParams.subjectHalfWidth = Math.max(0.1, Math.min(2, v)); }
+export function setSubjectHalfWidth(_v: number): void { motionParams.subjectHalfWidth = 0.5; }
 
 export function getTemporalVelocity(): number { return targetVelocity; }
 export function getSpatialVelocity(): number { return motionParams.linearVelocity; }
@@ -90,6 +94,11 @@ export function getShutterDenom(): number { return shutterDenom; }
 export function getErrorBudget(): number { return errorBudgetMm; }
 export function setErrorBudget(mm: number): void {
   errorBudgetMm = Math.max(0.5, Math.min(25, mm));
+}
+
+export function getSnrUndershootPct(): number { return snrUndershootPct; }
+export function setSnrUndershootPct(pct: number): void {
+  snrUndershootPct = Math.max(0, Math.min(50, pct));
 }
 
 export function setTemporalZoom(max: number): void {
@@ -116,55 +125,20 @@ export function getMaxShutterLimit(): number { return maxShutterDenom; }
 let regionHz = 50;   // 50, 60, or 0 for Free
 export function getRegionHz(): number { return regionHz; }
 
-function shutterStep(hz: number): number {
-  return hz > 0 ? hz : 25;
-}
-
-function isValidFps(fps: number, hz: number): boolean {
-  if (hz === 0) return true;
-  return fps === hz / 2 || fps % hz === 0;
-}
-
-function nearestShutterMultiple(denom: number, hz: number): number {
-  if (hz === 0) return Math.round(denom);
-  return Math.round(denom / hz) * hz;
-}
-
-function ceilShutter(denom: number, hz: number): number {
-  if (hz === 0) return denom;
-  return Math.ceil(denom / hz) * hz;
-}
-
-function nearestValidFps(fps: number, hz: number, maxFps: number): number {
-  if (hz === 0) return Math.max(1, Math.min(maxFps, Math.round(fps)));
-  const half = hz / 2;
-  const nearestMultiple = Math.round(fps / hz) * hz;
-  const useHalf = Math.abs(fps - half) < Math.abs(fps - nearestMultiple);
-  const candidate = useHalf ? half : nearestMultiple;
-  return Math.max(1, Math.min(maxFps, candidate));
-}
-
-function ceilValidFps(fps: number, hz: number, maxFps: number): number {
-  if (hz === 0) return Math.max(1, Math.min(maxFps, Math.round(fps)));
-  const half = hz / 2;
-  if (fps <= half) return half;
-  return Math.min(maxFps, Math.ceil(fps / hz) * hz);
-}
-
 export function setRegionHz(hz: number): void {
   regionHz = hz;
-  frameRate = nearestValidFps(frameRate, hz, maxFps);
+  frameRate = snapFpsToRegion(frameRate, hz, maxFps, 'nearest');
   if (shutterDenom < frameRate) {
-    shutterDenom = Math.max(frameRate, ceilShutter(frameRate, hz));
+    shutterDenom = snapShutterToRegion(frameRate, hz, frameRate, maxShutterDenom, 'ceil');
   } else {
-    shutterDenom = Math.max(frameRate, nearestShutterMultiple(shutterDenom, hz));
+    shutterDenom = Math.max(frameRate, snapShutterToRegion(shutterDenom, hz, frameRate, maxShutterDenom, 'nearest'));
   }
 }
 
 export function setFrameRate(fps: number): void {
   frameRate = Math.max(1, Math.min(maxFps, Math.round(fps)));
   if (shutterDenom < frameRate) {
-    shutterDenom = Math.max(frameRate, ceilShutter(frameRate, regionHz));
+    shutterDenom = snapShutterToRegion(frameRate, regionHz, frameRate, maxShutterDenom, 'ceil');
   }
   if (appRef) drawTemporalChart(appRef, true);
 }
@@ -294,9 +268,6 @@ function computeStats(data: Float32Array): { avg: number; median: number; p95: n
   const p95 = sorted[Math.floor(sorted.length * 0.95)];
   return { avg, median, p95 };
 }
-
-import type { AppStateFull } from '../types';
-import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 export function drawTemporalChart(app: AppStateFull, force = false): void {
   const canvas = document.getElementById('temporal-chart') as HTMLCanvasElement | null;

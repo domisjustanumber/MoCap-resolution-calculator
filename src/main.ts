@@ -1,6 +1,6 @@
 import { createState, recalculate, setField } from './state';
 import { initInputs, syncInputsFromState, updateCompressionControlsState } from './ui/inputs';
-import { updateOutputs } from './ui/outputs';
+import { updateOutputs, initExposurePanel } from './ui/outputs';
 import { drawChart } from './ui/chart';
 import { drawDistanceChart, setYMax } from './ui/distanceChart';
 import {
@@ -12,7 +12,6 @@ import {
   setLinearVelocity,
   setAcceleration,
   setAngularVelocity,
-  setSubjectHalfWidth,
   setTemporalPhase,
   setTemporalJitter,
   setFrameRate,
@@ -26,6 +25,8 @@ import {
   getRegionHz,
   setRegionHz,
   getErrorBudget,
+  getSnrUndershootPct,
+  setSnrUndershootPct,
 } from './ui/temporalChart';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
 import type { MotionParams } from './types';
@@ -79,7 +80,7 @@ function rebuildFpsPresets(): void {
     if (count < 5) {
       const btn = document.createElement('button');
       btn.dataset.fps = String(half);
-      btn.className = 'fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none';
+      btn.className = 'fps-preset text-center';
       btn.textContent = String(half);
       container.appendChild(btn);
       count++;
@@ -90,7 +91,7 @@ function rebuildFpsPresets(): void {
     if (v > 300) break;
     const btn = document.createElement('button');
     btn.dataset.fps = String(v);
-    btn.className = 'fps-preset rounded px-1 py-1 text-[11px] font-medium text-center leading-none';
+    btn.className = 'fps-preset text-center';
     btn.textContent = String(v);
     container.appendChild(btn);
     count++;
@@ -113,7 +114,7 @@ function rebuildShutterPresets(): void {
     const half = regionHz / 2;
     const btn = document.createElement('button');
     btn.dataset.shutter = String(half);
-    btn.className = 'shutter-preset rounded px-1 py-1 text-[11px] font-medium leading-none';
+    btn.className = 'shutter-preset';
     btn.textContent = '1/' + half;
     container.insertBefore(btn, reference);
     count++;
@@ -124,7 +125,7 @@ function rebuildShutterPresets(): void {
     if (denom > MAX_DENOM) denom = MAX_DENOM;
     const btn = document.createElement('button');
     btn.dataset.shutter = String(denom);
-    btn.className = 'shutter-preset rounded px-1 py-1 text-[11px] font-medium leading-none';
+    btn.className = 'shutter-preset';
     btn.textContent = '1/' + denom;
     container.insertBefore(btn, reference);
     count++;
@@ -185,6 +186,11 @@ drawChart(app);
 drawDistanceChart(app);
 drawTemporalChart(app);
 initAcceleration();
+initExposurePanel(app, refreshAll, () => {
+  activeMotionPreset = 'custom';
+  updateMotionPresetStyles();
+  syncQcInputsFromParams();
+});
 updateAdvancedSensorSpecs();
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
@@ -331,7 +337,6 @@ function applyMotionPreset(preset: string): void {
     linearVelocity: parseFloat((document.getElementById('velocity-custom') as HTMLInputElement)?.value || '0'),
     acceleration: parseFloat((document.getElementById('accel-custom') as HTMLInputElement)?.value || '0'),
     angularVelocity: parseFloat((document.getElementById('angular-custom') as HTMLInputElement)?.value || '0'),
-    subjectHalfWidth: parseFloat((document.getElementById('motion-halfwidth-input') as HTMLInputElement)?.value || '0.5'),
   };
   setMotionParams(p);
   setTemporalVelocity(p.linearVelocity);
@@ -380,6 +385,8 @@ function syncQcInputsFromParams(p?: MotionParams): void {
   setIfNotFocused('velocity-custom', String(m.linearVelocity));
   setIfNotFocused('accel-custom', m.acceleration.toFixed(1));
   setIfNotFocused('angular-custom', String(Math.round(m.angularVelocity)));
+  setIfNotFocused('exp-accel-target', m.acceleration.toFixed(1));
+  setIfNotFocused('exp-rot-target', String(Math.round(m.angularVelocity)));
   const setSliderAndInput = (sliderId: string, inputId: string, value: number, decimals: number) => {
     const slider = document.getElementById(sliderId) as HTMLInputElement | null;
     const input = document.getElementById(inputId) as HTMLInputElement | null;
@@ -391,10 +398,8 @@ function syncQcInputsFromParams(p?: MotionParams): void {
   setSliderAndInput('angular-slider', 'angular-custom', m.angularVelocity, 0);
   setSliderAndInput('motion-accel', 'motion-accel-input', m.acceleration, 1);
   setSliderAndInput('motion-angular', 'motion-angular-input', m.angularVelocity, 0);
-  setSliderAndInput('motion-halfwidth', 'motion-halfwidth-input', m.subjectHalfWidth, 1);
   setSliderAndInput('temporal-motion-accel', 'temporal-motion-accel-input', m.acceleration, 1);
   setSliderAndInput('temporal-motion-angular', 'temporal-motion-angular-input', m.angularVelocity, 0);
-  setSliderAndInput('temporal-motion-halfwidth', 'temporal-motion-halfwidth-input', m.subjectHalfWidth, 1);
 }
 
 function bindQcMotionInput(id: string, setter: (v: number) => void, decimals: number): void {
@@ -445,10 +450,8 @@ bindMotionSlider('accel-slider', 'accel-custom', setAcceleration);
 bindMotionSlider('angular-slider', 'angular-custom', setAngularVelocity);
 bindMotionSlider('motion-accel', 'motion-accel-input', setAcceleration);
 bindMotionSlider('motion-angular', 'motion-angular-input', setAngularVelocity);
-bindMotionSlider('motion-halfwidth', 'motion-halfwidth-input', setSubjectHalfWidth);
 bindMotionSlider('temporal-motion-accel', 'temporal-motion-accel-input', setAcceleration);
 bindMotionSlider('temporal-motion-angular', 'temporal-motion-angular-input', setAngularVelocity);
-bindMotionSlider('temporal-motion-halfwidth', 'temporal-motion-halfwidth-input', setSubjectHalfWidth);
 
 // Custom FPS number input
 const customFpsInput = document.getElementById('fps-custom') as HTMLInputElement | null;
@@ -546,10 +549,21 @@ bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, 
 updateMotionPresetStyles();
 
 // Exposure mode toggle
+const snrUndershootInput = document.getElementById('snr-undershoot-pct') as HTMLInputElement | null;
+if (snrUndershootInput) {
+  snrUndershootInput.addEventListener('input', () => {
+    const pct = parseFloat(snrUndershootInput.value);
+    if (Number.isFinite(pct)) {
+      setSnrUndershootPct(pct);
+      snrUndershootInput.value = String(getSnrUndershootPct());
+    }
+  });
+}
+
 const optimizeBtn = document.getElementById('optimize-btn');
 if (optimizeBtn) {
   optimizeBtn.addEventListener('click', () => {
-    const result = runOptimization(app, getMotionParams(), getErrorBudget());
+    const result = runOptimization(app, getMotionParams(), getErrorBudget(), getSnrUndershootPct());
     if (result) {
       app.state.extractedWidth        = result.extractedWidth;
       app.state.extractedHeight       = result.extractedHeight;
@@ -562,6 +576,9 @@ if (optimizeBtn) {
       syncInputsFromState();
       refreshAll();
       updateGainDisplay();
+      if (!result.snrMet) {
+        showOptimizerBestEffortWarning();
+      }
     } else {
       showOptimizerWarning();
     }
@@ -572,7 +589,14 @@ function showOptimizerWarning(): void {
   const banner = document.getElementById('bottleneck-banner');
   if (!banner) return;
   banner.textContent = '\u26a0 Optimizer: no valid exposure \u2014 increase lux or lower SNR target';
-  banner.classList.add('text-red-400');
+  banner.className = 'mt-3 mb-3 rounded-lg border border-red-800 bg-red-950/30 p-3 text-xs text-red-300';
+}
+
+function showOptimizerBestEffortWarning(): void {
+  const banner = document.getElementById('bottleneck-banner');
+  if (!banner) return;
+  banner.textContent = '\u26a0 Optimizer: best effort \u2014 SNR target not met; increase lux or lower SNR target';
+  banner.className = 'mt-3 mb-3 rounded-lg border border-red-800 bg-red-950/30 p-3 text-xs text-red-300';
 }
 
 // Lux presets

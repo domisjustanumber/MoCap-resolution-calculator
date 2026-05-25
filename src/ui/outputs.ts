@@ -1,9 +1,9 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
-import { formatLpMm, formatUm, formatFov, formatFeatureMm, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS } from '../constants';
-import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget } from './temporalChart';
+import { formatLpMm, formatFov, formatSensorSize } from '../engine';
+import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY } from '../constants';
+import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from './temporalChart';
 import { SENSOR_RADIOMETRY } from '../../presets';
-import { DEFAULT_RADIOMETRY } from '../constants';
+import { setField } from '../state';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -12,9 +12,6 @@ export function updateOutputs(app: AppStateFull): void {
   setText('card-fc', formatLpMm(r.fcAberrated) + ' lp/mm');
   setText('card-nyquist', formatLpMm(r.fNyquistSkipped) + ' lp/mm');
   setText('card-fov', formatFov(d.diagonalFov));
-  setText('card-skip', r.skippingFactor.toFixed(1) + '\u00d7');
-  setText('card-effective', formatLpMm(r.fEffective) + ' lp/mm');
-  setText('card-feature', formatUm(r.minFeatureSize) + ' \u03bcm');
 
   setText('derived-width', d.sensorWidth.toFixed(2) + ' mm');
   setText('derived-height', d.sensorHeight.toFixed(2) + ' mm');
@@ -26,23 +23,6 @@ export function updateOutputs(app: AppStateFull): void {
   updateBottleneckBanner(r.bottleneckType, app);
   updateExposurePanel(app);
   updateConditionalNotes(app);
-
-  // Max acceleration / rotation detection limits
-  const fps = getFrameRate();
-  const motion = getMotionParams();
-  const epsilon = getErrorBudget() / 1000;
-  const maxAccel = epsilon * fps * fps;
-  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
-
-  const accelExceeded = motion.acceleration > maxAccel;
-  const accelText = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
-  setText('card-max-accel', accelExceeded ? '⚠ ' + accelText : accelText);
-  setText('card-max-turn', maxTurn.toLocaleString() + ' °/s');
-
-  const accelEl = document.getElementById('card-max-accel');
-  if (accelEl) {
-    accelEl.className = `mt-0.5 text-lg font-bold font-mono ${accelExceeded ? 'text-red-400' : 'text-slate-100'}`;
-  }
 }
 
 export function setText(id: string, text: string): void {
@@ -60,7 +40,7 @@ const BITS_PER_PIXEL: Record<OutputFormat, (quality?: number) => number> = {
 };
 
 function updateBitrate(app: AppStateFull): void {
-  const el = document.getElementById('bitrate-display');
+  const el = document.getElementById('compression-bitrate');
   if (!el) return;
 
   let mbps: number;
@@ -85,6 +65,31 @@ function updateExposurePanel(app: AppStateFull): void {
 }
 
 const SNR_BAR_MAX_DB = 50;
+const ACCEL_BAR_MAX = 50;
+const ROT_BAR_MAX = 120;
+
+let draggingExpBar: string | null = null;
+let exposurePanelApp: AppStateFull | null = null;
+let exposurePanelRefresh: (() => void) | null = null;
+let onMotionTargetEdited: (() => void) | null = null;
+
+function clampStep(value: number, min: number, max: number, step: number): number {
+  let v = Math.max(min, Math.min(max, value));
+  if (step > 0) v = Math.round(v / step) * step;
+  return Math.max(min, Math.min(max, v));
+}
+
+function setMarkerPosition(marker: HTMLElement, value: number, barMax: number): void {
+  const pct = Math.max(0, Math.min(100, (value / barMax) * 100));
+  marker.style.left = pct + '%';
+}
+
+function syncTargetInput(id: string, value: number, decimals: number): void {
+  const input = document.getElementById(id) as HTMLInputElement | null;
+  if (input && input !== document.activeElement) {
+    input.value = decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
+  }
+}
 
 function updateSnrBar(app: AppStateFull): void {
   const bar = document.getElementById('exp-snr-bar');
@@ -118,15 +123,11 @@ function updateSnrBar(app: AppStateFull): void {
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
-  if (marker) {
-    const markerPct = Math.min(100, (target / SNR_BAR_MAX_DB) * 100);
-    marker.style.left = markerPct + '%';
-    marker.style.display = 'block';
+  syncTargetInput('desiredSnrDb', target, 0);
+  if (marker && draggingExpBar !== 'snr') {
+    setMarkerPosition(marker, target, SNR_BAR_MAX_DB);
   }
 }
-
-const ACCEL_BAR_MAX = 50;
-const ROT_BAR_MAX = 120;
 
 function updateAccelBar(): void {
   const bar = document.getElementById('exp-accel-bar');
@@ -155,10 +156,9 @@ function updateAccelBar(): void {
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
-  if (marker) {
-    const markerPct = Math.min(100, (target / ACCEL_BAR_MAX) * 100);
-    marker.style.left = markerPct + '%';
-    marker.style.display = 'block';
+  syncTargetInput('exp-accel-target', target, 1);
+  if (marker && draggingExpBar !== 'accel') {
+    setMarkerPosition(marker, target, ACCEL_BAR_MAX);
   }
 }
 
@@ -189,11 +189,142 @@ function updateRotBar(): void {
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
-  if (marker) {
-    const markerPct = Math.min(100, (target / ROT_BAR_MAX) * 100);
-    marker.style.left = markerPct + '%';
-    marker.style.display = 'block';
+  syncTargetInput('exp-rot-target', target, 0);
+  if (marker && draggingExpBar !== 'rot') {
+    setMarkerPosition(marker, target, ROT_BAR_MAX);
   }
+}
+
+interface ExpBarBinding {
+  id: string;
+  trackId: string;
+  markerId: string;
+  inputId: string;
+  barMax: number;
+  min: number;
+  max: number;
+  step: number;
+  decimals: number;
+  apply: (value: number) => void;
+  isMotion?: boolean;
+}
+
+function valueFromClientX(track: HTMLElement, clientX: number, barMax: number, min: number, max: number, step: number): number {
+  const rect = track.getBoundingClientRect();
+  const pct = rect.width > 0 ? (clientX - rect.left) / rect.width : 0;
+  const raw = pct * barMax;
+  return clampStep(raw, min, max, step);
+}
+
+function bindExpBar(config: ExpBarBinding): void {
+  const track = document.getElementById(config.trackId);
+  const marker = document.getElementById(config.markerId);
+  const input = document.getElementById(config.inputId) as HTMLInputElement | null;
+  if (!track || !marker || !input) return;
+
+  const applyFromPointer = (clientX: number, refreshAfter = true) => {
+    const value = valueFromClientX(track, clientX, config.barMax, config.min, config.max, config.step);
+    config.apply(value);
+    input.value = config.decimals > 0 ? value.toFixed(config.decimals) : String(Math.round(value));
+    setMarkerPosition(marker, value, config.barMax);
+    if (refreshAfter && exposurePanelRefresh) exposurePanelRefresh();
+  };
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (draggingExpBar !== config.id) return;
+    applyFromPointer(e.clientX, false);
+  };
+
+  const endDrag = () => {
+    if (draggingExpBar !== config.id) return;
+    draggingExpBar = null;
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', endDrag);
+    document.removeEventListener('pointercancel', endDrag);
+    if (exposurePanelRefresh) exposurePanelRefresh();
+  };
+
+  const startDrag = (clientX: number) => {
+    draggingExpBar = config.id;
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+    applyFromPointer(clientX, false);
+  };
+
+  marker.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    startDrag(e.clientX);
+  });
+
+  track.addEventListener('pointerdown', (e) => {
+    if (e.target === marker) return;
+    e.preventDefault();
+    startDrag(e.clientX);
+  });
+
+  input.addEventListener('change', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v)) return;
+    const clamped = clampStep(v, config.min, config.max, config.step);
+    config.apply(clamped);
+    setMarkerPosition(marker, clamped, config.barMax);
+    if (config.isMotion) onMotionTargetEdited?.();
+    if (exposurePanelRefresh) exposurePanelRefresh();
+  });
+}
+
+export function initExposurePanel(
+  app: AppStateFull,
+  refresh: () => void,
+  onMotionTargetChange: () => void,
+): void {
+  exposurePanelApp = app;
+  exposurePanelRefresh = refresh;
+  onMotionTargetEdited = onMotionTargetChange;
+
+  bindExpBar({
+    id: 'snr',
+    trackId: 'exp-snr-track',
+    markerId: 'exp-snr-target-marker',
+    inputId: 'desiredSnrDb',
+    barMax: SNR_BAR_MAX_DB,
+    min: SNR_DB_MIN,
+    max: SNR_DB_MAX,
+    step: 1,
+    decimals: 0,
+    apply: (value) => {
+      if (exposurePanelApp) setField(exposurePanelApp, 'desiredSnrDb', value);
+    },
+  });
+
+  bindExpBar({
+    id: 'accel',
+    trackId: 'exp-accel-track',
+    markerId: 'exp-accel-target-marker',
+    inputId: 'exp-accel-target',
+    barMax: ACCEL_BAR_MAX,
+    min: 0,
+    max: 20,
+    step: 0.1,
+    decimals: 1,
+    isMotion: true,
+    apply: (value) => setAcceleration(value),
+  });
+
+  bindExpBar({
+    id: 'rot',
+    trackId: 'exp-rot-track',
+    markerId: 'exp-rot-target-marker',
+    inputId: 'exp-rot-target',
+    barMax: ROT_BAR_MAX,
+    min: 0,
+    max: 360,
+    step: 1,
+    decimals: 0,
+    isMotion: true,
+    apply: (value) => setAngularVelocity(value),
+  });
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {
