@@ -1,6 +1,7 @@
 {
   "name": "ov9281",
   "label": "Omnivision OV9281",
+  "colourVariant": "monochrome",
   "pixelPitch": 3.0,
   "nativeWidth": 1280,
   "nativeHeight": 800,

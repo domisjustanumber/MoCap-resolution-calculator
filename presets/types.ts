@@ -1,5 +1,8 @@
 import type { LensTier, SensorRadiometry } from '../src/types';
 
+/** Whether a sensor die is available in monochrome, colour, or both variants. */
+export type SensorColourVariant = 'monochrome' | 'colour' | 'both';
+
 /** How a V4L2 mode achieves its output resolution. */
 export type ReadoutType =
   | 'native'
@@ -99,6 +102,8 @@ export interface SensorPreset {
   name: string;
   /** Human-readable label (e.g. "Sony IMX219") */
   label: string;
+  /** Whether the sensor die is available in monochrome, colour, or both variants */
+  colourVariant: SensorColourVariant;
   /** Pixel pitch in micrometres (µm) */
   pixelPitch: number;
   /** Native pixel width (columns) */

@@ -1,6 +1,7 @@
 {
   "name": "imx219",
   "label": "Sony IMX219",
+  "colourVariant": "colour",
   "pixelPitch": 1.12,
   "nativeWidth": 3280,
   "nativeHeight": 2464,

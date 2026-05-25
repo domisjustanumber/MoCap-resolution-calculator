@@ -1,6 +1,7 @@
 {
   "name": "imx477",
   "label": "Sony IMX477",
+  "colourVariant": "colour",
   "pixelPitch": 1.55,
   "nativeWidth": 4056,
   "nativeHeight": 3040,

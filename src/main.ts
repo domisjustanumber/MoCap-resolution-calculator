@@ -670,12 +670,10 @@ export function updateAdvancedSensorSpecs(): void {
   setText('as-readout', radiometry.readoutTimeUs + ' \u00b5s/row');
   setText('as-cfa', radiometry.cfaFactor.toFixed(2));
 
-  const sensorGeom = SENSOR_GEOMETRY[app.activeSensorPreset];
-  const isGlobal = sensorGeom?.shutterType === 'global';
   const globalEl = document.getElementById('shutter-global') as HTMLInputElement | null;
   const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
-  if (globalEl) globalEl.checked = !!isGlobal;
-  if (rollingEl) rollingEl.checked = !isGlobal;
+  if (globalEl) globalEl.checked = app.state.shutterType === 'global';
+  if (rollingEl) rollingEl.checked = app.state.shutterType !== 'global';
 };
 
 function setText(id: string, text: string): void {

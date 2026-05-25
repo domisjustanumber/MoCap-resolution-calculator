@@ -1,5 +1,5 @@
 import type { SensorRadiometry } from '../src/types';
-import type { SensorPreset, V4l2Config } from './types';
+import type { SensorPreset, V4l2Config, SensorColourVariant } from './types';
 
 import ov5647Raw from './sensors/ov5647.json';
 import imx219Raw from './sensors/imx219.json';
@@ -30,6 +30,7 @@ export interface SensorGeometry {
   nativeHeight: number;
   olpfPresent: boolean;
   dynamicRangeDb: number;
+  colourVariant: SensorColourVariant;
   v4l2?: V4l2Config;
   shutterType: 'rolling' | 'global';
 }
@@ -41,6 +42,7 @@ export const SENSOR_GEOMETRY: Record<string, SensorGeometry> = Object.fromEntrie
     nativeHeight: v.nativeHeight,
     olpfPresent: v.olpfPresent,
     dynamicRangeDb: v.dynamicRangeDb,
+    colourVariant: v.colourVariant,
     v4l2: v.v4l2,
     shutterType: v.shutterType,
   }]),

@@ -228,7 +228,7 @@ function detectSensorPreset(app: AppStateFull): string {
         geom.olpfPresent === app.state.olpfPresent &&
         geom.dynamicRangeDb === app.state.dynamicRangeDb &&
         geom.shutterType === app.state.shutterType &&
-        geom.colourVariant === app.state.measurementMode) {
+        (geom.colourVariant === app.state.measurementMode || geom.colourVariant === 'both')) {
       return name;
     }
   }
@@ -239,6 +239,7 @@ function detectLensPreset(app: AppStateFull): string {
   for (const [name, lens] of Object.entries(LENS_PRESETS)) {
     if (lens.focalLength === app.state.focalLength &&
         lens.aperture === app.state.aperture &&
+        lens.lensTransmission === app.state.lensTransmission &&
         lens.name === app.state.lensTier) {
       return name;
     }

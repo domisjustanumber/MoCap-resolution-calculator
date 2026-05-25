@@ -1,6 +1,7 @@
 {
   "name": "ov5647",
   "label": "Omnivision OV5647",
+  "colourVariant": "colour",
   "pixelPitch": 1.4,
   "nativeWidth": 2592,
   "nativeHeight": 1944,
