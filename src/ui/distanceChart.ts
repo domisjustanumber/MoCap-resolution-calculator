@@ -1,7 +1,7 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from './temporalChart';
-import { MOTION_MTF50_CONST } from '../constants';
+import { MOTION_MTF50_CONST, BOTTLENECK_RATIO } from '../constants';
 
 let lastHash = '';
 let mouseX = -1;
@@ -71,7 +71,7 @@ function setupEvents(canvas: HTMLCanvasElement): void {
     if (!mouseInCanvas) return;
     const rect = canvas.getBoundingClientRect();
     const clickX = mouseX;
-    const pad = { top: 36, right: 40, bottom: 52, left: 60 };
+  const pad = { top: 36, right: 50, bottom: 52, left: 60 };
     const plotW = rect.width - pad.left - pad.right;
     const dClicked = ((clickX - pad.left) / plotW) * maxDistance;
     if (dClicked < 0 || dClicked > maxDistance) return;
@@ -139,7 +139,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
 
   const yMax = yMaxOverride;
 
-  const pad = { top: 36, right: 40, bottom: 52, left: 60 };
+  const pad = { top: 36, right: 50, bottom: 52, left: 60 };
   const plotW = cssW - pad.left - pad.right;
   const plotH = cssH - pad.top - pad.bottom;
   const px = (d: number) => pad.left + (d / dMax) * plotW;
@@ -148,6 +148,18 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterS;
   const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
   const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+
+  // Max trackable velocity (right y-axis)
+  const fSyncMTF50_local = syncEnabled && syncErrP95 > 0.001 ? 0.1874 / syncErrP95 : Infinity;
+  const nextBestLimit = Math.min(fcAberrated, fNyquistSkipped, fDRLimited, fSyncMTF50_local);
+  const vTargetFreq = nextBestLimit * BOTTLENECK_RATIO;
+  const vMaxAtDmax = vTargetFreq > 1e-6 && shutterS > 1e-9 && focalLength > 0.1
+    ? MOTION_MTF50_CONST * dMax / (shutterS * focalLength * vTargetFreq)
+    : 0;
+  const vScaleStep = vMaxAtDmax <= 5 ? 1 : vMaxAtDmax <= 10 ? 2 : vMaxAtDmax <= 25 ? 5 : vMaxAtDmax <= 50 ? 10 : vMaxAtDmax <= 100 ? 25 : 50;
+  const vScaleMax = vScaleStep * Math.ceil(Math.max(1, vMaxAtDmax) / vScaleStep);
+  const vAtD = (d: number) => MOTION_MTF50_CONST * d / (shutterS * focalLength * vTargetFreq);
+  const pyV = (v: number) => pad.top + (1 - v / vScaleMax) * plotH;
 
   const featureMm = (d: number) => {
     const dEff = Math.max(0.01, d);
@@ -197,6 +209,37 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   ctx.fillText('Min Resolvable Feature (mm)', 0, 0);
   ctx.restore();
 
+  // Right y-axis: Max Trackable Velocity
+  if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cssW - pad.right, pad.top);
+    ctx.lineTo(cssW - pad.right, cssH - pad.bottom);
+    ctx.stroke();
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    for (let v = 0; v <= vScaleMax; v += vScaleStep) {
+      const yp = pyV(v);
+      ctx.beginPath();
+      ctx.moveTo(cssW - pad.right, yp);
+      ctx.lineTo(cssW - pad.right + 6, yp);
+      ctx.stroke();
+      ctx.fillText(String(v), cssW - pad.right + 10, yp + 4);
+    }
+
+    ctx.save();
+    ctx.translate(cssW - 12, pad.top + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Max Trackable Velocity (m/s)', 0, 0);
+    ctx.restore();
+  }
+
   // X-axis labels
   ctx.textAlign = 'center';
   ctx.fillStyle = '#64748b';
@@ -224,6 +267,53 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   }
   ctx.stroke();
   ctx.restore();
+
+  // Velocity curve (right y-axis)
+  if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.left, pad.top, plotW, plotH);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    let firstV = true;
+    for (let d = 0; d <= dMax; d += dMax / 100) {
+      const v = vAtD(d);
+      if (!isFinite(v)) continue;
+      if (firstV) { ctx.moveTo(px(d), pyV(v)); firstV = false; }
+      else { ctx.lineTo(px(d), pyV(v)); }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Current vTotal reference line
+    if (vTotal > 0.1 && vTotal < vScaleMax * 2) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad.left, pad.top, plotW, plotH);
+      ctx.clip();
+
+      ctx.strokeStyle = 'rgba(34, 211, 238, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
+      ctx.beginPath();
+      ctx.moveTo(px(0), pyV(vTotal));
+      ctx.lineTo(px(dMax), pyV(vTotal));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      ctx.fillStyle = 'rgba(34, 211, 238, 0.5)';
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'left';
+      const vLabelX = Math.min(px(0.15), cssW - pad.right - 60);
+      ctx.fillText(vTotal.toFixed(1) + ' m/s', vLabelX, pyV(vTotal) - 4);
+    }
+  }
 
   // Auto-place first pin at 2m on initial draw
   if (pins.length === 0 && !hasAutoPlaced && maxDistance >= 2) {
@@ -295,14 +385,27 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Dot on the curve
+    // Dot on the feature size curve
     ctx.fillStyle = '#f472b6';
     ctx.beginPath();
     ctx.arc(hoverX, hoverY, 5, 0, Math.PI * 2);
     ctx.fill();
 
+    // Dot on the velocity curve
+    if (vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)) {
+      const vHover = vAtD(dHover);
+      const vHoverY = pyV(vHover);
+      ctx.fillStyle = '#f472b6';
+      ctx.beginPath();
+      ctx.arc(hoverX, vHoverY, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     // Tooltip box
-    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ChArUco ' + (fHover * 8.8).toFixed(1) + ' mm';
+    const velText = vMaxAtDmax > 0.1 && isFinite(vMaxAtDmax)
+      ? ' | max ' + vAtD(dHover).toFixed(1) + ' m/s'
+      : '';
+    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ChArUco ' + (fHover * 8.8).toFixed(1) + ' mm' + velText;
     const tipX = hoverX + 10 < cssW - pad.right ? hoverX + 10 : hoverX - 10;
     const tipY = hoverY - 10 > pad.top ? hoverY - 10 : hoverY + 10;
     ctx.font = 'bold 11px monospace';
