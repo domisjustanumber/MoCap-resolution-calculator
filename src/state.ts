@@ -26,6 +26,12 @@ import {
 } from './constants';
 import { getMotionParams, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
 
+let h264InterlockWarning: string | null = null;
+
+export function getH264InterlockWarning(): string | null {
+  return h264InterlockWarning;
+}
+
 export const DEFAULT_STATE: AppState = {
   focalLength: 3.60,
   diagonalFov: 0,
@@ -195,11 +201,58 @@ export function setField<K extends keyof AppState>(app: AppStateFull, key: K, va
       app.state.lensTransmission = lens.lensTransmission;
     }
   }
+  if (key === 'h264Qp') {
+    enforceH264QpConsistency(app);
+  }
+  if (key === 'h264BitrateMbps') {
+    enforceH264BitrateConsistency(app);
+  }
+  if (key === 'outputFormat') {
+    if (value === 'h264') {
+      enforceH264QpConsistency(app);
+    } else {
+      h264InterlockWarning = null;
+    }
+  }
   app.activeSensorPreset = detectSensorPreset(app);
   app.activeLensPreset = detectLensPreset(app);
   app.activePreset = detectCameraPreset(app);
   invalidateV4l2ModeIfNeeded(app, key);
   return recalculate(app);
+}
+
+function enforceH264QpConsistency(app: AppStateFull): void {
+  h264InterlockWarning = null;
+  if (app.state.outputFormat !== 'h264') return;
+  const fps = getFrameRate();
+  const pixelsPerFrame = app.state.extractedWidth * app.state.extractedHeight;
+  if (pixelsPerFrame <= 0 || fps <= 0) return;
+
+  const bpp = 0.25 * Math.pow(2, -(app.state.h264Qp - 23) / 6);
+  const minBitrate = (bpp * pixelsPerFrame * fps) / 1_000_000;
+  const needed = Math.max(H264_BITRATE_MIN_MBPS, Math.ceil(minBitrate * 2) / 2);
+
+  if (app.state.h264BitrateMbps < needed) {
+    app.state.h264BitrateMbps = Math.min(needed, H264_BITRATE_MAX_MBPS);
+    h264InterlockWarning = `Bitrate raised to ${app.state.h264BitrateMbps.toFixed(1)} Mbps to support QP=${app.state.h264Qp}`;
+  }
+}
+
+function enforceH264BitrateConsistency(app: AppStateFull): void {
+  h264InterlockWarning = null;
+  if (app.state.outputFormat !== 'h264') return;
+  const fps = getFrameRate();
+  const pixelsPerFrame = app.state.extractedWidth * app.state.extractedHeight;
+  if (pixelsPerFrame <= 0 || fps <= 0) return;
+
+  const bpp = app.state.h264BitrateMbps * 1_000_000 / (pixelsPerFrame * fps);
+  const minQp = Math.round(23 - 6 * Math.log2(bpp / 0.25));
+  const neededQp = clamped(minQp, H264_QP_MIN, H264_QP_MAX);
+
+  if (app.state.h264Qp < neededQp) {
+    app.state.h264Qp = neededQp;
+    h264InterlockWarning = `QP raised to ${app.state.h264Qp} to match available bitrate of ${app.state.h264BitrateMbps.toFixed(1)} Mbps`;
+  }
 }
 
 export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {

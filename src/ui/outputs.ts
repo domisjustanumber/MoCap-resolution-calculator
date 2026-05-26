@@ -3,7 +3,7 @@ import { formatLpMm, formatFov, formatSensorSize } from '../engine';
 import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY } from '../constants';
 import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from './temporalChart';
 import { SENSOR_RADIOMETRY } from '../../presets';
-import { setField } from '../state';
+import { setField, getH264InterlockWarning } from '../state';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -23,6 +23,19 @@ export function updateOutputs(app: AppStateFull): void {
   updateBottleneckBanner(r.bottleneckType, app);
   updateExposurePanel(app);
   updateConditionalNotes(app);
+  updateH264InterlockWarning();
+}
+
+function updateH264InterlockWarning(): void {
+  const el = document.getElementById('h264-interlock-warning');
+  if (!el) return;
+  const msg = getH264InterlockWarning();
+  if (msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
 }
 
 export function setText(id: string, text: string): void {
