@@ -267,6 +267,9 @@ export function setSensorPreset(app: AppStateFull, name: string): AppStateFull {
     app.state.olpfPresent = geom.olpfPresent;
     app.state.dynamicRangeDb = geom.dynamicRangeDb;
     app.state.shutterType = geom.shutterType;
+    if (geom.colourVariant !== 'both') {
+      app.state.measurementMode = geom.colourVariant;
+    }
   }
   app.state.selectedV4l2Mode = -1;
   applyDefaultV4l2Mode(app, name);
