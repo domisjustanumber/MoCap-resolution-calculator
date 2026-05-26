@@ -3,8 +3,8 @@ import { initInputs, syncInputsFromState, updateCompressionControlsState } from 
 import { updateOutputs, initExposurePanel } from './ui/outputs';
 import { drawChart } from './ui/chart';
 import { drawDistanceChart, setYMax } from './ui/distanceChart';
+import { drawTemporalChart } from './ui/temporalChart';
 import {
-  drawTemporalChart,
   setTemporalZoom,
   setTemporalVelocity,
   getMotionParams,
@@ -17,21 +17,20 @@ import {
   setFrameRate,
   getFrameRate,
   setShutterDenom,
-  getShutterDenom,
   isSyncToggleOn,
   setSyncToggle,
   getMaxFpsLimit,
-  getMaxShutterLimit,
   getRegionHz,
   setRegionHz,
   getErrorBudget,
   getSnrUndershootPct,
   setSnrUndershootPct,
-} from './ui/temporalChart';
+} from './temporalState';
 import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
+import { updateFpsPresetStyles, updateShutterPresetStyles, updatePresetStyles } from './ui/fpsShutterPresets';
+import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
+import { updateGainDisplay } from './ui/gainDisplay';
 import type { MotionParams } from './types';
-import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
-import { DEFAULT_RADIOMETRY } from './constants';
 import { runOptimization } from './optimizer';
 
 const app = createState();
@@ -191,7 +190,7 @@ initExposurePanel(app, refreshAll, () => {
   updateMotionPresetStyles();
   syncQcInputsFromParams();
 });
-updateAdvancedSensorSpecs();
+updateAdvancedSensorSpecs(app);
 
 function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
   const slider = document.getElementById(id) as HTMLInputElement | null;
@@ -264,15 +263,6 @@ function bindDistYRange(): void {
 }
 bindDistYRange();
 
-function updatePresetStyles(selector: string, getValue: () => string | number, dataAttr: string): void {
-  const current = String(getValue());
-  document.querySelectorAll(selector).forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const btnVal = String(btn.dataset[dataAttr] ?? '');
-    btn.classList.toggle('active', btnVal === current);
-  });
-}
-
 // --- Motion presets ---
 const MOTION_PRESETS: Record<string, MotionParams> = {
   static:  { linearVelocity: 0,   acceleration: 0,   angularVelocity: 0,   subjectHalfWidth: 0.5 },
@@ -288,6 +278,7 @@ const initCustomVel = document.getElementById('velocity-custom') as HTMLInputEle
 if (initCustomVel) initCustomVel.value = String(MOTION_PRESETS.walking.linearVelocity);
 syncQcInputsFromParams();
 refreshAll();
+updateGainDisplay(app);
 updateMotionPresetStyles();
 
 function detectMotionPreset(v: number): string {
@@ -302,27 +293,6 @@ function updateMotionPresetStyles(): void {
   const customInput = document.getElementById('velocity-custom') as HTMLInputElement | null;
   if (customInput) {
     customInput.classList.toggle('vel-input-active', activeMotionPreset === 'custom');
-  }
-}
-
-export function updateFpsPresetStyles(): void {
-  updatePresetStyles('.fps-preset', () => getFrameRate(), 'fps');
-  const max = getMaxFpsLimit();
-  document.querySelectorAll('.fps-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const fps = parseInt(btn.dataset.fps || '0', 10);
-    if (fps > max) {
-      btn.classList.add('disabled-preset');
-    } else {
-      btn.classList.remove('disabled-preset');
-    }
-  });
-  const fpsCustom = document.getElementById('fps-custom') as HTMLInputElement | null;
-  if (fpsCustom) {
-    fpsCustom.max = String(max);
-    if (fpsCustom !== document.activeElement) {
-      fpsCustom.value = String(getFrameRate());
-    }
   }
 }
 
@@ -503,29 +473,6 @@ if (customShutterInput) {
   });
 }
 
-export function updateShutterPresetStyles(): void {
-  const minDenom = getFrameRate();
-  const maxDenom = getMaxShutterLimit();
-  updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
-  document.querySelectorAll('.shutter-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const denom = parseInt(btn.dataset.shutter || '0', 10);
-    if (denom < minDenom || denom > maxDenom) {
-      btn.classList.add('disabled-preset');
-    } else {
-      btn.classList.remove('disabled-preset');
-    }
-  });
-  const shutterMax = getMaxShutterLimit();
-  const shutterCustom = document.getElementById('shutter-custom') as HTMLInputElement | null;
-  if (shutterCustom) {
-    shutterCustom.max = String(shutterMax);
-    if (shutterCustom !== document.activeElement) {
-      shutterCustom.value = String(getShutterDenom());
-    }
-  }
-}
-
 // Sync error toggle
 const syncToggleBtn = document.getElementById('sync-toggle');
 if (syncToggleBtn) {
@@ -581,7 +528,7 @@ if (optimizeBtn) {
       updateFpsPresetStyles();
       updateShutterPresetStyles();
       refreshAll();
-      updateGainDisplay();
+      updateGainDisplay(app);
       if (!result.snrMet) {
         showOptimizerBestEffortWarning();
       }
@@ -656,40 +603,9 @@ if (luxSlider && luxInput) {
 const prevRefreshAll = refreshAll;
 refreshAll = function(): void {
   prevRefreshAll();
-  updateAdvancedSensorSpecs();
+  updateAdvancedSensorSpecs(app);
+  updateGainDisplay(app);
 };
-
-export function updateAdvancedSensorSpecs(): void {
-  const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
-  setText('as-qe', radiometry.qePercent + '%');
-  setText('as-fwc', radiometry.fullWellCapacity.toLocaleString() + ' e\u207b');
-  setText('as-rn', radiometry.readNoiseE.toFixed(1) + ' e\u207b RMS');
-  setText('as-dc', radiometry.darkCurrentE.toFixed(0) + ' e\u207b/s');
-  setText('as-cg', radiometry.conversionGainUvPerE.toFixed(0) + ' \u00b5V/e\u207b');
-  setText('as-adc', radiometry.adcBits + '-bit');
-  setText('as-readout', radiometry.readoutTimeUs + ' \u00b5s/row');
-  setText('as-cfa', radiometry.cfaFactor.toFixed(2));
-
-  const globalEl = document.getElementById('shutter-global') as HTMLInputElement | null;
-  const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
-  if (globalEl) globalEl.checked = app.state.shutterType === 'global';
-  if (rollingEl) rollingEl.checked = app.state.shutterType !== 'global';
-};
-
-function setText(id: string, text: string): void {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
-}
-
-function updateGainDisplay(): void {
-  const slider = document.getElementById('gain-slider') as HTMLInputElement | null;
-  const input = document.getElementById('gain-value') as HTMLInputElement | null;
-  if (!slider || !input) return;
-  const gain = app.state.gain > 0 ? app.state.gain : app.results.exposure.optimalGain;
-  const clamped = Math.max(1.0, Math.min(8.0, gain));
-  if (slider !== document.activeElement) slider.value = clamped.toFixed(1);
-  if (input !== document.activeElement) input.value = clamped.toFixed(1);
-}
 
 window.addEventListener('resize', () => {
   drawChart(app);

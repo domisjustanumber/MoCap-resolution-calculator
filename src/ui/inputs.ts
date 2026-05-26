@@ -6,9 +6,9 @@ import { updateOutputs } from './outputs';
 import { drawChart } from './chart';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { drawTemporalChart } from './temporalChart';
-import { updateAdvancedSensorSpecs } from '../main';
-import { updateShutterPresetStyles } from '../main';
-import { updateFpsPresetStyles } from '../main';
+import { updateAdvancedSensorSpecs } from './sensorSpecs';
+import { updateGainDisplay } from './gainDisplay';
+import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
 
 let app: AppStateFull;
 
@@ -601,7 +601,8 @@ function refresh(): void {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
-  updateAdvancedSensorSpecs();
+  updateAdvancedSensorSpecs(app);
+  updateGainDisplay(app);
   updateShutterPresetStyles();
   updateFpsPresetStyles();
 }

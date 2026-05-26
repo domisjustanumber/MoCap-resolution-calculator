@@ -4,7 +4,7 @@ import { calculateDerived, calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { DEFAULT_STATE, createState, applyPreset, recalculate } from '../src/state';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz, setFrameRate, getFrameRate, getMaxFpsLimit } from '../src/ui/temporalChart';
+import { setRegionHz, setFrameRate, getFrameRate, getMaxFpsLimit } from '../src/temporalState';
 import { isValidRegionFps } from '../src/temporalQuantize';
 import type { AppStateFull, MotionParams } from '../src/types';
 

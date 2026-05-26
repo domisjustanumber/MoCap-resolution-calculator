@@ -5,7 +5,7 @@ import { runOptimization } from '../src/optimizer';
 import { calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz, getMotionParams, setMotionParams } from '../src/ui/temporalChart';
+import { setRegionHz, getMotionParams, setMotionParams } from '../src/temporalState';
 import { MOTION_MTF50_CONST } from '../src/constants';
 
 function featureMmAt(app: ReturnType<typeof createState>, distanceM: number, shutterDenom: number, fps: number) {

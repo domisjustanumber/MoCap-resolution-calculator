@@ -1,6 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from './temporalChart';
+import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from '../temporalState';
 import { MOTION_MTF50_CONST, BOTTLENECK_RATIO } from '../constants';
 
 let lastHash = '';
@@ -291,7 +291,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.restore();
 
     // Current vTotal reference line
-    if (vTotal > 0.1 && vTotal < vScaleMax * 2) {
+    if (vTotal < vScaleMax * 2) {
       ctx.save();
       ctx.beginPath();
       ctx.rect(pad.left, pad.top, plotW, plotH);

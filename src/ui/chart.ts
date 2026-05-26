@@ -1,5 +1,5 @@
 import type { AppStateFull } from '../types';
-import { getMotionParams, getShutterTime, isSyncToggleOn, getSyncErrorP95, getSyncInputsHash } from './temporalChart';
+import { getMotionParams, getShutterTime, isSyncToggleOn, getSyncErrorP95, getSyncInputsHash } from '../temporalState';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 
 let lastHash = '';

@@ -1,5 +1,5 @@
 // Kinematic Motion Resolution Limits — based on temporal_acceleration_chart.html
-import { getFrameRate, setFrameRate, getMotionParams, getErrorBudget, setErrorBudget } from './temporalChart';
+import { getFrameRate, setFrameRate, getMotionParams, getErrorBudget, setErrorBudget } from '../temporalState';
 import { setText } from './outputs';
 import type { MotionParams } from '../types';
 

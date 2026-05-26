@@ -24,7 +24,7 @@ import {
   SNR_DB_MAX,
   DEFAULT_RADIOMETRY,
 } from './constants';
-import { getMotionParams, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './ui/temporalChart';
+import { getMotionParams, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './temporalState';
 
 let h264InterlockWarning: string | null = null;
 

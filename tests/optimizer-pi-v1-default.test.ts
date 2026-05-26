@@ -4,7 +4,7 @@ import { runOptimization, minAcceptableSnrDb } from '../src/optimizer';
 import { calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz, setMotionParams, setFrameRate, setShutterDenom } from '../src/ui/temporalChart';
+import { setRegionHz, setMotionParams, setFrameRate, setShutterDenom } from '../src/temporalState';
 
 const walking = { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10, subjectHalfWidth: 0.5 };
 
