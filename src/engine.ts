@@ -215,23 +215,8 @@ export function formatLpMm(value: number): string {
   return value.toFixed(1);
 }
 
-export function formatUm(value: number): string {
-  if (value >= 10) return value.toFixed(1);
-  return value.toFixed(2);
-}
-
 export function formatFov(value: number): string {
   return value.toFixed(1) + '\u00b0';
-}
-
-export function formatAperture(value: number): string {
-  return value.toFixed(1);
-}
-
-export function formatFeatureMm(value: number): string {
-  if (value >= 10) return value.toFixed(1);
-  if (value >= 1) return value.toFixed(2);
-  return value.toFixed(3);
 }
 
 const COMMON_SENSOR_DENOMS = [1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.0, 3.2, 3.4, 3.6, 4.0, 5.0];

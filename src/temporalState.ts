@@ -23,9 +23,6 @@ let maxShutterDenom = 8000;
 let regionHz = 50;
 
 export function getMotionParams(): MotionParams { return { ...motionParams }; }
-export function getLinearVelocity(): number { return motionParams.linearVelocity; }
-export function getTemporalVelocity(): number { return targetVelocity; }
-export function getSpatialVelocity(): number { return motionParams.linearVelocity; }
 export function getFrameRate(): number { return frameRate; }
 export function getShutterTime(): number { return 1 / shutterDenom; }
 export function getShutterDenom(): number { return shutterDenom; }
@@ -154,7 +151,7 @@ function runSimulation(): SimResult {
   return { maxErrors, rmseErrors };
 }
 
-function computeStats(data: Float32Array): { avg: number; median: number; p95: number } {
+export function computeStats(data: Float32Array): { avg: number; median: number; p95: number } {
   const sorted = [...data].sort((a, b) => a - b);
   const avg = data.reduce((a, b) => a + b, 0) / data.length;
   const median = sorted[Math.floor(sorted.length * 0.5)];

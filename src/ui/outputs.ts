@@ -1,6 +1,6 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatFov, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY } from '../constants';
+import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep } from '../constants';
 import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
@@ -85,12 +85,6 @@ let draggingExpBar: string | null = null;
 let exposurePanelApp: AppStateFull | null = null;
 let exposurePanelRefresh: (() => void) | null = null;
 let onMotionTargetEdited: (() => void) | null = null;
-
-function clampStep(value: number, min: number, max: number, step: number): number {
-  let v = Math.max(min, Math.min(max, value));
-  if (step > 0) v = Math.round(v / step) * step;
-  return Math.max(min, Math.min(max, v));
-}
 
 function setMarkerPosition(marker: HTMLElement, value: number, barMax: number): void {
   const pct = Math.max(0, Math.min(100, (value / barMax) * 100));
@@ -340,6 +334,13 @@ export function initExposurePanel(
     isMotion: true,
     apply: (value) => setAngularVelocity(value),
   });
+}
+
+export function showOptimizerWarning(text: string, cssClass: string): void {
+  const banner = document.getElementById('bottleneck-banner');
+  if (!banner) return;
+  banner.className = `mt-3 mb-3 rounded-lg border ${cssClass} p-3 text-xs`;
+  banner.textContent = text;
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {

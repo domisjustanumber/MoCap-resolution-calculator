@@ -1,6 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { getCachedMaxErrors, getCachedRmseErrors, runAndCacheSimulation, getTemporalZoom } from '../temporalState';
+import { getCachedMaxErrors, getCachedRmseErrors, runAndCacheSimulation, getTemporalZoom, computeStats } from '../temporalState';
 
 const CANVAS_Y_MIN = 0.0;
 const CANVAS_Y_MAX = 1.0;
@@ -53,14 +53,6 @@ function calculateDensityCurve(data: Float32Array, maxZoomMM: number): Float32Ar
   }
 
   return densities;
-}
-
-function computeStats(data: Float32Array): { avg: number; median: number; p95: number } {
-  const sorted = [...data].sort((a, b) => a - b);
-  const avg = data.reduce((a, b) => a + b, 0) / data.length;
-  const median = sorted[Math.floor(sorted.length * 0.5)];
-  const p95 = sorted[Math.floor(sorted.length * 0.95)];
-  return { avg, median, p95 };
 }
 
 function ensureDensityCurves(): void {

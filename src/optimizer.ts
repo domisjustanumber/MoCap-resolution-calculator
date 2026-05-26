@@ -5,6 +5,7 @@ import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import type { SensorGeometry, V4l2Mode } from '../presets';
 import { DEFAULT_RADIOMETRY, RAW_FORMATS, CHROMA_UYVY_SNR_DB, CHROMA_OTHER_SNR_DB, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
 import { getRegionHz } from './temporalState';
+import { readoutTypeToMethod } from './state';
 import { shuttersForFpsSearch, snapTimingPreservingSnr, enumerateRegionFpsValues } from './temporalQuantize';
 
 export interface OptimizationResult {
@@ -692,10 +693,7 @@ function buildV4l2Candidates(
     const v4l2MaxShutter = Math.floor(pixelRate / (v4l2!.exposure.min * mode.hts));
     const maxShutter = Math.min(v4l2MaxShutter, rollingBound);
 
-    const modeReadoutMethod = !mode.readoutType ? 'native' :
-      mode.readoutType.includes('binning') ? 'binning' :
-      mode.readoutType.includes('subsampling') ? 'subsampling' :
-      mode.readoutType.includes('cropping') ? 'cropping' : 'native';
+    const modeReadoutMethod = readoutTypeToMethod(mode.readoutType);
 
     return {
       statePatch: {

@@ -1,4 +1,4 @@
-import type { AppState, PresetName, AppStateFull } from './types';
+import type { AppState, PresetName, AppStateFull, ReadoutMethod } from './types';
 import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY, CAMERA_PRESETS, findCameraPreset, LENS_PRESETS, PRESETS } from '../presets';
@@ -23,6 +23,7 @@ import {
   SNR_DB_MIN,
   SNR_DB_MAX,
   DEFAULT_RADIOMETRY,
+  clamped,
 } from './constants';
 import { getMotionParams, getShutterTime, getFrameRate, getSyncErrorP95, isSyncToggleOn, setFrameRate, setShutterDenom, setMaxFpsLimit, setMaxShutterLimit } from './temporalState';
 
@@ -72,8 +73,13 @@ export function createState(): AppStateFull {
   return applyPreset(app, {}, 'pi-cam-v1');
 }
 
-export function clamped(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
+export function readoutTypeToMethod(readoutType?: string): ReadoutMethod {
+  if (!readoutType) return 'native';
+  if (readoutType.includes('native')) return 'native';
+  if (readoutType.includes('subsampling')) return 'subsampling';
+  if (readoutType.includes('binning')) return 'binning';
+  if (readoutType.includes('cropping')) return 'cropping';
+  return 'native';
 }
 
 export function validateState(state: AppState): string[] {
@@ -354,8 +360,5 @@ function applyDefaultV4l2Mode(app: AppStateFull, sensorName: string): void {
   app.state.extractedHeight = chosen.height;
   app.state.readoutPitchMultiplier = chosen.pitchMultiplier ?? 1;
   app.state.readoutFullFoV = chosen.fullFoV ?? true;
-  app.state.readoutMethod = !chosen.readoutType ? 'native' :
-    chosen.readoutType.includes('binning') ? 'binning' :
-    chosen.readoutType.includes('subsampling') ? 'subsampling' :
-    chosen.readoutType.includes('cropping') ? 'cropping' : 'native';
+  app.state.readoutMethod = readoutTypeToMethod(chosen.readoutType);
 }

@@ -1,18 +1,15 @@
-import type { AppStateFull, AppState, ReadoutMethod } from '../types';
-import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
+import type { AppStateFull, AppState } from '../types';
+import { setField, applyPreset, recalculate, setSensorPreset, readoutTypeToMethod } from '../state';
 import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
-import { updateOutputs } from './outputs';
-import { drawChart } from './chart';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
-import { drawTemporalChart } from './temporalChart';
-import { updateAdvancedSensorSpecs } from './sensorSpecs';
-import { updateGainDisplay } from './gainDisplay';
 import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
 
 let app: AppStateFull;
+let refreshAll: () => void;
 
-export function initInputs(state: AppStateFull): void {
+export function initInputs(state: AppStateFull, rf: () => void): void {
+  refreshAll = rf;
   app = state;
 
   bindNumberInput('focalLength', 'focalLength');
@@ -60,7 +57,7 @@ function bindNumberInput(id: string, key: keyof AppState): void {
     handleExtractedClamp();
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
   el.addEventListener('blur', () => {
     syncInputsFromState();
@@ -74,7 +71,7 @@ function bindSelectInput(id: string, key: keyof AppState): void {
     setField(app, key, el.value as AppState[typeof key]);
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
 }
 
@@ -83,7 +80,7 @@ function bindCheckboxInput(id: string, key: keyof AppState): void {
   if (!el) return;
   el.addEventListener('change', () => {
     setField(app, key, el.checked as AppState[typeof key]);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -95,7 +92,7 @@ function bindRangeInput(id: string, key: keyof AppState): void {
     const v = parseInt(el.value, 10);
     setField(app, key, v);
     if (valueSpan) valueSpan.textContent = String(v);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -107,7 +104,7 @@ function bindGainInput(): void {
     const v = parseFloat(slider!.value);
     input!.value = v.toFixed(1);
     setField(app, 'gain', v);
-    refresh();
+    refreshAll();
   };
   slider.addEventListener('input', onChange);
   input.addEventListener('change', () => {
@@ -127,7 +124,7 @@ function bindH264QpInput(): void {
     const v = parseInt(el.value, 10);
     setField(app, 'h264Qp', v);
     if (valueSpan) valueSpan.textContent = String(v);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -139,7 +136,7 @@ function bindH264BitrateInput(): void {
     const v = parseFloat(el.value);
     setField(app, 'h264BitrateMbps', v);
     if (valueSpan) valueSpan.textContent = v.toFixed(1) + ' Mbps';
-    refresh();
+    refreshAll();
   });
 }
 
@@ -150,7 +147,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
     monochrome.addEventListener('click', () => {
       if (monochrome.checked) {
         setField(app, key, 'monochrome');
-        refresh();
+        refreshAll();
       }
     });
   }
@@ -158,7 +155,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
     colour.addEventListener('click', () => {
       if (colour.checked) {
         setField(app, key, 'colour');
-        refresh();
+        refreshAll();
       }
     });
   }
@@ -174,7 +171,7 @@ function bindFovInput(): void {
     }
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
   el.addEventListener('blur', () => {
     syncInputsFromState();
@@ -195,7 +192,7 @@ function bindLensTierChips(): void {
       setField(app, 'dynamicRangeDb', spec.dr);
       syncInputsFromState();
       updateCompressionControlsState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -209,7 +206,7 @@ function bindShutterRadios(): void {
       if (!el.checked) return;
       setField(app, 'shutterType', el.value as AppState['shutterType']);
       syncInputsFromState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -264,7 +261,7 @@ function bindPresetChips(): void {
       applyPreset(app, preset.values, preset.name as import('../types').PresetName);
       syncInputsFromState();
       updateCompressionControlsState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -277,7 +274,7 @@ function bindSensorModelChips(): void {
       if (!name || name === 'custom') return;
       setSensorPreset(app, name);
       syncInputsFromState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -330,22 +327,13 @@ function onV4l2ModeChange(): void {
   app.state.readoutMethod = readoutTypeToMethod(mode.readoutType);
   recalculate(app);
   syncInputsFromState();
-  refresh();
+  refreshAll();
 }
 
 function bindV4l2ModeSelect(): void {
   const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
   if (!select) return;
   select.addEventListener('change', onV4l2ModeChange);
-}
-
-function readoutTypeToMethod(readoutType?: string): ReadoutMethod {
-  if (!readoutType) return 'native';
-  if (readoutType.includes('native')) return 'native';
-  if (readoutType.includes('subsampling')) return 'subsampling';
-  if (readoutType.includes('binning')) return 'binning';
-  if (readoutType.includes('cropping')) return 'cropping';
-  return 'native';
 }
 
 function bindDrSlider(): void {
@@ -355,7 +343,7 @@ function bindDrSlider(): void {
     const v = parseInt(slider.value, 10);
     setField(app, 'dynamicRangeDb', v);
     syncInputsFromState();
-    refresh();
+    refreshAll();
   });
 }
 
@@ -415,7 +403,7 @@ function buildWavelengthChips(): void {
       updateWavelengthChipStyles();
       updateWavelengthColorIndicator();
       updateIrBadge();
-      refresh();
+      refreshAll();
     });
     container.appendChild(btn);
   });
@@ -594,15 +582,4 @@ export function syncInputsFromState(): void {
   updateDrBar();
 }
 
-function refresh(): void {
-  recalculate(app);
-  syncInputsFromState();
-  updateOutputs(app);
-  drawChart(app);
-  drawDistanceChart(app);
-  drawTemporalChart(app);
-  updateAdvancedSensorSpecs(app);
-  updateGainDisplay(app);
-  updateShutterPresetStyles();
-  updateFpsPresetStyles();
-}
+
