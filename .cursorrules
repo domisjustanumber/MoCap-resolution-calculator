@@ -1,0 +1,65 @@
+# Project structure rules — see AGENTS.md for full details
+
+## Build & Verify
+```bash
+npx tsc --noEmit        # type check — must be clean before committing
+npm test                # run vitest + DOM binding checker
+```
+
+## Layer Architecture (top → bottom, strictly)
+```
+src/main.ts              Bootstrap
+  ↓ src/ui/*             DOM, events, Canvas
+  ↓ src/state.ts, src/optimizer.ts, src/temporalState.ts   Business logic
+  ↓ src/engine.ts, src/exposure.ts, src/temporalQuantize.ts   Pure math
+  ↓ src/constants.ts, src/types.ts   Base definitions
+  ↓ presets/             Static data — imports NOTHING from src/
+```
+
+No upward imports. No circular deps. Pure math files (engine, exposure, temporalQuantize) may ONLY import from constants.ts and types.ts.
+
+## Where New Code Goes
+| Concern | File |
+|---|---|
+| Types / interfaces | `src/types.ts` |
+| Physics constants, range limits, shared utils | `src/constants.ts` |
+| Spatial math (MTF, diffraction, FOV) | `src/engine.ts` |
+| Exposure math (SNR, photons, dark current) | `src/exposure.ts` |
+| Camera optimizer | `src/optimizer.ts` |
+| Motion params, fps/shutter/region state | `src/temporalState.ts` |
+| FPS/shutter region math | `src/temporalQuantize.ts` |
+| Global app state, presets, setters | `src/state.ts` |
+| App bootstrap, tab switching | `src/main.ts` |
+| One DOM panel / concern | `src/ui/<name>.ts` |
+| Shared DOM helpers | `src/ui/domUtils.ts` |
+| Shared Canvas helpers | `src/ui/canvasUtils.ts` |
+| Static preset JSON | `presets/<type>/<name>.json` |
+| Preset loaders | `presets/<type>s.ts` |
+| Unit tests | `tests/<name>.test.ts` |
+| E2e tests | `e2e/<name>.spec.ts` |
+
+## Code Re-use — Use These Before Writing Inline
+- `clamped(val, min, max)` from `constants.ts` — instead of `Math.max/min`
+- `clampStep(val, min, max, step)` from `constants.ts` — stepped clamp
+- `chromaSnrPenaltyDb(state)` / `chromaFormatEfficiencyPenalty(state)` from `constants.ts` — chroma penalty
+- `computeImageVelocity(motion, shutterTime, focalLength, distance)` from `engine.ts` — vEff/vRot/vTotal/vImg
+- `motionHeadroom(motion, fps, errorBudgetMm)` from `optimizer.ts` — maxAccel/maxTurn
+- `setText(id, text)` from `ui/outputs.ts` — set element text content
+- `setInputIfNotFocused(id, value)` from `ui/domUtils.ts` — set input value safely
+- Hardcoded data tables go in `constants.ts` or `presets/`, never in UI files
+- Preset loader wrappers: use direct `as T` cast, not a wrapper function
+
+## DOM Binding Rules
+- `tests/dom-bindings.test.ts` enforces bidirectional consistency between HTML IDs and TS `getElementById` calls
+- Must pass before any commit touching `index.html` or `src/ui/`
+- DOM ID naming: kebab-case preferred; camelCase OK for IDs matching `AppState` property names
+- Dynamic elements use `data-*` attributes, not auto-generated IDs
+- Use `setInputIfNotFocused` from `domUtils.ts` for setting inputs without focus steal
+- Use `setText` from `outputs.ts` for setting text content
+
+## Naming
+- DOM IDs: kebab-case (`exp-snr-bar`); camelCase for domain-model fields (`focalLength`)
+- Functions/variables: camelCase (`calculateResults`, `shutterDenom`)
+- Interfaces/types: PascalCase (`AppState`, `MotionParams`)
+- Constants: UPPER_SNAKE_CASE (`SNR_DB_MAX`)
+- Source files: camelCase matching primary export
