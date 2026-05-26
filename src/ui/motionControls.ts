@@ -1,6 +1,7 @@
 import { getMotionParams, setMotionParams, setLinearVelocity, setAcceleration, setAngularVelocity, setTemporalVelocity, getFrameRate } from '../temporalState';
 import { updatePresetStyles } from './fpsShutterPresets';
 import type { MotionParams } from '../types';
+import { setInputIfNotFocused } from './domUtils';
 
 const MOTION_PRESETS: Record<string, MotionParams> = {
   static:  { linearVelocity: 0,   acceleration: 0,   angularVelocity: 0,   subjectHalfWidth: 0.5 },
@@ -25,15 +26,11 @@ export function updateMotionPresetStyles(): void {
 
 export function syncQcInputsFromParams(p?: MotionParams): void {
   const m = p ?? getMotionParams();
-  const setIfNotFocused = (id: string, value: string) => {
-    const el = document.getElementById(id) as HTMLInputElement | null;
-    if (el && el !== document.activeElement) el.value = value;
-  };
-  setIfNotFocused('velocity-custom', String(m.linearVelocity));
-  setIfNotFocused('accel-custom', m.acceleration.toFixed(1));
-  setIfNotFocused('angular-custom', String(Math.round(m.angularVelocity)));
-  setIfNotFocused('exp-accel-target', m.acceleration.toFixed(1));
-  setIfNotFocused('exp-rot-target', String(Math.round(m.angularVelocity)));
+  setInputIfNotFocused('velocity-custom', String(m.linearVelocity));
+  setInputIfNotFocused('accel-custom', m.acceleration.toFixed(1));
+  setInputIfNotFocused('angular-custom', String(Math.round(m.angularVelocity)));
+  setInputIfNotFocused('exp-accel-target', m.acceleration.toFixed(1));
+  setInputIfNotFocused('exp-rot-target', String(Math.round(m.angularVelocity)));
   const setSliderAndInput = (sliderId: string, inputId: string, value: number, decimals: number) => {
     const slider = document.getElementById(sliderId) as HTMLInputElement | null;
     const input = document.getElementById(inputId) as HTMLInputElement | null;
@@ -43,8 +40,6 @@ export function syncQcInputsFromParams(p?: MotionParams): void {
   setSliderAndInput('velocity-slider', 'velocity-custom', m.linearVelocity, 1);
   setSliderAndInput('accel-slider', 'accel-custom', m.acceleration, 1);
   setSliderAndInput('angular-slider', 'angular-custom', m.angularVelocity, 0);
-  setSliderAndInput('motion-accel', 'motion-accel-input', m.acceleration, 1);
-  setSliderAndInput('motion-angular', 'motion-angular-input', m.angularVelocity, 0);
   setSliderAndInput('temporal-motion-accel', 'temporal-motion-accel-input', m.acceleration, 1);
   setSliderAndInput('temporal-motion-angular', 'temporal-motion-angular-input', m.angularVelocity, 0);
 }
@@ -155,8 +150,6 @@ export function initMotionControls(rf: () => void): void {
   bindMotionSlider('velocity-slider', 'velocity-custom', (v) => { setLinearVelocity(v); setTemporalVelocity(v); });
   bindMotionSlider('accel-slider', 'accel-custom', setAcceleration);
   bindMotionSlider('angular-slider', 'angular-custom', setAngularVelocity);
-  bindMotionSlider('motion-accel', 'motion-accel-input', setAcceleration);
-  bindMotionSlider('motion-angular', 'motion-angular-input', setAngularVelocity);
   bindMotionSlider('temporal-motion-accel', 'temporal-motion-accel-input', setAcceleration);
   bindMotionSlider('temporal-motion-angular', 'temporal-motion-angular-input', setAngularVelocity);
 

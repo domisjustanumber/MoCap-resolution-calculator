@@ -103,7 +103,7 @@
             </div>
             <div class="mt-1.5 grid grid-cols-4 gap-1.5">
               <div class="space-y-1.5">
-                <div class="flex items-center gap-0.5" id="temporal-velocity-presets">
+                <div class="flex items-center gap-0.5">
                   <button data-velocity="static" class="vel-preset">Static</button>
                   <button data-velocity="walking" class="vel-preset">Walking</button>
                   <button data-velocity="sports" class="vel-preset">Sports</button>
@@ -203,7 +203,7 @@
           <!-- Target Motion -->
           <div class="shrink-0 quick-ctrl">
             <p class="quick-ctrl-title">Target Motion</p>
-            <div class="flex items-center gap-0.5 mb-0.5" id="qc-velocity-presets">
+            <div class="flex items-center gap-0.5 mb-0.5">
               <button data-velocity="static" class="vel-preset">Static</button>
               <button data-velocity="walking" class="vel-preset">Walking</button>
               <button data-velocity="sports" class="vel-preset">Sports</button>
@@ -289,7 +289,7 @@
               <input id="snr-undershoot-pct" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="0" max="50" value="10" title="Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" />
               <span class="text-[9px] text-slate-600 whitespace-nowrap">% SNR slack</span>
             </div>
-            <div id="exp-snr-container" class="mt-1">
+            <div class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Current SNR</div>
               <div class="flex items-center gap-1">
                 <div id="exp-snr-track" class="exp-bar-track flex-1">
@@ -301,7 +301,7 @@
                 <span class="text-[9px] text-slate-600 whitespace-nowrap">dB</span>
               </div>
             </div>
-            <div id="exp-accel-container" class="mt-1">
+            <div class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Acceleration</div>
               <div class="flex items-center gap-1">
                 <div id="exp-accel-track" class="exp-bar-track flex-1">
@@ -313,7 +313,7 @@
                 <span class="text-[9px] text-slate-600 whitespace-nowrap">m/s²</span>
               </div>
             </div>
-            <div id="exp-rot-container" class="mt-1">
+            <div class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Rotation</div>
               <div class="flex items-center gap-1">
                 <div id="exp-rot-track" class="exp-bar-track flex-1">
@@ -330,7 +330,7 @@
           <!-- Light level -->
           <div class="shrink-0 quick-ctrl">
             <p class="quick-ctrl-title">Light level</p>
-            <div class="flex flex-nowrap gap-0.5" id="lux-presets">
+            <div class="flex flex-nowrap gap-0.5">
               <button data-lux="0.2" class="lux-preset">Moonlight</button>
               <button data-lux="100" class="lux-preset rounded px-1 py-1 text-[11px] font-medium leading-none active">Indoor</button>
               <button data-lux="1000" class="lux-preset">Overcast</button>
@@ -597,7 +597,7 @@
                 </div>
               </div>
 
-              <div id="readout-method-group">
+              <div>
                 <label class="mb-1 block text-xs font-medium text-slate-400" for="readoutMethod">Readout Method</label>
                 <select id="readoutMethod" class="calc-input input-field w-full">
                   <option value="native">Native (Full Sensor)</option>

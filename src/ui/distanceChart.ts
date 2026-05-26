@@ -2,6 +2,7 @@ import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from '../temporalState';
 import { MOTION_MTF50_CONST, BOTTLENECK_RATIO } from '../constants';
+import { computeImageVelocity } from '../engine';
 
 let lastHash = '';
 let mouseX = -1;
@@ -59,11 +60,6 @@ function setupEvents(canvas: HTMLCanvasElement): void {
 
   const onLeave = () => {
     mouseInCanvas = false;
-    const card = document.getElementById('card-feature-distance');
-    if (card) {
-      card.textContent = 'Hover chart';
-      card.className = 'mt-1 text-sm font-mono text-slate-500';
-    }
     if (appRef) drawDistanceChart(appRef, true);
   };
 
@@ -145,9 +141,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const px = (d: number) => pad.left + (d / dMax) * plotW;
 
   // Per-pixel motion blur ceiling — vImg depends on distance
-  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterS;
-  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
-  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+  const { vTotal } = computeImageVelocity(motion, shutterS, focalLength, 1);
 
   // Max trackable velocity (right y-axis)
   const fSyncMTF50_local = syncEnabled && syncErrP95 > 0.001 ? 0.1874 / syncErrP95 : Infinity;
@@ -426,11 +420,5 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.textAlign = 'left';
     ctx.fillText(tooltipText, bx, by + 5);
 
-    // Update metric card
-    const card = document.getElementById('card-feature-distance');
-    if (card) {
-      card.textContent = tooltipText;
-      card.className = 'mt-1 text-xl font-bold font-mono text-slate-100';
-    }
   }
 }

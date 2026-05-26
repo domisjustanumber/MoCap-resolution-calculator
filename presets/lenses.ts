@@ -4,14 +4,10 @@ import cheapPlasticRaw from './lenses/cheap-plastic.json';
 import midGlassRaw from './lenses/mid-glass.json';
 import premiumStackRaw from './lenses/premium-stack.json';
 
-function loadLens(raw: unknown): LensPreset {
-  return raw as LensPreset;
-}
-
 const lenses: Record<string, LensPreset> = {
-  'cheap-plastic': loadLens(cheapPlasticRaw),
-  'mid-glass': loadLens(midGlassRaw),
-  'premium-stack': loadLens(premiumStackRaw),
+  'cheap-plastic': cheapPlasticRaw as LensPreset,
+  'mid-glass': midGlassRaw as LensPreset,
+  'premium-stack': premiumStackRaw as LensPreset,
 };
 
 export const LENS_PRESETS = lenses;

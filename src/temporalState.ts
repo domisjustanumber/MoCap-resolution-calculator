@@ -1,6 +1,6 @@
 import type { MotionParams } from './types';
 import { snapFpsToRegion, snapShutterToRegion } from './temporalQuantize';
-import { DEFAULT_SNR_UNDERSHOOT_PCT } from './constants';
+import { DEFAULT_SNR_UNDERSHOOT_PCT, clamped } from './constants';
 
 let motionParams: MotionParams = {
   linearVelocity: 1.5,
@@ -35,22 +35,22 @@ export function isSyncToggleOn(): boolean { return syncToggle; }
 export function getTemporalZoom(): number { return zoomMax; }
 
 export function setMotionParams(p: Partial<MotionParams>): void {
-  if (p.linearVelocity !== undefined) motionParams.linearVelocity = Math.max(0, Math.min(20, p.linearVelocity));
-  if (p.acceleration !== undefined) motionParams.acceleration = Math.max(0, Math.min(20, p.acceleration));
-  if (p.angularVelocity !== undefined) motionParams.angularVelocity = Math.max(0, Math.min(360, p.angularVelocity));
+  if (p.linearVelocity !== undefined) motionParams.linearVelocity = clamped(p.linearVelocity, 0, 20);
+  if (p.acceleration !== undefined) motionParams.acceleration = clamped(p.acceleration, 0, 20);
+  if (p.angularVelocity !== undefined) motionParams.angularVelocity = clamped(p.angularVelocity, 0, 360);
   motionParams.subjectHalfWidth = 0.5;
 }
 
 export function setLinearVelocity(v: number): void {
-  motionParams.linearVelocity = Math.max(0, Math.min(20, v));
+  motionParams.linearVelocity = clamped(v, 0, 20);
 }
 
 export function setAcceleration(v: number): void {
-  motionParams.acceleration = Math.max(0, Math.min(20, v));
+  motionParams.acceleration = clamped(v, 0, 20);
 }
 
 export function setAngularVelocity(v: number): void {
-  motionParams.angularVelocity = Math.max(0, Math.min(360, v));
+  motionParams.angularVelocity = clamped(v, 0, 360);
 }
 
 export function setSubjectHalfWidth(_v: number): void {
@@ -58,43 +58,42 @@ export function setSubjectHalfWidth(_v: number): void {
 }
 
 export function setSpatialVelocity(v: number): void {
-  motionParams.linearVelocity = Math.max(0, Math.min(20, v));
+  motionParams.linearVelocity = clamped(v, 0, 20);
 }
 
 export function setTemporalVelocity(v: number): void {
-  targetVelocity = Math.max(0, Math.min(20, v));
+  targetVelocity = clamped(v, 0, 20);
 }
 
 export function setTemporalPhase(ms: number): void {
-  phaseOffset = Math.max(0, Math.min(300, ms));
+  phaseOffset = clamped(ms, 0, 300);
 }
 
 export function setTemporalJitter(ms: number): void {
-  jitterMs = Math.max(0, Math.min(300, ms));
+  jitterMs = clamped(ms, 0, 300);
 }
 
 export function setTemporalZoom(max: number): void {
-  zoomMax = Math.max(10, Math.min(500, Math.round(max)));
+  zoomMax = clamped(Math.round(max), 10, 500);
 }
 
 export function setFrameRate(fps: number): void {
-  frameRate = Math.max(1, Math.min(maxFps, Math.round(fps)));
+  frameRate = clamped(Math.round(fps), 1, maxFps);
   if (shutterDenom < frameRate) {
     shutterDenom = snapShutterToRegion(frameRate, regionHz, frameRate, maxShutterDenom, 'ceil');
   }
 }
 
 export function setShutterDenom(d: number): void {
-  const minDenom = frameRate;
-  shutterDenom = Math.max(minDenom, Math.min(maxShutterDenom, Math.round(d)));
+  shutterDenom = clamped(Math.round(d), frameRate, maxShutterDenom);
 }
 
 export function setErrorBudget(mm: number): void {
-  errorBudgetMm = Math.max(0.5, Math.min(25, mm));
+  errorBudgetMm = clamped(mm, 0.5, 25);
 }
 
 export function setSnrUndershootPct(pct: number): void {
-  snrUndershootPct = Math.max(0, Math.min(50, pct));
+  snrUndershootPct = clamped(pct, 0, 50);
 }
 
 export function setSyncToggle(on: boolean): void {

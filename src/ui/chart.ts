@@ -1,6 +1,7 @@
 import type { AppStateFull } from '../types';
 import { getMotionParams, getShutterTime, isSyncToggleOn, getSyncErrorP95, getSyncInputsHash } from '../temporalState';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
+import { computeImageVelocity } from '../engine';
 
 let lastHash = '';
 
@@ -31,10 +32,7 @@ export function drawChart(app: AppStateFull, force = false): void {
 
   const xMax = Math.max(fc, fcAberrated, fNyquistNative, fNyquistSkipped, fDRLimited, fEffective, 200) * 1.15;
 
-  const vEff = v + 0.5 * motion.acceleration * shutterTime;
-  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
-  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
-  const vImg = vTotal * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const { vImg } = computeImageVelocity(motion, shutterTime, state.focalLength, state.distanceToSubject);
   const fMotionNull = vImg > 1e-6 && shutterTime > 0 ? 1 / (vImg * shutterTime) : Infinity;
   const fMotionMTF50 = vImg > 1e-6 && shutterTime > 0 ? 0.603 / (vImg * shutterTime) : Infinity;
 

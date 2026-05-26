@@ -1,7 +1,7 @@
 import type { AppStateFull, AppState } from '../types';
 import { setField, applyPreset, recalculate, setSensorPreset, readoutTypeToMethod } from '../state';
 import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
-import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
+import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, clamped, LENS_TIER_DR } from '../constants';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
 
@@ -16,7 +16,6 @@ export function initInputs(state: AppStateFull, rf: () => void): void {
   bindFovInput();
   bindNumberInput('aperture', 'aperture');
   bindNumberInput('lensTransmission', 'lensTransmission');
-  bindNumberInput('wavelength', 'wavelength');
   bindNumberInput('pixelPitch', 'pixelPitch');
   bindNumberInput('nativeWidth', 'nativeWidth');
   bindNumberInput('nativeHeight', 'nativeHeight');
@@ -110,8 +109,8 @@ function bindGainInput(): void {
   input.addEventListener('change', () => {
     const v = parseFloat(input.value);
     if (isNaN(v)) return;
-    const clamped = Math.max(1.0, Math.min(8.0, v));
-    slider.value = clamped.toFixed(1);
+    const c = clamped(v, 1.0, 8.0);
+    slider.value = c.toFixed(1);
     onChange();
   });
 }
@@ -180,9 +179,9 @@ function bindFovInput(): void {
 
 function bindLensTierChips(): void {
   const map: Record<string, { tier: string; dr: number }> = {
-    'lens-cheap': { tier: 'cheap-plastic', dr: 59 },
-    'lens-mid': { tier: 'mid-glass', dr: 66 },
-    'lens-premium': { tier: 'premium-stack', dr: 90 },
+    'lens-cheap': { tier: 'cheap-plastic', dr: LENS_TIER_DR['cheap-plastic'] },
+    'lens-mid': { tier: 'mid-glass', dr: LENS_TIER_DR['mid-glass'] },
+    'lens-premium': { tier: 'premium-stack', dr: LENS_TIER_DR['premium-stack'] },
   };
   Object.entries(map).forEach(([preset, spec]) => {
     const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;

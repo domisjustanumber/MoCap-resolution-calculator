@@ -1,4 +1,4 @@
-import type { OutputFormat, SensorRadiometry } from './types';
+import type { AppState, OutputFormat, SensorRadiometry } from './types';
 
 export const WAVELENGTH_PRESETS: Array<{
   label: string;
@@ -81,6 +81,26 @@ export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
 export const DEFAULT_SNR_UNDERSHOOT_PCT = 10;
 export const MOTION_UNDERSHOOT_IMPROVEMENT_PCT = 20;
+
+export function chromaFormatEfficiencyPenalty(state: Readonly<AppState>): number {
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    return state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
+  }
+  return 1;
+}
+
+export function chromaSnrPenaltyDb(state: Readonly<AppState>): number {
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    return state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
+  }
+  return 0;
+}
+
+export const LENS_TIER_DR: Record<string, number> = {
+  'cheap-plastic': 59,
+  'mid-glass': 66,
+  'premium-stack': 90,
+};
 
 export function clamped(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));

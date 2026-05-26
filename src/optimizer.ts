@@ -3,7 +3,7 @@ import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import type { SensorGeometry, V4l2Mode } from '../presets';
-import { DEFAULT_RADIOMETRY, RAW_FORMATS, CHROMA_UYVY_SNR_DB, CHROMA_OTHER_SNR_DB, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
+import { DEFAULT_RADIOMETRY, chromaSnrPenaltyDb, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
 import { getRegionHz } from './temporalState';
 import { readoutTypeToMethod } from './state';
 import { shuttersForFpsSearch, snapTimingPreservingSnr, enumerateRegionFpsValues } from './temporalQuantize';
@@ -648,10 +648,7 @@ function snrAtShutter(
 }
 
 function applyChromaSnrPenalty(snrDb: number, state: AppState): number {
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    return snrDb - (state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB);
-  }
-  return snrDb;
+  return snrDb - chromaSnrPenaltyDb(state);
 }
 
 function enumerateSearchFps(maxFps: number, regionHz: number): number[] {

@@ -2,15 +2,14 @@
 import { getFrameRate, setFrameRate, getMotionParams, getErrorBudget, setErrorBudget } from '../temporalState';
 import { setText } from './outputs';
 import type { MotionParams } from '../types';
+import { motionHeadroom } from '../optimizer';
 
 export function updateAccelOutputs(): void {
   const fps = getFrameRate();
-  const epsilon = getErrorBudget() / 1000;
   const motion = getMotionParams();
+  const { maxAccel, maxTurn } = motionHeadroom(motion, fps, getErrorBudget());
 
-  const maxAccel = epsilon * fps * fps;
   const gForce = maxAccel / 9.80665;
-  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
   const latency = (1000 / fps) * 2;
 
   setText('accel-m-s2', maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²');

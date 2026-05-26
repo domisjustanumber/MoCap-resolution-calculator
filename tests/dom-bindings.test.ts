@@ -78,38 +78,10 @@ const tsIds = extractTsIds(walkTsFiles(srcDir));
 // ---------------------------------------------------------------------------
 
 /** IDs referenced in TypeScript but missing from index.html */
-const staleJsRefs = [
-  // inputs.ts:19 — bindNumberInput('wavelength', ...), but no <input id="wavelength">
-  // exists; wavelength is controlled via clickable chips.
-  'wavelength',
-  // distanceChart.ts:62,430 — hover tooltip card element that was removed from HTML.
-  'card-feature-distance',
-  // main.ts:69 — 'metric-cards' container replaced in distance-chart-accel-rotation-stats plan.
-  'metric-cards',
-  // main.ts:71 — 'conditional-notes' div moved to processing/compression sections.
-  'conditional-notes',
-  // motionControls.ts:46,158 — stale copies of quick-control sliders renamed to accel-slider.
-  'motion-accel',
-  'motion-accel-input',
-  // motionControls.ts:47,159 — stale copies of quick-control sliders renamed to angular-slider.
-  'motion-angular',
-  'motion-angular-input',
-];
+const staleJsRefs: string[] = [];
 
 /** IDs in index.html that no TypeScript file looks up by ID */
-const layoutOnlyIds = [
-  // Exposure bar wrapper divs — children are referenced individually.
-  'exp-snr-container',
-  'exp-accel-container',
-  'exp-rot-container',
-  // Lux preset container — JS uses .lux-preset class selector instead of the ID.
-  'lux-presets',
-  // Velocity preset containers — JS uses .vel-preset class selector.
-  'qc-velocity-presets',
-  'temporal-velocity-presets',
-  // Readout method wrapper div with no JS binding.
-  'readout-method-group',
-];
+const layoutOnlyIds: string[] = [];
 
 // ---------------------------------------------------------------------------
 // Tests

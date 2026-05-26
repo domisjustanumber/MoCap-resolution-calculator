@@ -7,9 +7,7 @@ import {
   GAIN_MIN,
   GAIN_MAX,
   MOTION_MTF50_CONST,
-  RAW_FORMATS,
-  CHROMA_UYVY_SNR_DB,
-  CHROMA_OTHER_SNR_DB,
+  chromaSnrPenaltyDb,
 } from './constants';
 
 function darkCurrentAtTemp(dc25: number, tempC: number): number {
@@ -37,13 +35,13 @@ export function calculateExposureOptimizer(
 
   const DC = darkCurrentAtTemp(radiometry.darkCurrentE, state.temperatureC);
   const S = electronsPerPxPerSec;
-  const RN2 = radiometry.readNoiseE * radiometry.readNoiseE;
+  const effectiveGain = state.gain > 0 ? state.gain : 1.0;
+  const effectiveReadNoiseE = radiometry.readNoiseE / effectiveGain;
+  const effectiveFwc = radiometry.fullWellCapacity / effectiveGain;
+  const RN2 = effectiveReadNoiseE * effectiveReadNoiseE;
 
   // Inflate SNR target to compensate for chroma subsampling penalty
-  let effectiveSnrTargetDb = state.desiredSnrDb;
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    effectiveSnrTargetDb += state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
-  }
+  let effectiveSnrTargetDb = state.desiredSnrDb + chromaSnrPenaltyDb(state);
   const snrTargetLinear = Math.pow(10, effectiveSnrTargetDb / 20);
 
   const a = S * S;
@@ -75,7 +73,7 @@ export function calculateExposureOptimizer(
 
   let tSaturation = Infinity;
   if (S > 0) {
-    tSaturation = radiometry.fullWellCapacity / S;
+    tSaturation = effectiveFwc / S;
   }
 
   // Pass 1 interim tOptimal to estimate the acceleration contribution
@@ -110,11 +108,11 @@ export function calculateExposureOptimizer(
     optimalGain = Math.max(GAIN_MIN, Math.min(GAIN_MAX, targetElectrons / actualElectrons));
   }
 
-  const signalPercentFwc = radiometry.fullWellCapacity > 0
-    ? (actualElectrons / radiometry.fullWellCapacity) * 100
+  const signalPercentFwc = effectiveFwc > 0
+    ? (actualElectrons / effectiveFwc) * 100
     : 0;
-  const headroomStops = radiometry.fullWellCapacity > 0 && actualElectrons > 1
-    ? Math.log2(radiometry.fullWellCapacity / actualElectrons)
+  const headroomStops = effectiveFwc > 0 && actualElectrons > 1
+    ? Math.log2(effectiveFwc / actualElectrons)
     : 99;
 
   const shotNoise = Math.sqrt(actualElectrons);

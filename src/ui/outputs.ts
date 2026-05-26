@@ -4,6 +4,7 @@ import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MA
 import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
+import { motionHeadroom } from '../optimizer';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -146,8 +147,7 @@ function updateAccelBar(): void {
 
   const fps = getFrameRate();
   const motion = getMotionParams();
-  const epsilon = getErrorBudget() / 1000;
-  const maxAccel = epsilon * fps * fps;
+  const { maxAccel } = motionHeadroom(motion, fps, getErrorBudget());
   const target = motion.acceleration;
 
   label.textContent = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
@@ -179,8 +179,7 @@ function updateRotBar(): void {
 
   const fps = getFrameRate();
   const motion = getMotionParams();
-  const epsilon = getErrorBudget() / 1000;
-  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
+  const { maxTurn } = motionHeadroom(motion, fps, getErrorBudget());
   const target = motion.angularVelocity;
 
   label.textContent = maxTurn.toLocaleString() + ' °/s';

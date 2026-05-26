@@ -66,9 +66,7 @@ function switchTab(tab: string): void {
   const presetBar = document.getElementById('preset-bar');
   const quickControls = document.getElementById('quick-controls');
   const bottleneckBanner = document.getElementById('bottleneck-banner');
-  const metricCards = document.getElementById('metric-cards');
   const detailedControls = document.getElementById('detailed-controls');
-  const conditionalNotes = document.getElementById('conditional-notes');
 
   document.querySelectorAll('.chart-tab').forEach((t) => t.classList.remove('active'));
 
@@ -79,9 +77,7 @@ function switchTab(tab: string): void {
   if (presetBar) presetBar.classList.toggle('hidden', tab !== 'spatial');
   if (quickControls) quickControls.classList.toggle('hidden', tab !== 'spatial');
   if (bottleneckBanner) bottleneckBanner.classList.toggle('hidden', tab !== 'spatial');
-  if (metricCards) metricCards.classList.toggle('hidden', tab !== 'spatial');
   if (detailedControls) detailedControls.classList.toggle('hidden', tab !== 'spatial');
-  if (conditionalNotes) conditionalNotes.classList.toggle('hidden', tab !== 'spatial');
 
   if (tab === 'spatial' && spatialTab) spatialTab.classList.add('active');
   if (tab === 'temporal' && temporalTab) temporalTab.classList.add('active');
