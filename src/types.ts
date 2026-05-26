@@ -64,6 +64,7 @@ export interface AppState {
   desiredSnrDb: number;
   temperatureC: number;
   lensTransmission: number;
+  gain: number;
 }
 
 export interface DerivedState {

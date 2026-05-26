@@ -61,6 +61,7 @@ export const DEFAULT_STATE: AppState = {
   desiredSnrDb: DEFAULT_SNR_TARGET_DB,
   temperatureC: DEFAULT_TEMPERATURE_C,
   lensTransmission: DEFAULT_LENS_TRANSMISSION,
+  gain: 0,
 };
 
 export function createState(): AppStateFull {

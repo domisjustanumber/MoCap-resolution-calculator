@@ -38,6 +38,7 @@ export function initInputs(state: AppStateFull): void {
   bindRangeInput('mjpgQuality', 'mjpgQuality');
   bindH264QpInput();
   bindH264BitrateInput();
+  bindGainInput();
   bindRadioGroup('measurementMode', 'measurementMode');
   bindDistanceRange();
   bindLensTierChips();
@@ -95,6 +96,26 @@ function bindRangeInput(id: string, key: keyof AppState): void {
     setField(app, key, v);
     if (valueSpan) valueSpan.textContent = String(v);
     refresh();
+  });
+}
+
+function bindGainInput(): void {
+  const slider = document.getElementById('gain-slider') as HTMLInputElement | null;
+  const input = document.getElementById('gain-value') as HTMLInputElement | null;
+  if (!slider || !input) return;
+  const onChange = () => {
+    const v = parseFloat(slider!.value);
+    input!.value = v.toFixed(1);
+    setField(app, 'gain', v);
+    refresh();
+  };
+  slider.addEventListener('input', onChange);
+  input.addEventListener('change', () => {
+    const v = parseFloat(input.value);
+    if (isNaN(v)) return;
+    const clamped = Math.max(1.0, Math.min(8.0, v));
+    slider.value = clamped.toFixed(1);
+    onChange();
   });
 }
 
