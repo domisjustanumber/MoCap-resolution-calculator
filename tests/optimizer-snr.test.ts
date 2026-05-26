@@ -177,6 +177,7 @@ describe('runOptimization SNR guarantee', () => {
     setRegionHz(60);
     const walking: MotionParams = { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
+    app.state.measurementMode = 'monochrome';
     app.state.luxAtSubject = 50;
 
     const strictOnly = runOptimization(app, walking, 5, 0);

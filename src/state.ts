@@ -171,6 +171,9 @@ export function applyPreset(app: AppStateFull, _presetValues: Partial<AppState>,
       app.state.olpfPresent = sensorPreset.olpfPresent;
       app.state.dynamicRangeDb = sensorPreset.dynamicRangeDb;
       app.state.shutterType = sensorPreset.shutterType;
+      if (sensorPreset.colourVariant !== 'both') {
+        app.state.measurementMode = sensorPreset.colourVariant;
+      }
     }
     const lensPreset = LENS_PRESETS[cameraPreset.lensName];
     if (lensPreset) {

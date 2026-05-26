@@ -34,6 +34,7 @@ function defaultPiCamV1App(lux = 100) {
   setFrameRate(30);
   setShutterDenom(60);
   const app = applyPreset(createState(), {}, 'pi-cam-v1');
+  app.state.measurementMode = 'monochrome';
   app.state.luxAtSubject = lux;
   return recalculate(app);
 }
