@@ -126,7 +126,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
   const monochrome = document.getElementById('mode-monochrome') as HTMLInputElement | null;
   const colour = document.getElementById('mode-colour') as HTMLInputElement | null;
   if (monochrome) {
-    monochrome.addEventListener('change', () => {
+    monochrome.addEventListener('click', () => {
       if (monochrome.checked) {
         setField(app, key, 'monochrome');
         refresh();
@@ -134,7 +134,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
     });
   }
   if (colour) {
-    colour.addEventListener('change', () => {
+    colour.addEventListener('click', () => {
       if (colour.checked) {
         setField(app, key, 'colour');
         refresh();
@@ -184,7 +184,7 @@ function bindShutterRadios(): void {
   const rollingEl = document.getElementById('shutter-rolling') as HTMLInputElement | null;
   [globalEl, rollingEl].forEach((el) => {
     if (!el) return;
-    el.addEventListener('change', () => {
+    el.addEventListener('click', () => {
       if (!el.checked) return;
       setField(app, 'shutterType', el.value as AppState['shutterType']);
       syncInputsFromState();
