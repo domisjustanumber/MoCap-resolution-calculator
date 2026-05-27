@@ -13,8 +13,8 @@ let zoomMax = 200;
 let targetVelocity = 0;
 let frameRate = 30;
 let shutterDenom = 60;
-let phaseOffset = 16.6;       // canonical ms
-let jitterValueMs = 10.0;    // canonical ms
+let phaseOffset = 33.3;       // 1 frame at 30fps = 33.3ms
+let jitterValueMs = 33.3;    // 1 frame at 30fps = 33.3ms
 let phaseFrames = 0;         // display value when in frames mode
 let jitterFrames = 0;
 let errorBudgetMm = 5;
@@ -23,7 +23,7 @@ let syncToggle = false;
 let maxFps = 240;
 let maxShutterDenom = 8000;
 let regionHz = 50;
-let temporalDistance = 2;
+let temporalDistance = 2; // meters
 let cameraHeight = 0;
 let objectSizeMm = 10;
 let timingInFrames = true; // true → sliders display in frames; canonical storage is always ms

@@ -162,8 +162,8 @@ function syncTimingSliders(): void {
       jitterInput.min = '0'; jitterInput.max = '3'; jitterInput.step = '0.01';
       jitterInput.value = jFrames.toFixed(2);
     }
-    if (spreadEquiv) spreadEquiv.textContent = sMs.toFixed(1) + 'ms';
-    if (jitterEquiv) jitterEquiv.textContent = jMs.toFixed(1) + 'ms';
+    if (spreadEquiv) spreadEquiv.textContent = sFrames.toFixed(2) + ' fr (' + sMs.toFixed(1) + ' ms)';
+    if (jitterEquiv) jitterEquiv.textContent = jFrames.toFixed(2) + ' fr (' + jMs.toFixed(1) + ' ms)';
     setTemporalPhase(sMs);
     setTemporalJitter(jMs);
   } else {
@@ -187,8 +187,8 @@ function syncTimingSliders(): void {
       jitterInput.min = '0'; jitterInput.max = '100'; jitterInput.step = '0.1';
       jitterInput.value = jMs.toFixed(1);
     }
-    if (spreadEquiv) spreadEquiv.textContent = sFrames.toFixed(2) + 'fr';
-    if (jitterEquiv) jitterEquiv.textContent = jFrames.toFixed(2) + 'fr';
+    if (spreadEquiv) spreadEquiv.textContent = sMs.toFixed(1) + ' ms (' + sFrames.toFixed(2) + ' fr)';
+    if (jitterEquiv) jitterEquiv.textContent = jMs.toFixed(1) + ' ms (' + jFrames.toFixed(2) + ' fr)';
     setPhaseFrames(sFrames);
     setJitterFrames(jFrames);
   }

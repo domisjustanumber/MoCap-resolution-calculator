@@ -183,9 +183,9 @@ function buildBlurCloud(): THREE.Group | null {
 
   // 4 opacity tiers: core = most opaque (highest confidence), tail = most transparent
   const tiers = [
-    { start: 0,            end: Math.floor(n * 0.4), opacity: 0.35, color: 0xcbd5e1 },
-    { start: Math.floor(n * 0.4), end: Math.floor(n * 0.7), opacity: 0.22, color: 0x94a3b8 },
-    { start: Math.floor(n * 0.7), end: Math.floor(n * 0.9), opacity: 0.12, color: 0x64748b },
+    { start: 0,            end: Math.floor(n * 0.4), opacity: 0.25, color: 0xcbd5e1 },
+    { start: Math.floor(n * 0.4), end: Math.floor(n * 0.7), opacity: 0.16, color: 0x94a3b8 },
+    { start: Math.floor(n * 0.7), end: Math.floor(n * 0.9), opacity: 0.09, color: 0x64748b },
     { start: Math.floor(n * 0.9), end: n,                   opacity: 0.05, color: 0x475569 },
   ];
 
@@ -271,13 +271,20 @@ function buildSceneElements(app: AppStateFull): void {
     new THREE.Vector3(0, 0, 0),
     arrowLen,
     0x22c55e,
-    Math.max(arrowLen * 0.25, 0.002),
-    Math.max(arrowLen * 0.12, 0.001),
+    Math.max(arrowLen * 0.125, 0.001),
+    Math.max(arrowLen * 0.06, 0.0005),
   );
   scene.add(velocityArrow);
 
   const label = makeTextSprite(`v = ${vel.toFixed(1)} m/s`, '#22c55e');
-  label.position.set(0, arrowLen + 0.03, 0);
+  const dir = velocityDirection.clone().normalize();
+  const mid = dir.clone().multiplyScalar(arrowLen / 2);
+  // Perpendicular "up" direction: take world Y, project out the arrow component,
+  // so the label always sits on the top side of the shaft.
+  const worldUp = new THREE.Vector3(0, 1, 0);
+  const perp = worldUp.clone().addScaledVector(dir, -worldUp.dot(dir)).normalize();
+  if (perp.length() < 0.01) perp.set(0, 0, 1);
+  label.position.copy(mid.clone().addScaledVector(perp, 0.01));
   scene.add(label);
   velocityArrowLabel = label;
 
@@ -298,7 +305,7 @@ function buildSceneElements(app: AppStateFull): void {
     cameraGroups.push(group);
 
     const lbl = makeTextSprite(`Cam ${i + 1}`, CAMERA_COLORS[i % CAMERA_COLORS.length]);
-    lbl.position.set(positions[i].x, positions[i].y + 0.3, positions[i].z);
+    lbl.position.set(positions[i].x, positions[i].y + 0.1, positions[i].z);
     scene.add(lbl);
     cameraLabels.push(lbl);
   }
@@ -370,7 +377,7 @@ function updateSpriteScales(): void {
   if (velocityArrowLabel) {
     const d = Math.max(0.1, camPos.distanceTo(velocityArrowLabel.position));
     const s = d / refDist;
-    velocityArrowLabel.scale.set(0.9 * s, 0.225 * s, 1);
+    velocityArrowLabel.scale.set(0.6 * s, 0.15 * s, 1);
   }
   for (const lbl of cameraLabels) {
     const d = Math.max(0.1, camPos.distanceTo(lbl.position));
@@ -429,14 +436,18 @@ function onPointerMove(event: PointerEvent): void {
   setVelocityDirXZ(dir.x, dir.z);
   if (velocityArrow) {
     scene.remove(velocityArrow);
-    velocityArrow = new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), newLen, 0xeab308, Math.max(newLen * 0.25, 0.002), Math.max(newLen * 0.12, 0.001));
+    velocityArrow = new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), newLen, 0xeab308, Math.max(newLen * 0.125, 0.001), Math.max(newLen * 0.06, 0.0005));
     scene.add(velocityArrow);
   }
   arrowHeadHitSphere!.position.copy(dir.clone().multiplyScalar(newLen));
   if (velocityArrowLabel) {
     scene.remove(velocityArrowLabel);
     const lbl = makeTextSprite(`v = ${vel.toFixed(1)} m/s`, '#eab308');
-    lbl.position.set(0, newLen + 0.03, 0);
+    const mid = dir.clone().multiplyScalar(newLen / 2);
+    const worldUp2 = new THREE.Vector3(0, 1, 0);
+    const perp2 = worldUp2.clone().addScaledVector(dir, -worldUp2.dot(dir)).normalize();
+    if (perp2.length() < 0.01) perp2.set(0, 0, 1);
+    lbl.position.copy(mid.clone().addScaledVector(perp2, 0.01));
     scene.add(lbl);
     velocityArrowLabel = lbl;
   }
