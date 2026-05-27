@@ -557,7 +557,7 @@ bindSlider('temporal-jitter', (v) => {
   }
   refreshAll();
 }, '', '', 'temporal-jitter-input');
-bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, '', '');
+bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, '', '');
 
 window.addEventListener('resize', () => {
   drawChart(app);

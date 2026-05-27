@@ -95,7 +95,7 @@
           <div class="rounded-lg border border-slate-800 bg-slate-950 p-2">
             <div class="grid grid-cols-2 gap-2 mb-2">
               <div class="relative">
-                <canvas id="sync-3d-canvas" class="w-full" style="height:280px"></canvas>
+                <canvas id="sync-3d-canvas" class="w-full"></canvas>
                 <div class="absolute top-2 right-2 flex gap-1">
                   <button id="sync-view-overview" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Home</button>
                   <button id="sync-view-object" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Object</button>
@@ -118,7 +118,7 @@
                   <span id="temporal-fps-label" class="text-xs text-slate-600">Kinematic @ 30 fps</span>
                 </div>
                 <canvas id="temporal-chart"></canvas>
-                <div class="mt-1.5">
+                <div class="mt-1">
                   <label class="text-xs font-medium text-slate-500" for="temporal-zoom">Zoom</label>
                   <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
                 </div>
@@ -181,8 +181,8 @@
                   <div class="mb-2">
                     <button id="sync-timing-unit" class="timing-pill" style="height:22px">
                       <span class="timing-pill-dot"></span>
-                      <span class="timing-pill-opt left active" style="padding:0 4px">Frames</span>
-                      <span class="timing-pill-opt right" style="padding:0 4px">ms</span>
+                      <span class="timing-pill-opt left active">Frames</span>
+                      <span class="timing-pill-opt right">ms</span>
                     </button>
                   </div>
                   <div class="space-y-1">
@@ -235,8 +235,8 @@
                 <p class="quick-ctrl-title text-center">Sync with Spatial tab</p>
                 <button id="sync-link-toggle" class="link-pill">
                   <span class="link-pill-dot"></span>
-                  <span class="link-pill-opt left active" style="padding:0 4px">Unlinked</span>
-                  <span class="link-pill-opt right" style="padding:0 4px">Linked</span>
+                  <span class="link-pill-opt left active">Unlinked</span>
+                  <span class="link-pill-opt right">Linked</span>
                 </button>
               </div>
             </div>

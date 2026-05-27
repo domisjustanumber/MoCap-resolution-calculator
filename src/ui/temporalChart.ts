@@ -88,7 +88,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   const parent = canvas.parentElement;
   if (!parent) return;
   const cssW = getCssWidth(parent);
-  const cssH = cssW * (180 / 600);
+  const cssH = Math.max(200, Math.min(400, cssW * 0.45));
   sizeCanvas(canvas, cssW, cssH);
 
   const ctx = getCanvasContext(canvas, cssW, cssH);
