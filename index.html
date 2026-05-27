@@ -97,13 +97,19 @@
               <div class="relative">
                 <canvas id="sync-3d-canvas" class="w-full" style="height:280px"></canvas>
                 <div class="absolute top-2 right-2 flex gap-1">
-                  <button id="sync-view-overview" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Overview</button>
+                  <button id="sync-view-overview" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Home</button>
                   <button id="sync-view-object" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700">Object</button>
                   <div id="sync-view-cam-container" class="flex gap-1"></div>
                 </div>
-                <div class="mt-1 flex gap-4 items-center">
-                  <label class="text-xs text-slate-500">Cameras <input id="sync-camera-count" type="range" min="1" max="6" value="3" class="w-16 align-middle" /> <span id="sync-camera-count-label" class="text-xs font-mono text-slate-400">3</span></label>
-                  <span class="text-xs text-slate-500">Object: <span class="font-mono text-slate-400">1 mm</span></span>
+                <div class="mt-1 flex items-center gap-3">
+                  <span class="flex items-center gap-1">
+                    <input id="sync-show-object" class="h-4 w-4 accent-blue-500" type="checkbox" checked />
+                    <label class="text-xs font-medium text-slate-400" for="sync-show-object">Show true object position</label>
+                  </span>
+                  <span class="flex items-center gap-1">
+                    <input id="sync-show-cloud" class="h-4 w-4 accent-blue-500" type="checkbox" checked />
+                    <label class="text-xs font-medium text-slate-400" for="sync-show-cloud">Show predicted positions</label>
+                  </span>
                 </div>
               </div>
               <div>
@@ -113,34 +119,125 @@
                 </div>
                 <canvas id="temporal-chart"></canvas>
                 <div class="mt-1.5">
-                  <label class="text-xs font-medium text-slate-500" for="temporal-zoom">X-axis scale</label>
+                  <label class="text-xs font-medium text-slate-500" for="temporal-zoom">Zoom</label>
                   <input id="temporal-zoom" class="w-full" type="range" min="10" max="500" step="5" value="200" />
-                  <span id="temporal-zoom-label" class="text-xs font-mono text-slate-400">200 mm</span>
                 </div>
               </div>
             </div>
-            <div class="grid grid-cols-4 gap-1.5">
-              <div class="space-y-1.5">
-                <div class="flex items-center gap-0.5">
+            <!-- Sync quick-control bar -->
+            <div class="flex gap-1.5 items-stretch">
+              <!-- Target Motion -->
+              <div class="flex-1 min-w-0 quick-ctrl">
+                <p class="quick-ctrl-title">Target Motion</p>
+                <div class="flex items-center gap-0.5 mb-1">
                   <button data-velocity="static" class="vel-preset">Static</button>
                   <button data-velocity="walking" class="vel-preset">Walking</button>
                   <button data-velocity="sports" class="vel-preset">Sports</button>
                 </div>
+                <div class="flex items-center gap-1">
+                  <span class="text-[10px] text-slate-500">Velocity</span>
+                  <input id="sync-velocity-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="1.5" />
+                  <input id="sync-velocity-input" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="1.5" />
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap">m/s</span>
+                </div>
+                <div class="flex items-center gap-1 mt-1">
+                  <span class="text-[10px] text-slate-500">Object size</span>
+                  <input id="sync-object-size-slider" class="w-full" type="range" min="1" max="100" step="1" value="10" />
+                  <input id="sync-object-size-input" class="calc-input input-compact w-10" type="number" step="1" min="1" max="100" value="10" />
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap">mm</span>
+                </div>
               </div>
-              <div>
-                <label class="text-xs font-medium text-slate-500" for="temporal-distance">Camera distance</label>
-                <input id="temporal-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="2" />
-                <span id="temporal-distance-label" class="text-xs font-mono text-slate-400">2.0 m</span>
+
+              <!-- Cameras -->
+              <div class="flex-[1.15] min-w-0 flex flex-col gap-1.5">
+                <div class="flex-1 quick-ctrl">
+                  <p class="quick-ctrl-title">Cameras</p>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">Number of cameras</span>
+                      <input id="sync-camera-count" class="w-full" type="range" min="1" max="6" value="3" />
+                      <input id="sync-camera-count-input" class="calc-input input-compact" style="width:44px" type="number" step="1" min="1" max="6" value="3" />
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">Camera distance</span>
+                      <input id="temporal-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="2" />
+                      <input id="temporal-distance-input" class="calc-input input-compact" style="width:44px" type="number" step="0.1" min="0.5" max="20" value="2" />
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">m</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">Camera height</span>
+                      <input id="temporal-height" class="w-full" type="range" min="0" max="5" step="0.1" value="0" />
+                      <input id="temporal-height-input" class="calc-input input-compact" style="width:44px" type="number" step="0.1" min="0" max="5" value="0" />
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">m</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label class="text-xs font-medium text-slate-500" for="temporal-phase">Camera timing spread</label>
-                <input id="temporal-phase" class="w-full" type="range" min="0" max="100" step="0.1" value="16.6" />
-                <span id="temporal-phase-label" class="text-xs font-mono text-slate-400">16.6 ms</span>
+
+              <!-- Timing errors -->
+              <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+                <div class="flex-1 quick-ctrl">
+                  <p class="quick-ctrl-title">Timing errors</p>
+                  <div class="mb-2">
+                    <button id="sync-timing-unit" class="timing-pill" style="height:22px">
+                      <span class="timing-pill-dot"></span>
+                      <span class="timing-pill-opt left active" style="padding:0 4px">Frames</span>
+                      <span class="timing-pill-opt right" style="padding:0 4px">ms</span>
+                    </button>
+                  </div>
+                  <div class="space-y-1">
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">Timing spread</span>
+                      <input id="temporal-phase" class="w-full flex-1" type="range" min="0" max="3" step="0.01" value="0.5" />
+                      <input id="temporal-phase-input" class="calc-input input-compact w-10" type="number" step="0.01" min="0" max="3" value="0.5" />
+                      <span id="temporal-phase-equiv" class="text-[10px] font-mono text-slate-500 w-10 text-right">16.6ms</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                      <span class="text-[10px] text-slate-500 whitespace-nowrap">Timing jitter</span>
+                      <input id="temporal-jitter" class="w-full flex-1" type="range" min="0" max="3" step="0.01" value="0.3" />
+                      <input id="temporal-jitter-input" class="calc-input input-compact w-10" type="number" step="0.01" min="0" max="3" value="0.3" />
+                      <span id="temporal-jitter-equiv" class="text-[10px] font-mono text-slate-500 w-10 text-right">10.0ms</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label class="text-xs font-medium text-slate-500" for="temporal-jitter">Camera timing jitter</label>
-                <input id="temporal-jitter" class="w-full" type="range" min="0" max="100" step="0.1" value="10" />
-                <span id="temporal-jitter-label" class="text-xs font-mono text-slate-400">10.0 ms</span>
+
+              <!-- Region + FPS (stacked) -->
+              <div class="flex-[0.7] min-w-0 flex flex-col gap-1.5">
+                <div class="flex-1 quick-ctrl">
+                  <p class="quick-ctrl-title">Region</p>
+                  <div class="flex items-center gap-0.5" id="sync-region-buttons">
+                    <button data-sync-region="50" class="sync-region-preset region-preset">50Hz</button>
+                    <button data-sync-region="60" class="sync-region-preset region-preset">60Hz</button>
+                    <button data-sync-region="0" class="sync-region-preset region-preset">Free</button>
+                  </div>
+                </div>
+                <div class="flex-1 quick-ctrl">
+                  <p class="quick-ctrl-title">FPS</p>
+                  <div class="flex flex-wrap items-center gap-0.5 mb-1" id="sync-fps-buttons"></div>
+                  <input id="sync-fps-custom" class="calc-input input-compact w-10" type="number" step="1" min="1" max="240" value="30" />
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap">fps</span>
+                </div>
+              </div>
+
+              <!-- Shutter speed -->
+              <div class="flex-1 min-w-0 quick-ctrl">
+                <p class="quick-ctrl-title">Shutter speed</p>
+                <div class="flex items-center gap-0.5">
+                  <span class="text-[10px] text-slate-500">1/</span>
+                  <input id="sync-shutter-input" class="calc-input input-compact w-14" type="number" step="1" min="1" max="10000" value="60" />
+                </div>
+                <input id="sync-shutter-slider" class="w-full mt-1" type="range" min="1" max="10000" step="1" value="60" />
+              </div>
+
+              <!-- Sync with Spatial tab -->
+              <div class="flex-[0.7] min-w-0 quick-ctrl flex flex-col items-center justify-center">
+                <p class="quick-ctrl-title text-center">Sync with Spatial tab</p>
+                <button id="sync-link-toggle" class="link-pill">
+                  <span class="link-pill-dot"></span>
+                  <span class="link-pill-opt left active" style="padding:0 4px">Unlinked</span>
+                  <span class="link-pill-opt right" style="padding:0 4px">Linked</span>
+                </button>
               </div>
             </div>
           </div>
@@ -279,8 +376,12 @@
 
           <!-- Sync Error Toggle -->
           <div class="flex-1 quick-ctrl">
-            <p class="quick-ctrl-title">Include camera sync error</p>
-            <button id="sync-toggle" class="sync-toggle">Off</button>
+            <p class="quick-ctrl-title">Link to Camera Sync</p>
+            <button id="sync-toggle" class="link-pill">
+              <span class="link-pill-dot"></span>
+              <span class="link-pill-opt left active">Unlinked</span>
+              <span class="link-pill-opt right">Linked</span>
+            </button>
           </div>
         </div>
 

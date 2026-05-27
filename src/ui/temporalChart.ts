@@ -1,6 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { getCachedMaxErrors, getCachedRmseErrors, runAndCacheSimulation, getTemporalZoom, computeStats, getSyncInputsHash } from '../temporalState';
+import { getCachedMaxErrors, getCachedRmseErrors, getCachedTotalErrors, runAndCacheSimulation, getTemporalZoom, computeStats, getSyncInputsHash } from '../temporalState';
 
 const CANVAS_Y_MIN = 0.0;
 const CANVAS_Y_MAX = 1.0;
@@ -13,6 +13,7 @@ let appRef: AppStateFull | null = null;
 
 let cachedMaxDensity: Float32Array | null = null;
 let cachedRmseDensity: Float32Array | null = null;
+let cachedTotalDensity: Float32Array | null = null;
 
 function calculateDensityCurve(data: Float32Array, maxZoomMM: number): Float32Array {
   const binCount = 300;
@@ -60,7 +61,8 @@ function ensureDensityCurves(): void {
   runAndCacheSimulation();
   const rawMax = getCachedMaxErrors();
   const rawRmse = getCachedRmseErrors();
-  if (!rawMax || !rawRmse) return;
+  const rawTotal = getCachedTotalErrors();
+  if (!rawMax || !rawRmse || !rawTotal) return;
 
   const h = String(zoomMax) + String(rawMax.length) + getSyncInputsHash();
   if (h === simHash && cachedMaxDensity) return;
@@ -68,6 +70,7 @@ function ensureDensityCurves(): void {
 
   cachedMaxDensity = calculateDensityCurve(rawMax, zoomMax);
   cachedRmseDensity = calculateDensityCurve(rawRmse, zoomMax);
+  cachedTotalDensity = calculateDensityCurve(rawTotal, zoomMax);
 }
 
 export function drawTemporalChart(app: AppStateFull, force = false): void {
@@ -76,7 +79,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   appRef = app;
 
   const zoomMax = getTemporalZoom();
-  const hash = String(zoomMax);
+  const hash = String(zoomMax) + getSyncInputsHash();
   if (hash === lastHash && !force) return;
   lastHash = hash;
 
@@ -100,8 +103,11 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
 
   const maxDensity = cachedMaxDensity ?? new Float32Array(300);
   const rmseDensity = cachedRmseDensity ?? new Float32Array(300);
+  const totalDensity = cachedTotalDensity ?? new Float32Array(300);
   const rawMax = getCachedMaxErrors();
+  const rawTotal = getCachedTotalErrors();
   const maxStats = rawMax ? computeStats(rawMax) : { avg: 0, median: 0, p95: 0 };
+  const totalStats = rawTotal ? computeStats(rawTotal) : { avg: 0, median: 0, p95: 0 };
 
   const xStep = niceStep(zoomMax, 8);
   const px = (mm: number) =>
@@ -139,10 +145,14 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   ctx.textAlign = 'center';
   ctx.fillText('Spatial Error (mm)', pad.left + plotW / 2, cssH - 6);
 
-  drawEnvelope(ctx, maxDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#ef4444');
-  drawEnvelope(ctx, rmseDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#3b82f6');
+  // Sync-only envelopes (faded)
+  drawEnvelope(ctx, maxDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#ef444466', '#ef444444');
+  drawEnvelope(ctx, rmseDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#3b82f666', '#3b82f644');
 
-  drawMarkers(ctx, maxStats, yFloorPixel, plotH, pad, plotW, zoomMax);
+  // Total error envelopes (sync + motion blur)
+  drawEnvelope(ctx, totalDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#f97316', '#f9731622');
+
+  drawMarkers(ctx, totalStats, yFloorPixel, plotH, pad, plotW, zoomMax);
 
   const lx = pad.left + 10;
   const ly = pad.top + 16;
@@ -150,9 +160,11 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   ctx.textAlign = 'left';
 
   ctx.fillStyle = '#ef4444';
-  ctx.fillText('\u2500\u2500 Max Error', lx, ly);
+  ctx.fillText('── Sync Max', lx, ly);
   ctx.fillStyle = '#3b82f6';
-  ctx.fillText('\u2500\u2500 RMSE', lx, ly + 16);
+  ctx.fillText('── Sync RMSE', lx, ly + 16);
+  ctx.fillStyle = '#f97316';
+  ctx.fillText('── Total (sync+blur)', lx, ly + 32);
 
   if (mouseInCanvas && mouseX >= pad.left && mouseX <= cssW - pad.right) {
     const hoverMm = ((mouseX - pad.left) / plotW) * zoomMax;
@@ -172,12 +184,13 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
     const bin = Math.min(binCount - 1, Math.max(0, Math.floor(hoverMm / binStep)));
     const maxD = bin < maxDensity.length ? maxDensity[bin] : 0;
     const rmseD = bin < rmseDensity.length ? rmseDensity[bin] : 0;
+    const totalD = bin < totalDensity.length ? totalDensity[bin] : 0;
 
     const lines = [
       `${hoverMm.toFixed(1)} mm`,
-      `Max: ${maxD.toFixed(3)}`,
-      `RMSE: ${rmseD.toFixed(3)}`,
-      `Max \u03bc=${maxStats.avg.toFixed(1)} \u03c3\u2089\u2085=${maxStats.p95.toFixed(1)}`,
+      `Sync Max: ${maxD.toFixed(3)}`,
+      `Total: ${totalD.toFixed(3)}`,
+      `Total μ=${totalStats.avg.toFixed(1)} σ₉₅=${totalStats.p95.toFixed(1)}`,
     ];
 
     ctx.font = 'bold 11px monospace';
@@ -204,7 +217,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
     ctx.fillStyle = '#ef4444';
     ctx.font = '10px monospace';
     ctx.fillText(lines[1], tipX + 6, tipY + 27);
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = '#f97316';
     ctx.fillText(lines[2], tipX + 6, tipY + 41);
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(lines[3], tipX + 6, tipY + 55);
@@ -221,28 +234,39 @@ function drawEnvelope(
   pad: { left: number; right: number },
   plotW: number,
   zMax: number,
-  color: string,
+  strokeColor: string,
+  fillColor?: string,
 ): void {
   if (densities.length === 0) return;
   const n = densities.length;
 
-  ctx.beginPath();
-  const startX = pad.left;
-  ctx.moveTo(startX, yFloor);
+  if (fillColor) {
+    ctx.beginPath();
+    const startX = pad.left;
+    ctx.moveTo(startX, yFloor);
 
+    for (let i = 0; i < n; i++) {
+      const x = pad.left + (i / (n - 1)) * plotW;
+      const pt = mapZoomedMetricsToPixels(0, densities[i], zMax, yFloor, plotH, pad.left, plotW);
+      ctx.lineTo(x, pt.y);
+    }
+
+    ctx.lineTo(pad.left + plotW, yFloor);
+    ctx.closePath();
+
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
   for (let i = 0; i < n; i++) {
     const x = pad.left + (i / (n - 1)) * plotW;
     const pt = mapZoomedMetricsToPixels(0, densities[i], zMax, yFloor, plotH, pad.left, plotW);
-    ctx.lineTo(x, pt.y);
+    if (i === 0) ctx.moveTo(x, pt.y);
+    else ctx.lineTo(x, pt.y);
   }
 
-  ctx.lineTo(pad.left + plotW, yFloor);
-  ctx.closePath();
-
-  ctx.fillStyle = color + '22';
-  ctx.fill();
-
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 2;
   ctx.stroke();
 }

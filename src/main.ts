@@ -6,16 +6,100 @@ import { drawDistanceChart, setYMax } from './ui/distanceChart';
 import { drawTemporalChart } from './ui/temporalChart';
 import { initMotionControls, updateMotionPresetStyles, syncQcInputsFromParams, setActiveMotionPreset } from './ui/motionControls';
 import { initLuxControls } from './ui/luxControls';
-import { initFpsShutterControls, updateFpsPresetStyles, updateShutterPresetStyles } from './ui/fpsShutterPresets';
+import { initFpsShutterControls, updateFpsPresetStyles, updateShutterPresetStyles, updateFpsLabel } from './ui/fpsShutterPresets';
 import { initOptimizerPanel } from './ui/optimizerPanel';
 import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
 import { updateGainDisplay } from './ui/gainDisplay';
-import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance } from './temporalState';
-import { initScene3d, updateScene3d, resizeScene3d, disposeScene3d, animateToOverview } from './ui/scene3d';
+import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance, getTemporalDistance, setCameraHeight, getCameraHeight, setObjectSizeMm, getObjectSizeMm, setTemporalFrameRate, setTemporalShutterDenom, setTemporalRegionHz, setTemporalVelocityOnly, setSpatialVelocity, setTemporalVelocity, isLinkMode, setLinkMode, getEffectiveFrameRate, getEffectiveShutterDenom, getEffectiveVelocity, getEffectiveRegionHz, getMaxFpsLimit, getTemporalPhase, getTemporalJitter, getPhaseFrames, getJitterFrames, setPhaseFrames, setJitterFrames, isTimingInFrames, setTimingInFrames, setRegionHz, setFrameRate, setShutterDenom } from './temporalState';
+import { initScene3d, updateScene3d, resizeScene3d, disposeScene3d, animateToObject, toggleObjectSphere, toggleBlurCloud } from './ui/scene3d';
 import { initSyncSceneControls } from './ui/syncSceneControls';
 
 const app = createState();
 setTemporalDistance(app.state.distanceToSubject);
+
+function rebuildSyncFpsPresets(): void {
+  const container = document.getElementById('sync-fps-buttons');
+  if (!container) return;
+  container.innerHTML = '';
+  const regionHz = getEffectiveRegionHz();
+  const maxFps = getMaxFpsLimit();
+  const count = 6;
+  let added = 0;
+  if (regionHz > 0 && regionHz / 2 <= maxFps) {
+    const half = regionHz / 2;
+    const btn = document.createElement('button');
+    btn.dataset.syncFps = String(half);
+    btn.className = 'sync-fps-preset fps-preset text-center';
+    btn.textContent = String(half);
+    container.appendChild(btn);
+    added++;
+  }
+  const step = regionHz > 0 ? regionHz : 25;
+  for (let v = step; added < count; v += step) {
+    if (v > 300 || v > maxFps * 2) break;
+    const btn = document.createElement('button');
+    btn.dataset.syncFps = String(v);
+    btn.className = 'sync-fps-preset fps-preset text-center';
+    if (v > maxFps) btn.classList.add('disabled-preset');
+    btn.textContent = String(v);
+    container.appendChild(btn);
+    added++;
+  }
+}
+
+function syncSyncInputs(): void {
+  const fpsInput = document.getElementById('sync-fps-custom') as HTMLInputElement | null;
+  const shutterSlider = document.getElementById('sync-shutter-slider') as HTMLInputElement | null;
+  const shutterInput = document.getElementById('sync-shutter-input') as HTMLInputElement | null;
+  const distInput = document.getElementById('temporal-distance-input') as HTMLInputElement | null;
+  const heightInput = document.getElementById('temporal-height-input') as HTMLInputElement | null;
+  const velSlider = document.getElementById('sync-velocity-slider') as HTMLInputElement | null;
+  const velInput = document.getElementById('sync-velocity-input') as HTMLInputElement | null;
+  if (fpsInput && fpsInput !== document.activeElement) {
+    fpsInput.value = String(getEffectiveFrameRate());
+  }
+  const effDenom = getEffectiveShutterDenom();
+  if (shutterSlider && shutterSlider !== document.activeElement) {
+    shutterSlider.value = String(effDenom);
+  }
+  if (shutterInput && shutterInput !== document.activeElement) {
+    shutterInput.value = String(effDenom);
+  }
+  const distSlider = document.getElementById('temporal-distance') as HTMLInputElement | null;
+  const heightSlider = document.getElementById('temporal-height') as HTMLInputElement | null;
+  if (distInput && distInput !== document.activeElement) {
+    distInput.value = String(getTemporalDistance());
+  }
+  if (distSlider && distSlider !== document.activeElement) {
+    distSlider.value = String(getTemporalDistance());
+  }
+  if (heightInput && heightInput !== document.activeElement) {
+    heightInput.value = String(getCameraHeight());
+  }
+  if (heightSlider && heightSlider !== document.activeElement) {
+    heightSlider.value = String(getCameraHeight());
+  }
+  const effVel = getEffectiveVelocity();
+  if (velSlider && velSlider !== document.activeElement) {
+    velSlider.value = String(effVel);
+  }
+  if (velInput && velInput !== document.activeElement) {
+    velInput.value = String(effVel);
+  }
+  // Rebuild FPS presets for current region, then highlight matching one
+  rebuildSyncFpsPresets();
+  const effFps = String(getEffectiveFrameRate());
+  document.querySelectorAll('.sync-fps-preset').forEach(b => {
+    const btn = b as HTMLButtonElement;
+    btn.classList.toggle('active', btn.dataset.syncFps === effFps);
+  });
+  // Highlight matching Region preset
+  const effHz = String(getEffectiveRegionHz());
+  document.querySelectorAll('.sync-region-preset').forEach(b => {
+    const btn = b as HTMLButtonElement;
+    btn.classList.toggle('active', btn.dataset.syncRegion === effHz);
+  });
+}
 
 let refreshAll = function(): void {
   recalculate(app);
@@ -28,8 +112,95 @@ let refreshAll = function(): void {
   updateGainDisplay(app);
   updateShutterPresetStyles();
   updateFpsPresetStyles();
+  updateFpsLabel();
+  if (isLinkMode()) setTemporalDistance(app.state.distanceToSubject);
   updateScene3d(app);
+  syncSyncInputs();
+  syncTimingSliders();
 };
+
+// One-time init: seed frame values from canonical ms defaults
+function initTimingFrames(): void {
+  const fps = getEffectiveFrameRate();
+  const frameMs = 1000 / fps;
+  if (getPhaseFrames() === 0 && getTemporalPhase() > 0) {
+    setPhaseFrames(getTemporalPhase() / frameMs);
+  }
+  if (getJitterFrames() === 0 && getTemporalJitter() > 0) {
+    setJitterFrames(getTemporalJitter() / frameMs);
+  }
+}
+
+function syncTimingSliders(): void {
+  const spreadSlider = document.getElementById('temporal-phase') as HTMLInputElement | null;
+  const spreadInput = document.getElementById('temporal-phase-input') as HTMLInputElement | null;
+  const spreadEquiv = document.getElementById('temporal-phase-equiv');
+  const jitterSlider = document.getElementById('temporal-jitter') as HTMLInputElement | null;
+  const jitterInput = document.getElementById('temporal-jitter-input') as HTMLInputElement | null;
+  const jitterEquiv = document.getElementById('temporal-jitter-equiv');
+  const fps = getEffectiveFrameRate();
+  const frameMs = 1000 / fps;
+
+  if (isTimingInFrames()) {
+    const sFrames = getPhaseFrames();
+    const sMs = sFrames * frameMs;
+    const jFrames = getJitterFrames();
+    const jMs = jFrames * frameMs;
+    if (spreadSlider && spreadSlider !== document.activeElement) {
+      spreadSlider.min = '0'; spreadSlider.max = '3'; spreadSlider.step = '0.01';
+      spreadSlider.value = sFrames.toFixed(2);
+    }
+    if (spreadInput && spreadInput !== document.activeElement) {
+      spreadInput.min = '0'; spreadInput.max = '3'; spreadInput.step = '0.01';
+      spreadInput.value = sFrames.toFixed(2);
+    }
+    if (jitterSlider && jitterSlider !== document.activeElement) {
+      jitterSlider.min = '0'; jitterSlider.max = '3'; jitterSlider.step = '0.01';
+      jitterSlider.value = jFrames.toFixed(2);
+    }
+    if (jitterInput && jitterInput !== document.activeElement) {
+      jitterInput.min = '0'; jitterInput.max = '3'; jitterInput.step = '0.01';
+      jitterInput.value = jFrames.toFixed(2);
+    }
+    if (spreadEquiv) spreadEquiv.textContent = sMs.toFixed(1) + 'ms';
+    if (jitterEquiv) jitterEquiv.textContent = jMs.toFixed(1) + 'ms';
+    setTemporalPhase(sMs);
+    setTemporalJitter(jMs);
+  } else {
+    const sMs = getTemporalPhase();
+    const sFrames = sMs / frameMs;
+    const jMs = getTemporalJitter();
+    const jFrames = jMs / frameMs;
+    if (spreadSlider && spreadSlider !== document.activeElement) {
+      spreadSlider.min = '0'; spreadSlider.max = '100'; spreadSlider.step = '0.1';
+      spreadSlider.value = sMs.toFixed(1);
+    }
+    if (spreadInput && spreadInput !== document.activeElement) {
+      spreadInput.min = '0'; spreadInput.max = '100'; spreadInput.step = '0.1';
+      spreadInput.value = sMs.toFixed(1);
+    }
+    if (jitterSlider && jitterSlider !== document.activeElement) {
+      jitterSlider.min = '0'; jitterSlider.max = '100'; jitterSlider.step = '0.1';
+      jitterSlider.value = jMs.toFixed(1);
+    }
+    if (jitterInput && jitterInput !== document.activeElement) {
+      jitterInput.min = '0'; jitterInput.max = '100'; jitterInput.step = '0.1';
+      jitterInput.value = jMs.toFixed(1);
+    }
+    if (spreadEquiv) spreadEquiv.textContent = sFrames.toFixed(2) + 'fr';
+    if (jitterEquiv) jitterEquiv.textContent = jFrames.toFixed(2) + 'fr';
+    setPhaseFrames(sFrames);
+    setJitterFrames(jFrames);
+  }
+}
+
+function refreshTemporalOnly(): void {
+  drawTemporalChart(app);
+  updateScene3d(app);
+  updateFpsLabel();
+  syncSyncInputs();
+  syncTimingSliders();
+}
 
 initInputs(app, refreshAll);
 updateOutputs(app);
@@ -54,13 +225,206 @@ initOptimizerPanel(app, refreshAll);
 const canvas3d = document.getElementById('sync-3d-canvas') as HTMLCanvasElement | null;
 if (canvas3d) {
   initScene3d(canvas3d, app);
-  initSyncSceneControls(app, refreshAll);
+  initSyncSceneControls(app, refreshAll, refreshTemporalOnly);
 }
 
+initTimingFrames();
 refreshAll();
 
 if (canvas3d) {
-  animateToOverview();
+  animateToObject();
+}
+
+// --- Sync tab: link toggle ---
+function updateLinkPill(pill: HTMLElement, linked: boolean): void {
+  pill.classList.toggle('linked', linked);
+  const left = pill.querySelector('.link-pill-opt.left') as HTMLElement;
+  const right = pill.querySelector('.link-pill-opt.right') as HTMLElement;
+  if (left) left.classList.toggle('active', !linked);
+  if (right) right.classList.toggle('active', linked);
+}
+
+const linkToggle = document.getElementById('sync-link-toggle');
+if (linkToggle) {
+  updateLinkPill(linkToggle, isLinkMode());
+  linkToggle.addEventListener('click', () => {
+    const linked = !isLinkMode();
+    setLinkMode(linked);
+    updateLinkPill(linkToggle, linked);
+    const spatialPill = document.getElementById('sync-toggle');
+    if (spatialPill) updateLinkPill(spatialPill, linked);
+    syncSyncInputs();
+    refreshAll();
+  });
+}
+
+// --- Sync tab: Velocity slider ---
+const syncVelocitySlider = document.getElementById('sync-velocity-slider') as HTMLInputElement | null;
+const syncVelocityInput = document.getElementById('sync-velocity-input') as HTMLInputElement | null;
+if (syncVelocitySlider && syncVelocityInput) {
+  syncVelocitySlider.value = String(getEffectiveVelocity());
+  syncVelocityInput.value = String(getEffectiveVelocity());
+  const applyVel = (v: number) => {
+    setActiveMotionPreset('custom');
+    updateMotionPresetStyles();
+    if (isLinkMode()) {
+      setTemporalVelocity(v);
+      setSpatialVelocity(v);
+      refreshAll();
+    } else {
+      setTemporalVelocityOnly(v);
+      refreshTemporalOnly();
+    }
+  };
+  syncVelocitySlider.addEventListener('input', () => {
+    const v = parseFloat(syncVelocitySlider.value);
+    if (syncVelocityInput !== document.activeElement) syncVelocityInput.value = String(v);
+    applyVel(v);
+  });
+  syncVelocityInput.addEventListener('input', () => {
+    const v = parseFloat(syncVelocityInput.value);
+    if (isNaN(v)) return;
+    const clamped = Math.max(0, Math.min(20, v));
+    if (syncVelocitySlider !== document.activeElement) syncVelocitySlider.value = String(clamped);
+    applyVel(clamped);
+  });
+}
+
+// --- Sync tab: Object size slider ---
+const syncObjSizeSlider = document.getElementById('sync-object-size-slider') as HTMLInputElement | null;
+const syncObjSizeInput = document.getElementById('sync-object-size-input') as HTMLInputElement | null;
+if (syncObjSizeSlider && syncObjSizeInput) {
+  syncObjSizeSlider.value = String(getObjectSizeMm());
+  syncObjSizeInput.value = String(getObjectSizeMm());
+  const applySize = (v: number) => { setObjectSizeMm(v); refreshAll(); };
+  syncObjSizeSlider.addEventListener('input', () => {
+    const v = parseInt(syncObjSizeSlider.value, 10);
+    if (syncObjSizeInput !== document.activeElement) syncObjSizeInput.value = String(v);
+    applySize(v);
+  });
+  syncObjSizeInput.addEventListener('input', () => {
+    const v = parseInt(syncObjSizeInput.value, 10);
+    if (isNaN(v)) return;
+    const clamped = Math.max(1, Math.min(100, v));
+    if (syncObjSizeSlider !== document.activeElement) syncObjSizeSlider.value = String(clamped);
+    applySize(clamped);
+  });
+}
+
+// --- Sync tab: FPS input ---
+const syncFpsInput = document.getElementById('sync-fps-custom') as HTMLInputElement | null;
+if (syncFpsInput) {
+  syncFpsInput.addEventListener('input', () => {
+    const fps = parseInt(syncFpsInput.value, 10);
+    if (isNaN(fps) || fps < 1) return;
+    if (isLinkMode()) {
+      setFrameRate(fps);
+      refreshAll();
+    } else {
+      setTemporalFrameRate(fps);
+      refreshTemporalOnly();
+    }
+  });
+}
+
+// --- Sync tab: timing unit toggle (ms ↔ frames) ---
+const timingUnitBtn = document.getElementById('sync-timing-unit');
+if (timingUnitBtn) {
+  const updateToggleAppearance = () => {
+    const inFrames = isTimingInFrames();
+    timingUnitBtn.classList.toggle('frames', inFrames);
+    timingUnitBtn.classList.toggle('ms', !inFrames);
+    const leftOpt = timingUnitBtn.querySelector('.timing-pill-opt.left') as HTMLElement;
+    const rightOpt = timingUnitBtn.querySelector('.timing-pill-opt.right') as HTMLElement;
+    if (leftOpt) leftOpt.classList.toggle('active', inFrames);
+    if (rightOpt) rightOpt.classList.toggle('active', !inFrames);
+  };
+  updateToggleAppearance();
+  timingUnitBtn.addEventListener('click', () => {
+    setTimingInFrames(!isTimingInFrames());
+    updateToggleAppearance();
+    syncTimingSliders();
+  });
+}
+
+// --- Sync tab: FPS preset buttons ---
+document.getElementById('sync-fps-buttons')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('[data-sync-fps]') as HTMLButtonElement | null;
+  if (!btn) return;
+  const fps = parseInt(btn.dataset.syncFps || '0', 10);
+  if (!fps || fps > getMaxFpsLimit()) return;
+  if (isLinkMode()) {
+    setFrameRate(fps);
+    refreshAll();
+  } else {
+    setTemporalFrameRate(fps);
+    refreshTemporalOnly();
+  }
+  // Highlight active preset
+  document.querySelectorAll('.sync-fps-preset').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+});
+
+// --- Sync tab: Region buttons ---
+document.getElementById('sync-region-buttons')?.addEventListener('click', (e) => {
+  const btn = (e.target as HTMLElement).closest('[data-sync-region]') as HTMLButtonElement | null;
+  if (!btn) return;
+  const hz = parseInt(btn.dataset.syncRegion || '0', 10);
+  if (isLinkMode()) {
+    setRegionHz(hz);
+    refreshAll();
+  } else {
+    setTemporalRegionHz(hz);
+    refreshTemporalOnly();
+  }
+});
+
+// --- Sync tab: Shutter slider + input ---
+const syncShutterSlider = document.getElementById('sync-shutter-slider') as HTMLInputElement | null;
+const syncShutterInput = document.getElementById('sync-shutter-input') as HTMLInputElement | null;
+const shutterSet = (d: number) => {
+  if (isLinkMode()) {
+    setShutterDenom(d);
+    refreshAll();
+  } else {
+    setTemporalShutterDenom(d);
+    refreshTemporalOnly();
+  }
+};
+if (syncShutterSlider) {
+  syncShutterSlider.addEventListener('input', () => {
+    const d = parseInt(syncShutterSlider.value, 10);
+    if (isNaN(d) || d < 1) return;
+    if (syncShutterInput && syncShutterInput !== document.activeElement) {
+      syncShutterInput.value = String(d);
+    }
+    shutterSet(d);
+  });
+}
+if (syncShutterInput) {
+  syncShutterInput.addEventListener('input', () => {
+    const d = parseInt(syncShutterInput.value, 10);
+    if (isNaN(d) || d < 1) return;
+    const clamped = Math.max(1, Math.min(10000, d));
+    if (syncShutterSlider && syncShutterSlider !== document.activeElement) {
+      syncShutterSlider.value = String(clamped);
+    }
+    shutterSet(clamped);
+  });
+}
+
+// --- Sync tab: show/hide object sphere & point cloud ---
+const showObjectCheckbox = document.getElementById('sync-show-object') as HTMLInputElement | null;
+if (showObjectCheckbox) {
+  showObjectCheckbox.addEventListener('change', () => {
+    toggleObjectSphere(showObjectCheckbox.checked);
+  });
+}
+const showCloudCheckbox = document.getElementById('sync-show-cloud') as HTMLInputElement | null;
+if (showCloudCheckbox) {
+  showCloudCheckbox.addEventListener('change', () => {
+    toggleBlurCloud(showCloudCheckbox.checked);
+  });
 }
 
 // --- Chart tab switching ---
@@ -92,7 +456,12 @@ function switchTab(tab: string): void {
 
   setTimeout(() => {
     if (tab === 'spatial') { drawChart(app, true); drawDistanceChart(app, true); }
-    if (tab === 'temporal') { drawTemporalChart(app, true); resizeScene3d(); }
+    if (tab === 'temporal') {
+      syncSyncInputs();
+      syncTimingSliders();
+      drawTemporalChart(app, true);
+      resizeScene3d();
+    }
   }, 50);
 }
 
@@ -120,25 +489,75 @@ function bindDistYRange(): void {
 bindDistYRange();
 
 // --- Temporal chart sliders ---
-function bindSlider(id: string, setter: (v: number) => void, labelId: string, suffix: string): void {
+function bindSlider(
+  id: string,
+  setter: (v: number) => void,
+  labelId: string,
+  suffix: string,
+  inputId?: string,
+): void {
   const slider = document.getElementById(id) as HTMLInputElement | null;
   const label = document.getElementById(labelId);
+  const input = inputId ? document.getElementById(inputId) as HTMLInputElement | null : null;
   if (!slider) return;
-  slider.addEventListener('input', () => {
-    const val = parseFloat(slider.value);
+
+  const sync = (val: number) => {
     setter(val);
-    if (label) label.textContent = slider.value + suffix;
+    if (label) label.textContent = val + suffix;
+    if (input && input !== document.activeElement) {
+      input.value = String(Math.round(val * 100) / 100);
+    }
+  };
+
+  slider.addEventListener('input', () => {
+    sync(parseFloat(slider.value));
   });
+
+  if (input) {
+    input.addEventListener('input', () => {
+      const v = parseFloat(input.value);
+      if (isNaN(v)) return;
+      const clamped = Math.max(parseFloat(slider.min), Math.min(parseFloat(slider.max), v));
+      if (slider !== document.activeElement) slider.value = String(clamped);
+      sync(clamped);
+    });
+  }
 }
 
 bindSlider('temporal-distance', (v) => {
-  setField(app, 'distanceToSubject', v);
   setTemporalDistance(v);
+  if (isLinkMode()) {
+    setField(app, 'distanceToSubject', v);
+    refreshAll();
+  } else {
+    refreshTemporalOnly();
+  }
+}, '', '', 'temporal-distance-input');
+bindSlider('temporal-height', (v) => {
+  setCameraHeight(v);
   refreshAll();
-}, 'temporal-distance-label', ' m');
-bindSlider('temporal-phase', (v) => { setTemporalPhase(v); refreshAll(); }, 'temporal-phase-label', ' ms');
-bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); refreshAll(); }, 'temporal-jitter-label', ' ms');
-bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, 'temporal-zoom-label', ' mm');
+}, '', '', 'temporal-height-input');
+bindSlider('temporal-phase', (v) => {
+  if (isTimingInFrames()) {
+    setPhaseFrames(v);
+    setTemporalPhase((v * 1000) / getEffectiveFrameRate());
+  } else {
+    setTemporalPhase(v);
+    setPhaseFrames(v / (1000 / getEffectiveFrameRate()));
+  }
+  refreshAll();
+}, '', '', 'temporal-phase-input');
+bindSlider('temporal-jitter', (v) => {
+  if (isTimingInFrames()) {
+    setJitterFrames(v);
+    setTemporalJitter((v * 1000) / getEffectiveFrameRate());
+  } else {
+    setTemporalJitter(v);
+    setJitterFrames(v / (1000 / getEffectiveFrameRate()));
+  }
+  refreshAll();
+}, '', '', 'temporal-jitter-input');
+bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, '', '');
 
 window.addEventListener('resize', () => {
   drawChart(app);

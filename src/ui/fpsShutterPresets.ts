@@ -1,4 +1,4 @@
-import { getFrameRate, getMaxFpsLimit, getShutterDenom, getMaxShutterLimit, getRegionHz, setRegionHz, setFrameRate, setShutterDenom, setTemporalPhase, setTemporalJitter, setTemporalZoom, isSyncToggleOn, setSyncToggle } from '../temporalState';
+import { getFrameRate, getMaxFpsLimit, getShutterDenom, getMaxShutterLimit, getRegionHz, setRegionHz, setFrameRate, setShutterDenom, setTemporalPhase, setTemporalJitter, setTemporalZoom, getEffectiveFrameRate, isLinkMode, setLinkMode } from '../temporalState';
 
 let refreshAll: () => void;
 
@@ -57,7 +57,7 @@ export function updatePresetStyles(selector: string, getValue: () => string | nu
 
 export function updateFpsLabel(): void {
   const label = document.getElementById('temporal-fps-label');
-  if (label) label.textContent = 'Kinematic @ ' + getFrameRate() + ' fps';
+  if (label) label.textContent = 'Kinematic @ ' + getEffectiveFrameRate() + ' fps';
 }
 
 function detectDefaultRegion(): number {
@@ -242,11 +242,27 @@ export function initFpsShutterControls(rf: () => void): void {
 
   const syncToggleBtn = document.getElementById('sync-toggle');
   if (syncToggleBtn) {
+    const updatePill = (linked: boolean) => {
+      syncToggleBtn.classList.toggle('linked', linked);
+      const left = syncToggleBtn.querySelector('.link-pill-opt.left') as HTMLElement;
+      const right = syncToggleBtn.querySelector('.link-pill-opt.right') as HTMLElement;
+      if (left) left.classList.toggle('active', !linked);
+      if (right) right.classList.toggle('active', linked);
+    };
+    updatePill(isLinkMode());
     syncToggleBtn.addEventListener('click', () => {
-      const on = !isSyncToggleOn();
-      setSyncToggle(on);
-      syncToggleBtn.textContent = on ? 'On' : 'Off';
-      syncToggleBtn.classList.toggle('active', on);
+      const linked = !isLinkMode();
+      setLinkMode(linked);
+      updatePill(linked);
+      // Also update the sync tab's link pill if visible
+      const syncPill = document.getElementById('sync-link-toggle');
+      if (syncPill) {
+        syncPill.classList.toggle('linked', linked);
+        const sLeft = syncPill.querySelector('.link-pill-opt.left') as HTMLElement;
+        const sRight = syncPill.querySelector('.link-pill-opt.right') as HTMLElement;
+        if (sLeft) sLeft.classList.toggle('active', !linked);
+        if (sRight) sRight.classList.toggle('active', linked);
+      }
       refreshAll();
     });
   }

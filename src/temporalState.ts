@@ -13,14 +13,27 @@ let zoomMax = 200;
 let targetVelocity = 0;
 let frameRate = 30;
 let shutterDenom = 60;
-let phaseOffset = 16.6;
-let jitterMs = 10.0;
+let phaseOffset = 16.6;       // canonical ms
+let jitterValueMs = 10.0;    // canonical ms
+let phaseFrames = 0;         // display value when in frames mode
+let jitterFrames = 0;
 let errorBudgetMm = 5;
 let snrUndershootPct = DEFAULT_SNR_UNDERSHOOT_PCT;
 let syncToggle = false;
 let maxFps = 240;
 let maxShutterDenom = 8000;
 let regionHz = 50;
+let temporalDistance = 2;
+let cameraHeight = 0;
+let objectSizeMm = 10;
+let timingInFrames = true; // true → sliders display in frames; canonical storage is always ms
+
+// Independent temporal copies for unlinked mode
+let temporalFrameRate = 30;
+let temporalShutterDenom = 60;
+let temporalVelocity = 1.5;
+let temporalRegionHz = 50;
+let linkMode = false;
 
 export function getMotionParams(): MotionParams { return { ...motionParams }; }
 export function getFrameRate(): number { return frameRate; }
@@ -33,12 +46,73 @@ export function getMaxFpsLimit(): number { return maxFps; }
 export function getMaxShutterLimit(): number { return maxShutterDenom; }
 export function isSyncToggleOn(): boolean { return syncToggle; }
 export function getTemporalZoom(): number { return zoomMax; }
-
-let temporalDistance = 2;
-
 export function getTemporalDistance(): number { return temporalDistance; }
 export function setTemporalDistance(m: number): void {
   temporalDistance = clamped(m, 0.5, 20);
+}
+
+export function getCameraHeight(): number { return cameraHeight; }
+export function setCameraHeight(h: number): void {
+  cameraHeight = clamped(h, 0, 5);
+}
+
+export function getObjectSizeMm(): number { return objectSizeMm; }
+export function setObjectSizeMm(mm: number): void {
+  objectSizeMm = clamped(Math.round(mm), 1, 100);
+  motionParams.subjectHalfWidth = objectSizeMm / 1000;
+}
+
+export function isTimingInFrames(): boolean { return timingInFrames; }
+export function setTimingInFrames(on: boolean): void { timingInFrames = on; }
+
+// Link mode
+export function isLinkMode(): boolean { return linkMode; }
+export function setLinkMode(on: boolean): void {
+  linkMode = on;
+  syncToggle = on;
+  if (on) {
+    temporalFrameRate = frameRate;
+    temporalShutterDenom = shutterDenom;
+    temporalVelocity = targetVelocity;
+    temporalRegionHz = regionHz;
+  }
+}
+
+// Effective getters for sync simulation — use temporal copies when unlinked
+export function getEffectiveFrameRate(): number {
+  return linkMode ? frameRate : temporalFrameRate;
+}
+export function getEffectiveShutterDenom(): number {
+  return linkMode ? shutterDenom : temporalShutterDenom;
+}
+export function getEffectiveVelocity(): number {
+  return linkMode ? targetVelocity : temporalVelocity;
+}
+export function getEffectiveRegionHz(): number {
+  return linkMode ? regionHz : temporalRegionHz;
+}
+
+// Temporal-only setters (for sync tab controls in unlinked mode)
+export function setTemporalFrameRate(fps: number): void {
+  temporalFrameRate = clamped(Math.round(fps), 1, maxFps);
+  if (temporalShutterDenom < temporalFrameRate) {
+    temporalShutterDenom = snapShutterToRegion(temporalFrameRate, temporalRegionHz, temporalFrameRate, maxShutterDenom, 'ceil');
+  }
+}
+export function setTemporalShutterDenom(d: number): void {
+  temporalShutterDenom = clamped(Math.round(d), temporalFrameRate, maxShutterDenom);
+}
+export function setTemporalRegionHz(hz: number): void {
+  temporalRegionHz = hz;
+  temporalFrameRate = snapFpsToRegion(temporalFrameRate, hz, maxFps, 'nearest');
+  if (temporalShutterDenom < temporalFrameRate) {
+    temporalShutterDenom = snapShutterToRegion(temporalFrameRate, hz, temporalFrameRate, maxShutterDenom, 'ceil');
+  } else {
+    temporalShutterDenom = Math.max(temporalFrameRate, snapShutterToRegion(temporalShutterDenom, hz, temporalFrameRate, maxShutterDenom, 'nearest'));
+  }
+}
+export function setTemporalVelocityOnly(v: number): void {
+  temporalVelocity = clamped(v, 0, 20);
 }
 
 export function setMotionParams(p: Partial<MotionParams>): void {
@@ -70,14 +144,26 @@ export function setSpatialVelocity(v: number): void {
 
 export function setTemporalVelocity(v: number): void {
   targetVelocity = clamped(v, 0, 20);
+  if (linkMode) temporalVelocity = targetVelocity;
 }
 
+export function getTemporalPhase(): number { return phaseOffset; }
 export function setTemporalPhase(ms: number): void {
   phaseOffset = clamped(ms, 0, 300);
 }
 
+export function getTemporalJitter(): number { return jitterValueMs; }
 export function setTemporalJitter(ms: number): void {
-  jitterMs = clamped(ms, 0, 300);
+  jitterValueMs = clamped(ms, 0, 300);
+}
+
+export function getPhaseFrames(): number { return phaseFrames; }
+export function getJitterFrames(): number { return jitterFrames; }
+export function setPhaseFrames(f: number): void {
+  phaseFrames = clamped(f, 0, 3);
+}
+export function setJitterFrames(f: number): void {
+  jitterFrames = clamped(f, 0, 3);
 }
 
 export function setTemporalZoom(max: number): void {
@@ -88,11 +174,14 @@ export function setFrameRate(fps: number): void {
   frameRate = clamped(Math.round(fps), 1, maxFps);
   if (shutterDenom < frameRate) {
     shutterDenom = snapShutterToRegion(frameRate, regionHz, frameRate, maxShutterDenom, 'ceil');
+    if (linkMode) temporalShutterDenom = shutterDenom;
   }
+  if (linkMode) temporalFrameRate = frameRate;
 }
 
 export function setShutterDenom(d: number): void {
   shutterDenom = clamped(Math.round(d), frameRate, maxShutterDenom);
+  if (linkMode) temporalShutterDenom = shutterDenom;
 }
 
 export function setErrorBudget(mm: number): void {
@@ -115,6 +204,11 @@ export function setRegionHz(hz: number): void {
   } else {
     shutterDenom = Math.max(frameRate, snapShutterToRegion(shutterDenom, hz, frameRate, maxShutterDenom, 'nearest'));
   }
+  if (linkMode) {
+    temporalRegionHz = hz;
+    temporalFrameRate = frameRate;
+    temporalShutterDenom = shutterDenom;
+  }
 }
 
 export function setMaxFpsLimit(max: number): void { maxFps = max; }
@@ -127,7 +221,7 @@ export function getTemporalCameraCount(): number { return temporalCameraCount; }
 export function setTemporalCameraCount(n: number): void {
   temporalCameraCount = clamped(Math.round(n), 1, 6);
 }
-export function getTemporalVelocity(): number { return targetVelocity; }
+export function getTemporalVelocity(): number { return getEffectiveVelocity(); }
 
 // Camera placement angles (degrees in XZ plane) for each count
 const CAMERA_ANGLES: Record<number, number[]> = {
@@ -162,6 +256,8 @@ const SAMPLE_SIZE = 2500;
 interface SimResult {
   maxErrors: Float32Array;
   rmseErrors: Float32Array;
+  maxBlurs: Float32Array;
+  totalErrors: Float32Array;
 }
 
 function gaussRandom(): number {
@@ -172,27 +268,36 @@ function gaussRandom(): number {
 
 function makeSimHash(): string {
   return [
-    targetVelocity, frameRate, phaseOffset, jitterMs, temporalCameraCount,
-    velocityDirX.toFixed(3), velocityDirZ.toFixed(3), temporalDistance,
+    getEffectiveVelocity(), getEffectiveFrameRate(), getEffectiveShutterDenom(),
+    phaseOffset, jitterValueMs, temporalCameraCount,
+    velocityDirX.toFixed(3), velocityDirZ.toFixed(3),
+    temporalDistance, cameraHeight, objectSizeMm,
   ].join('|');
 }
 
 function runSimulation(): SimResult {
-  const fps = frameRate;
+  const fps = getEffectiveFrameRate();
   const phaseMs = phaseOffset;
-  const jitMs = jitterMs;
+  const jitMs = jitterValueMs;
   const frameTimeMs = 1000 / fps;
-  const v_mm_ms = targetVelocity;
+  const v_mm_ms = getEffectiveVelocity();
   const count = temporalCameraCount;
   const angles = getCameraAngles(count);
+  const shutterTimeMs = 1000 / getEffectiveShutterDenom();
 
-  // Precompute tangential sensitivity factor for each camera angle
-  // Camera at angle θ has view direction toward origin; its tangential
-  // (image-plane) direction in XZ is (cos θ, sin θ). The component of
-  // subject velocity visible as lateral motion is |vel_dir · tang_dir|.
+  // Precompute tangential sensitivity factor for each camera angle in 3D.
+  // Camera at (D·sinθ, h, -D·cosθ) looks at origin. View elevation reduces
+  // the component of horizontal velocity visible as lateral image motion.
+  const D = temporalDistance;
+  const h = cameraHeight;
+  const elevRatio = D / Math.sqrt(D * D + h * h); // cos(elevation)
   const tangFactors = angles.map(deg => {
     const rad = (deg * Math.PI) / 180;
-    return Math.abs(velocityDirX * Math.cos(rad) + velocityDirZ * Math.sin(rad));
+    // View direction XZ component (toward origin), scaled by elevation ratio
+    const viewX = -Math.sin(rad) * elevRatio;
+    const viewZ =  Math.cos(rad) * elevRatio;
+    const dot = velocityDirX * viewX + velocityDirZ * viewZ;
+    return Math.sqrt(Math.max(0, 1 - dot * dot));
   });
 
   // phaseMs = total spread between first and last camera
@@ -200,17 +305,16 @@ function runSimulation(): SimResult {
 
   const maxErrors = new Float32Array(SAMPLE_SIZE);
   const rmseErrors = new Float32Array(SAMPLE_SIZE);
+  const maxBlurs = new Float32Array(SAMPLE_SIZE);
+  const totalErrors = new Float32Array(SAMPLE_SIZE);
 
   for (let i = 0; i < SAMPLE_SIZE; i++) {
     const basePhase = Math.random() * frameTimeMs;
-    // Generate independent timing signal for each camera
     const times: number[] = [];
     for (let c = 0; c < count; c++) {
       times.push(basePhase + c * stepMs + gaussRandom() * jitMs);
     }
 
-    // Max spatial error across all camera pairs, weighted by angular sensitivity
-    // and inversely proportional to camera distance
     let maxError = 0;
     for (let a = 0; a < count; a++) {
       for (let b = a + 1; b < count; b++) {
@@ -222,9 +326,21 @@ function runSimulation(): SimResult {
     }
     maxErrors[i] = maxError;
     rmseErrors[i] = maxError / Math.sqrt(2);
+
+    // Motion blur: subject displacement during the exposure window.
+    // Each camera sees smear scaled by its tangFactor; worst camera dominates.
+    let maxBlur = 0;
+    for (let c = 0; c < count; c++) {
+      const blur = v_mm_ms * shutterTimeMs * tangFactors[c];
+      if (blur > maxBlur) maxBlur = blur;
+    }
+    maxBlurs[i] = maxBlur;
+    // Object physical size is inherent uncertainty — can't locate centroid
+    // more precisely than the object's own radius. Added in quadrature.
+    totalErrors[i] = Math.sqrt((maxError + maxBlur) ** 2 + objectSizeMm ** 2);
   }
 
-  return { maxErrors, rmseErrors };
+  return { maxErrors, rmseErrors, maxBlurs, totalErrors };
 }
 
 export function computeStats(data: Float32Array): { avg: number; median: number; p95: number } {
@@ -238,24 +354,37 @@ export function computeStats(data: Float32Array): { avg: number; median: number;
 let simHash = '';
 let cachedMaxErrors: Float32Array | null = null;
 let cachedRmseErrors: Float32Array | null = null;
+let cachedMaxBlurs: Float32Array | null = null;
+let cachedTotalErrors: Float32Array | null = null;
 let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
+let cachedTotalStats: { avg: number; median: number; p95: number } | null = null;
 
 export function getCachedMaxErrors(): Float32Array | null { return cachedMaxErrors; }
 export function getCachedRmseErrors(): Float32Array | null { return cachedRmseErrors; }
+export function getCachedMaxBlurs(): Float32Array | null { return cachedMaxBlurs; }
+export function getCachedTotalErrors(): Float32Array | null { return cachedTotalErrors; }
 
 export function runAndCacheSimulation(): void {
   const inputHash = makeSimHash();
   if (inputHash === simHash && cachedMaxErrors) return;
   simHash = inputHash;
-  const { maxErrors, rmseErrors } = runSimulation();
+  const { maxErrors, rmseErrors, maxBlurs, totalErrors } = runSimulation();
   cachedMaxErrors = maxErrors;
   cachedRmseErrors = rmseErrors;
+  cachedMaxBlurs = maxBlurs;
+  cachedTotalErrors = totalErrors;
   cachedMaxStats = computeStats(maxErrors);
+  cachedTotalStats = computeStats(totalErrors);
 }
 
 export function getSyncErrorP95(): number {
   runAndCacheSimulation();
   return cachedMaxStats!.p95;
+}
+
+export function getTotalErrorP95(): number {
+  runAndCacheSimulation();
+  return cachedTotalStats!.p95;
 }
 
 export function getSyncInputsHash(): string {
