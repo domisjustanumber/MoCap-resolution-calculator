@@ -19,6 +19,8 @@
     "vitest": "^4.1.7"
   },
   "dependencies": {
-    "@playwright/test": "^1.60.0"
+    "@playwright/test": "^1.60.0",
+    "@types/three": "^0.184.1",
+    "three": "^0.184.0"
   }
 }

@@ -1,4 +1,4 @@
-import { getMotionParams, setMotionParams, setAcceleration, setAngularVelocity, setTemporalVelocity } from '../temporalState';
+import { getMotionParams, setMotionParams, setTemporalVelocity } from '../temporalState';
 import { updatePresetStyles } from './fpsShutterPresets';
 import type { MotionParams } from '../types';
 import { setInputIfNotFocused } from './domUtils';
@@ -24,14 +24,6 @@ export function syncQcInputsFromParams(p?: MotionParams): void {
   const m = p ?? getMotionParams();
   setInputIfNotFocused('exp-accel-target', m.acceleration.toFixed(1));
   setInputIfNotFocused('exp-rot-target', String(Math.round(m.angularVelocity)));
-  const setSliderAndInput = (sliderId: string, inputId: string, value: number, decimals: number) => {
-    const slider = document.getElementById(sliderId) as HTMLInputElement | null;
-    const input = document.getElementById(inputId) as HTMLInputElement | null;
-    if (slider) slider.value = value.toFixed(decimals);
-    if (input && input !== document.activeElement) input.value = value.toFixed(decimals);
-  };
-  setSliderAndInput('temporal-motion-accel', 'temporal-motion-accel-input', m.acceleration, 1);
-  setSliderAndInput('temporal-motion-angular', 'temporal-motion-angular-input', m.angularVelocity, 0);
 }
 
 function applyMotionPreset(preset: string): void {
@@ -85,9 +77,6 @@ export function initMotionControls(rf: () => void): void {
       applyMotionPreset(preset);
     });
   });
-
-  bindMotionSlider('temporal-motion-accel', 'temporal-motion-accel-input', setAcceleration);
-  bindMotionSlider('temporal-motion-angular', 'temporal-motion-angular-input', setAngularVelocity);
 
   updateMotionPresetStyles();
 }

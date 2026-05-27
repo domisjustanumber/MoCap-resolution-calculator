@@ -185,6 +185,10 @@ html {
     @apply cursor-grabbing;
   }
 
+  .sync-summary {
+    @apply text-sm leading-relaxed text-slate-300 mb-1;
+  }
+
   /* ── Distance chart Y-axis slider column ── */
   .vertical-slider-col {
     @apply flex flex-col items-center w-4;

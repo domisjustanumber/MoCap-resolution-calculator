@@ -10,9 +10,12 @@ import { initFpsShutterControls, updateFpsPresetStyles, updateShutterPresetStyle
 import { initOptimizerPanel } from './ui/optimizerPanel';
 import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
 import { updateGainDisplay } from './ui/gainDisplay';
-import { setTemporalPhase, setTemporalJitter, setTemporalZoom } from './temporalState';
+import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance } from './temporalState';
+import { initScene3d, updateScene3d, resizeScene3d, disposeScene3d, animateToOverview } from './ui/scene3d';
+import { initSyncSceneControls } from './ui/syncSceneControls';
 
 const app = createState();
+setTemporalDistance(app.state.distanceToSubject);
 
 let refreshAll = function(): void {
   recalculate(app);
@@ -25,6 +28,7 @@ let refreshAll = function(): void {
   updateGainDisplay(app);
   updateShutterPresetStyles();
   updateFpsPresetStyles();
+  updateScene3d(app);
 };
 
 initInputs(app, refreshAll);
@@ -47,7 +51,17 @@ initLuxControls(app, refreshAll);
 initFpsShutterControls(refreshAll);
 initOptimizerPanel(app, refreshAll);
 
+const canvas3d = document.getElementById('sync-3d-canvas') as HTMLCanvasElement | null;
+if (canvas3d) {
+  initScene3d(canvas3d, app);
+  initSyncSceneControls(app, refreshAll);
+}
+
 refreshAll();
+
+if (canvas3d) {
+  animateToOverview();
+}
 
 // --- Chart tab switching ---
 let activeTab = 'spatial';
@@ -78,12 +92,18 @@ function switchTab(tab: string): void {
 
   setTimeout(() => {
     if (tab === 'spatial') { drawChart(app, true); drawDistanceChart(app, true); }
-    if (tab === 'temporal') drawTemporalChart(app, true);
+    if (tab === 'temporal') { drawTemporalChart(app, true); resizeScene3d(); }
   }, 50);
 }
 
-document.getElementById('tab-spatial')?.addEventListener('click', () => switchTab('spatial'));
-document.getElementById('tab-temporal')?.addEventListener('click', () => switchTab('temporal'));
+document.getElementById('tab-spatial')?.addEventListener('click', () => {
+  switchTab('spatial');
+  window.history.pushState({ tab: 'spatial' }, '', '/');
+});
+document.getElementById('tab-temporal')?.addEventListener('click', () => {
+  switchTab('temporal');
+  window.history.pushState({ tab: 'temporal' }, '', '/camera-sync');
+});
 
 // --- Y-axis scale for distance chart ---
 function bindDistYRange(): void {
@@ -113,14 +133,27 @@ function bindSlider(id: string, setter: (v: number) => void, labelId: string, su
 
 bindSlider('temporal-distance', (v) => {
   setField(app, 'distanceToSubject', v);
+  setTemporalDistance(v);
   refreshAll();
 }, 'temporal-distance-label', ' m');
-bindSlider('temporal-phase', (v) => { setTemporalPhase(v); drawTemporalChart(app, true); }, 'temporal-phase-label', ' ms');
-bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); drawTemporalChart(app, true); }, 'temporal-jitter-label', ' ms');
-bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); drawTemporalChart(app, true); }, 'temporal-zoom-label', ' mm');
+bindSlider('temporal-phase', (v) => { setTemporalPhase(v); refreshAll(); }, 'temporal-phase-label', ' ms');
+bindSlider('temporal-jitter', (v) => { setTemporalJitter(v); refreshAll(); }, 'temporal-jitter-label', ' ms');
+bindSlider('temporal-zoom', (v) => { setTemporalZoom(v); refreshAll(); }, 'temporal-zoom-label', ' mm');
 
 window.addEventListener('resize', () => {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
+  resizeScene3d();
 });
+
+window.addEventListener('popstate', (e) => {
+  const tab = e.state?.tab === 'temporal' ? 'temporal' : 'spatial';
+  switchTab(tab);
+});
+
+const initialPath = window.location.pathname.replace(/\/+$/, '');
+if (initialPath === '/camera-sync') {
+  switchTab('temporal');
+  window.history.replaceState({ tab: 'temporal' }, '', '/camera-sync');
+}
