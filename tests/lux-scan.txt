@@ -1,0 +1,12 @@
+lux=100 snr=12.37
+lux=200 snr=16.28
+lux=300 snr=18.39
+lux=400 snr=19.82
+lux=500 snr=20.90
+lux=600 snr=21.77
+lux=700 snr=22.50
+lux=800 snr=23.12
+lux=900 snr=23.66
+lux=1000 snr=24.15
+lux=1500 snr=25.99
+lux=2000 snr=27.28

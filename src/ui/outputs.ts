@@ -1,9 +1,10 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatFov, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY } from '../constants';
-import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from './temporalChart';
+import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep, darkCurrentAtTemp, chromaSnrPenaltyDb } from '../constants';
+import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
+import { motionHeadroom } from '../optimizer';
 
 export function updateOutputs(app: AppStateFull): void {
   const r = app.results;
@@ -86,12 +87,6 @@ let exposurePanelApp: AppStateFull | null = null;
 let exposurePanelRefresh: (() => void) | null = null;
 let onMotionTargetEdited: (() => void) | null = null;
 
-function clampStep(value: number, min: number, max: number, step: number): number {
-  let v = Math.max(min, Math.min(max, value));
-  if (step > 0) v = Math.round(v / step) * step;
-  return Math.max(min, Math.min(max, v));
-}
-
 function setMarkerPosition(marker: HTMLElement, value: number, barMax: number): void {
   const pct = Math.max(0, Math.min(100, (value / barMax) * 100));
   marker.style.left = pct + '%';
@@ -114,10 +109,13 @@ function updateSnrBar(app: AppStateFull): void {
   const shutterTime = getShutterTime();
   const actualElectrons = e.electronsPerPxPerSec * Math.max(0.00001, shutterTime);
   const radiometry = SENSOR_RADIOMETRY[app.activeSensorPreset] || DEFAULT_RADIOMETRY;
-  const RN2 = radiometry.readNoiseE * radiometry.readNoiseE;
-  const DC = radiometry.darkCurrentE * shutterTime;
+  const effectiveGain = app.state.gain > 0 ? app.state.gain : 1.0;
+  const effectiveReadNoiseE = radiometry.readNoiseE / effectiveGain;
+  const RN2 = effectiveReadNoiseE * effectiveReadNoiseE;
+  const DC = darkCurrentAtTemp(radiometry.darkCurrentE, app.state.temperatureC) * shutterTime;
   const totalNoise = Math.sqrt(actualElectrons + RN2 + DC);
-  const snr = totalNoise > 0 ? 20 * Math.log10(actualElectrons / totalNoise) : 0;
+  const snrRaw = totalNoise > 0 ? 20 * Math.log10(actualElectrons / totalNoise) : 0;
+  const snr = snrRaw - chromaSnrPenaltyDb(app.state);
   const target = app.state.desiredSnrDb;
   const snrRounded = Math.round(snr * 10) / 10;
 
@@ -150,8 +148,7 @@ function updateAccelBar(): void {
 
   const fps = getFrameRate();
   const motion = getMotionParams();
-  const epsilon = getErrorBudget() / 1000;
-  const maxAccel = epsilon * fps * fps;
+  const { maxAccel } = motionHeadroom(motion, fps, getErrorBudget());
   const target = motion.acceleration;
 
   label.textContent = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
@@ -183,8 +180,7 @@ function updateRotBar(): void {
 
   const fps = getFrameRate();
   const motion = getMotionParams();
-  const epsilon = getErrorBudget() / 1000;
-  const maxTurn = (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI);
+  const { maxTurn } = motionHeadroom(motion, fps, getErrorBudget());
   const target = motion.angularVelocity;
 
   label.textContent = maxTurn.toLocaleString() + ' °/s';
@@ -338,6 +334,13 @@ export function initExposurePanel(
     isMotion: true,
     apply: (value) => setAngularVelocity(value),
   });
+}
+
+export function showOptimizerWarning(text: string, cssClass: string): void {
+  const banner = document.getElementById('bottleneck-banner');
+  if (!banner) return;
+  banner.className = `mt-3 mb-3 rounded-lg border ${cssClass} p-3 text-xs`;
+  banner.textContent = text;
 }
 
 function updateBottleneckBanner(type: BottleneckType, app: AppStateFull): void {

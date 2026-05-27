@@ -1,0 +1,4 @@
+1920@1/30: minF=197.81 snr=23.11
+1920@1/60: minF=98.63 snr=19.82
+spatial 60 vs 30 worthwhile: true
+optimize: 60/1920x1080 minF=98.63

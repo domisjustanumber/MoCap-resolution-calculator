@@ -1,0 +1,2 @@
+slack10: fps=30 sd=60 res=1920x1080 minF=98.63157808254131 snrMet=false
+slack20: fps=30 sd=120 res=1920x1080 minF=49.24771391812513 snrMet=false

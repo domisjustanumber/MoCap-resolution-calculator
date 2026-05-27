@@ -1,4 +1,4 @@
-import type { OutputFormat, SensorRadiometry } from './types';
+import type { AppState, OutputFormat, SensorRadiometry } from './types';
 
 export const WAVELENGTH_PRESETS: Array<{
   label: string;
@@ -35,21 +35,10 @@ export function wavelengthColor(nm: number): string {
   return '#dc2626';
 }
 
-export const FORMAT_LABELS: Record<OutputFormat, string> = {
-  uyuv: 'UYVY (YUV 4:2:2)',
-  nv12: 'NV12 (YUV 4:2:0)',
-  mjpg: 'MJPG (Motion JPEG)',
-  h264: 'H.264 (AVC)',
-  raw8: 'RAW8 (Bayer 8-bit)',
-  raw10: 'RAW10 (Bayer 10-bit)',
-};
-
-export const VISIBLE_MAX_NM = 780;
 export const WAVELENGTH_MIN = 380;
 export const WAVELENGTH_MAX = 2500;
 export const APERTURE_MIN = 1.0;
 export const APERTURE_MAX = 32;
-export const SENSOR_DENOMINATOR_MIN = 0.1;
 export const MJPG_BLOCK_SIZE_PX = 8;
 export const H264_MB_SIZE_PX = 16;
 export const H264_QP_MIN = 0;
@@ -91,9 +80,41 @@ export const LUX_MAX = 110000;
 export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
 export const DEFAULT_SNR_UNDERSHOOT_PCT = 10;
-export const SNR_UNDERSHOOT_PCT_MIN = 0;
-export const SNR_UNDERSHOOT_PCT_MAX = 50;
 export const MOTION_UNDERSHOOT_IMPROVEMENT_PCT = 20;
+
+export function chromaFormatEfficiencyPenalty(state: Readonly<AppState>): number {
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    return state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
+  }
+  return 1;
+}
+
+export function chromaSnrPenaltyDb(state: Readonly<AppState>): number {
+  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
+    return state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
+  }
+  return 0;
+}
+
+export const LENS_TIER_DR: Record<string, number> = {
+  'cheap-plastic': 59,
+  'mid-glass': 66,
+  'premium-stack': 90,
+};
+
+export function clamped(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+export function clampStep(value: number, min: number, max: number, step: number): number {
+  let v = Math.max(min, Math.min(max, value));
+  if (step > 0) v = Math.round(v / step) * step;
+  return Math.max(min, Math.min(max, v));
+}
+
+export function darkCurrentAtTemp(dc25: number, tempC: number): number {
+  return dc25 * Math.pow(2, (tempC - 25) / DARK_CURRENT_DOUBLING_C);
+}
 
 export const DEFAULT_RADIOMETRY: SensorRadiometry = {
   qePercent: 60,

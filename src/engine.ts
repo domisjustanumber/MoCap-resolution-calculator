@@ -9,12 +9,9 @@ import {
   FORMAT_EFFICIENCY_H264_RANGE,
   H264_QP_MAX,
   H264_BITRATE_REF_BPP,
-  CHROMA_UYVY_PENALTY,
-  CHROMA_OTHER_PENALTY,
-  CHROMA_UYVY_SNR_DB,
-  CHROMA_OTHER_SNR_DB,
   BOTTLENECK_RATIO,
-  RAW_FORMATS,
+  chromaFormatEfficiencyPenalty,
+  chromaSnrPenaltyDb,
 } from './constants';
 import { calculateExposureOptimizer } from './exposure';
 
@@ -79,6 +76,26 @@ export function calculateDerived(state: Readonly<AppState>): DerivedState {
   };
 }
 
+export interface ImageVelocity {
+  vEff: number;
+  vRot: number;
+  vTotal: number;
+  vImg: number;
+}
+
+export function computeImageVelocity(
+  motion: MotionParams,
+  shutterTime: number,
+  focalLength: number,
+  distance: number,
+): ImageVelocity {
+  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterTime;
+  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
+  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
+  const vImg = vTotal * focalLength / Math.max(0.1, distance);
+  return { vEff, vRot, vTotal, vImg };
+}
+
 export function calculateDiffractionCutoff(aperture: number, wavelengthNm: number): number {
   const wavelengthMm = wavelengthNm / 1_000_000;
   return 1 / (wavelengthMm * aperture);
@@ -116,14 +133,9 @@ export function calculateResults(
     const bitrateEfficiency = Math.min(1, bpp / H264_BITRATE_REF_BPP);
     formatEfficiency = Math.min(qpEfficiency, bitrateEfficiency);
   }
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    formatEfficiency *= state.outputFormat === 'uyuv' ? CHROMA_UYVY_PENALTY : CHROMA_OTHER_PENALTY;
-  }
+  formatEfficiency *= chromaFormatEfficiencyPenalty(state);
 
-  const vEff = motion.linearVelocity + 0.5 * motion.acceleration * shutterTime;
-  const vRot = (motion.angularVelocity * Math.PI / 180) * motion.subjectHalfWidth;
-  const vTotal = Math.sqrt(vEff * vEff + vRot * vRot);
-  const vImg = vTotal * state.focalLength / Math.max(0.1, state.distanceToSubject);
+  const { vImg } = computeImageVelocity(motion, shutterTime, state.focalLength, state.distanceToSubject);
   const fTemporal50 = vImg > 1e-6 ? MOTION_MTF50_CONST / (vImg * shutterTime) : Infinity;
 
   // Dynamic Range: minimum detectable contrast from noise floor
@@ -184,8 +196,8 @@ export function calculateResults(
     headroomStops: 0,
   };
 
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    const snrPenaltyDb = state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
+  const snrPenaltyDb = chromaSnrPenaltyDb(state);
+  if (snrPenaltyDb > 0) {
     finalExposure = { ...finalExposure, snrAtOptimalDb: Math.max(0, finalExposure.snrAtOptimalDb - snrPenaltyDb) };
   }
 
@@ -215,23 +227,8 @@ export function formatLpMm(value: number): string {
   return value.toFixed(1);
 }
 
-export function formatUm(value: number): string {
-  if (value >= 10) return value.toFixed(1);
-  return value.toFixed(2);
-}
-
 export function formatFov(value: number): string {
   return value.toFixed(1) + '\u00b0';
-}
-
-export function formatAperture(value: number): string {
-  return value.toFixed(1);
-}
-
-export function formatFeatureMm(value: number): string {
-  if (value >= 10) return value.toFixed(1);
-  if (value >= 1) return value.toFixed(2);
-  return value.toFixed(3);
 }
 
 const COMMON_SENSOR_DENOMS = [1.0, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 3.0, 3.2, 3.4, 3.6, 4.0, 5.0];

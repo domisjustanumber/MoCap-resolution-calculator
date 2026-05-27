@@ -49,18 +49,6 @@ test.describe('Light level default', () => {
   });
 });
 
-test.describe('Acceleration tab', () => {
-  test('shows subject acceleration and rotation cards', async ({ page }) => {
-    await page.goto('/');
-    await page.click('#tab-acceleration');
-    await page.waitForTimeout(300);
-    const subjAccel = page.locator('#accel-subject-accel');
-    const subjRot = page.locator('#accel-subject-rot');
-    await expect(subjAccel).toBeVisible();
-    await expect(subjRot).toBeVisible();
-  });
-});
-
 test.describe('Build output', () => {
   test('page loads without console errors', async ({ page }) => {
     const errors: string[] = [];

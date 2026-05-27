@@ -1,10 +1,11 @@
-﻿import type { AppStateFull, AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams, ReadoutMethod } from './types';
+import type { AppStateFull, AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams, ReadoutMethod } from './types';
 import { calculateDerived, calculateResults } from './engine';
 import { calculateExposureOptimizer } from './exposure';
 import { SENSOR_RADIOMETRY, SENSOR_GEOMETRY } from '../presets';
 import type { SensorGeometry, V4l2Mode } from '../presets';
-import { DEFAULT_RADIOMETRY, RAW_FORMATS, CHROMA_UYVY_SNR_DB, CHROMA_OTHER_SNR_DB, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
-import { getRegionHz } from './ui/temporalChart';
+import { DEFAULT_RADIOMETRY, chromaSnrPenaltyDb, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
+import { getRegionHz } from './temporalState';
+import { readoutTypeToMethod } from './state';
 import { shuttersForFpsSearch, snapTimingPreservingSnr, enumerateRegionFpsValues } from './temporalQuantize';
 
 export interface OptimizationResult {
@@ -18,6 +19,7 @@ export interface OptimizationResult {
   readoutMethod: ReadoutMethod;
   minFeatureSize: number;
   snrMet: boolean;
+  optimalGain: number;
 }
 
 interface CandidateSpec {
@@ -48,6 +50,7 @@ interface ResolvedCandidate {
   maxShutter: number;
   targetFreq: number;
   snrDb: number;
+  exposure: ExposureOptimization;
 }
 
 export function minAcceptableSnrDb(desiredSnrDb: number, undershootPct: number): number {
@@ -264,6 +267,7 @@ export function runOptimization(
           maxShutter: c.maxShutterDenom,
           targetFreq: baseline.fEffective,
           snrDb: baselineStrict.snrDb,
+          exposure: baselineStrict.exposure,
         };
       }
     }
@@ -289,6 +293,7 @@ export function runOptimization(
         maxShutter: c.maxShutterDenom,
         targetFreq,
         snrDb,
+        exposure,
       };
 
       if (snrDb >= tempState.desiredSnrDb) {
@@ -327,6 +332,7 @@ export function runOptimization(
           maxShutter: c.maxShutterDenom,
           targetFreq: timing.targetFreq,
           snrDb: timing.snrDb,
+          exposure: timing.exposure,
         });
       }
     }
@@ -449,14 +455,9 @@ export function runOptimization(
     meetsSnr,
   );
 
-  const finalSnrMet = snrAtShutter(
-    winnerState,
-    winnerDerived,
-    radiometry,
-    motion,
-    bestTargetFreq,
-    1 / snapped.shutterDenom,
-  ) >= app.state.desiredSnrDb;
+  const finalExposure = calculateExposureOptimizer(winnerState, winnerDerived, radiometry, motion, bestTargetFreq, 1 / snapped.shutterDenom, true);
+  const finalSnrDb = finalExposure.snrAtOptimalDb - chromaSnrPenaltyDb(winnerState);
+  const finalSnrMet = finalSnrDb >= app.state.desiredSnrDb;
 
   return {
     fps: snapped.fps,
@@ -469,6 +470,7 @@ export function runOptimization(
     readoutMethod: bestReadoutMethod,
     minFeatureSize: bestMinFeature,
     snrMet: finalSnrMet,
+    optimalGain: winner.exposure.optimalGain,
   };
 }
 
@@ -647,10 +649,7 @@ function snrAtShutter(
 }
 
 function applyChromaSnrPenalty(snrDb: number, state: AppState): number {
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    return snrDb - (state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB);
-  }
-  return snrDb;
+  return snrDb - chromaSnrPenaltyDb(state);
 }
 
 function enumerateSearchFps(maxFps: number, regionHz: number): number[] {
@@ -692,10 +691,7 @@ function buildV4l2Candidates(
     const v4l2MaxShutter = Math.floor(pixelRate / (v4l2!.exposure.min * mode.hts));
     const maxShutter = Math.min(v4l2MaxShutter, rollingBound);
 
-    const modeReadoutMethod = !mode.readoutType ? 'native' :
-      mode.readoutType.includes('binning') ? 'binning' :
-      mode.readoutType.includes('subsampling') ? 'subsampling' :
-      mode.readoutType.includes('cropping') ? 'cropping' : 'native';
+    const modeReadoutMethod = readoutTypeToMethod(mode.readoutType);
 
     return {
       statePatch: {

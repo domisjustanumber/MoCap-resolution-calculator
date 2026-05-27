@@ -1,0 +1,6 @@
+1/30 snr=23.11 minF=197.81 strict=true
+1/60 snr=19.82 minF=98.63 strict=false
+1/120 snr=16.29 minF=49.25 strict=false
+1/180 snr=14.07 minF=32.82 strict=false
+1/240 snr=12.40 minF=24.61 strict=false
+1/360 snr=9.91 minF=16.40 strict=false

@@ -1,25 +1,21 @@
-import type { AppStateFull, AppState, ReadoutMethod } from '../types';
-import { setField, applyPreset, recalculate, setSensorPreset } from '../state';
+import type { AppStateFull, AppState } from '../types';
+import { setField, applyPreset, recalculate, setSensorPreset, readoutTypeToMethod } from '../state';
 import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
-import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor } from '../constants';
-import { updateOutputs } from './outputs';
-import { drawChart } from './chart';
+import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, clamped, LENS_TIER_DR } from '../constants';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
-import { drawTemporalChart } from './temporalChart';
-import { updateAdvancedSensorSpecs } from '../main';
-import { updateShutterPresetStyles } from '../main';
-import { updateFpsPresetStyles } from '../main';
+import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
 
 let app: AppStateFull;
+let refreshAll: () => void;
 
-export function initInputs(state: AppStateFull): void {
+export function initInputs(state: AppStateFull, rf: () => void): void {
+  refreshAll = rf;
   app = state;
 
   bindNumberInput('focalLength', 'focalLength');
   bindFovInput();
   bindNumberInput('aperture', 'aperture');
   bindNumberInput('lensTransmission', 'lensTransmission');
-  bindNumberInput('wavelength', 'wavelength');
   bindNumberInput('pixelPitch', 'pixelPitch');
   bindNumberInput('nativeWidth', 'nativeWidth');
   bindNumberInput('nativeHeight', 'nativeHeight');
@@ -60,7 +56,7 @@ function bindNumberInput(id: string, key: keyof AppState): void {
     handleExtractedClamp();
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
   el.addEventListener('blur', () => {
     syncInputsFromState();
@@ -74,7 +70,7 @@ function bindSelectInput(id: string, key: keyof AppState): void {
     setField(app, key, el.value as AppState[typeof key]);
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
 }
 
@@ -83,7 +79,7 @@ function bindCheckboxInput(id: string, key: keyof AppState): void {
   if (!el) return;
   el.addEventListener('change', () => {
     setField(app, key, el.checked as AppState[typeof key]);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -95,7 +91,7 @@ function bindRangeInput(id: string, key: keyof AppState): void {
     const v = parseInt(el.value, 10);
     setField(app, key, v);
     if (valueSpan) valueSpan.textContent = String(v);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -107,14 +103,14 @@ function bindGainInput(): void {
     const v = parseFloat(slider!.value);
     input!.value = v.toFixed(1);
     setField(app, 'gain', v);
-    refresh();
+    refreshAll();
   };
   slider.addEventListener('input', onChange);
   input.addEventListener('change', () => {
     const v = parseFloat(input.value);
     if (isNaN(v)) return;
-    const clamped = Math.max(1.0, Math.min(8.0, v));
-    slider.value = clamped.toFixed(1);
+    const c = clamped(v, 1.0, 8.0);
+    slider.value = c.toFixed(1);
     onChange();
   });
 }
@@ -127,7 +123,7 @@ function bindH264QpInput(): void {
     const v = parseInt(el.value, 10);
     setField(app, 'h264Qp', v);
     if (valueSpan) valueSpan.textContent = String(v);
-    refresh();
+    refreshAll();
   });
 }
 
@@ -139,7 +135,7 @@ function bindH264BitrateInput(): void {
     const v = parseFloat(el.value);
     setField(app, 'h264BitrateMbps', v);
     if (valueSpan) valueSpan.textContent = v.toFixed(1) + ' Mbps';
-    refresh();
+    refreshAll();
   });
 }
 
@@ -150,7 +146,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
     monochrome.addEventListener('click', () => {
       if (monochrome.checked) {
         setField(app, key, 'monochrome');
-        refresh();
+        refreshAll();
       }
     });
   }
@@ -158,7 +154,7 @@ function bindRadioGroup(_name: string, key: keyof AppState): void {
     colour.addEventListener('click', () => {
       if (colour.checked) {
         setField(app, key, 'colour');
-        refresh();
+        refreshAll();
       }
     });
   }
@@ -174,7 +170,7 @@ function bindFovInput(): void {
     }
     syncInputsFromState();
     updateCompressionControlsState();
-    refresh();
+    refreshAll();
   });
   el.addEventListener('blur', () => {
     syncInputsFromState();
@@ -183,9 +179,9 @@ function bindFovInput(): void {
 
 function bindLensTierChips(): void {
   const map: Record<string, { tier: string; dr: number }> = {
-    'lens-cheap': { tier: 'cheap-plastic', dr: 59 },
-    'lens-mid': { tier: 'mid-glass', dr: 66 },
-    'lens-premium': { tier: 'premium-stack', dr: 90 },
+    'lens-cheap': { tier: 'cheap-plastic', dr: LENS_TIER_DR['cheap-plastic'] },
+    'lens-mid': { tier: 'mid-glass', dr: LENS_TIER_DR['mid-glass'] },
+    'lens-premium': { tier: 'premium-stack', dr: LENS_TIER_DR['premium-stack'] },
   };
   Object.entries(map).forEach(([preset, spec]) => {
     const chip = document.querySelector(`[data-preset="${preset}"]`) as HTMLButtonElement | null;
@@ -195,7 +191,7 @@ function bindLensTierChips(): void {
       setField(app, 'dynamicRangeDb', spec.dr);
       syncInputsFromState();
       updateCompressionControlsState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -209,7 +205,7 @@ function bindShutterRadios(): void {
       if (!el.checked) return;
       setField(app, 'shutterType', el.value as AppState['shutterType']);
       syncInputsFromState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -264,7 +260,7 @@ function bindPresetChips(): void {
       applyPreset(app, preset.values, preset.name as import('../types').PresetName);
       syncInputsFromState();
       updateCompressionControlsState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -277,7 +273,7 @@ function bindSensorModelChips(): void {
       if (!name || name === 'custom') return;
       setSensorPreset(app, name);
       syncInputsFromState();
-      refresh();
+      refreshAll();
     });
   });
 }
@@ -330,22 +326,13 @@ function onV4l2ModeChange(): void {
   app.state.readoutMethod = readoutTypeToMethod(mode.readoutType);
   recalculate(app);
   syncInputsFromState();
-  refresh();
+  refreshAll();
 }
 
 function bindV4l2ModeSelect(): void {
   const select = document.getElementById('v4l2Mode') as HTMLSelectElement | null;
   if (!select) return;
   select.addEventListener('change', onV4l2ModeChange);
-}
-
-function readoutTypeToMethod(readoutType?: string): ReadoutMethod {
-  if (!readoutType) return 'native';
-  if (readoutType.includes('native')) return 'native';
-  if (readoutType.includes('subsampling')) return 'subsampling';
-  if (readoutType.includes('binning')) return 'binning';
-  if (readoutType.includes('cropping')) return 'cropping';
-  return 'native';
 }
 
 function bindDrSlider(): void {
@@ -355,7 +342,7 @@ function bindDrSlider(): void {
     const v = parseInt(slider.value, 10);
     setField(app, 'dynamicRangeDb', v);
     syncInputsFromState();
-    refresh();
+    refreshAll();
   });
 }
 
@@ -415,7 +402,7 @@ function buildWavelengthChips(): void {
       updateWavelengthChipStyles();
       updateWavelengthColorIndicator();
       updateIrBadge();
-      refresh();
+      refreshAll();
     });
     container.appendChild(btn);
   });
@@ -520,6 +507,10 @@ export function syncInputsFromState(): void {
       else if (key === 'pixelPitch') el.value = app.state.pixelPitch.toFixed(1);
       else if (key === 'focalLength') el.value = app.state.focalLength.toFixed(1);
       else if (key === 'lensTransmission') el.value = app.state.lensTransmission.toFixed(2);
+      else if (key === 'luxAtSubject') {
+        const v = app.state.luxAtSubject;
+        el.value = v < 1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v));
+      }
       else el.value = String(app.state[key]);
     }
   });
@@ -567,7 +558,7 @@ export function syncInputsFromState(): void {
 
   const luxSlider = document.getElementById('lux-slider') as HTMLInputElement | null;
   if (luxSlider && luxSlider !== document.activeElement) {
-    luxSlider.value = String(app.state.luxAtSubject);
+    luxSlider.value = String(Math.log10(app.state.luxAtSubject).toFixed(2));
   }
 
   const monochromeEl = document.getElementById('mode-monochrome') as HTMLInputElement | null;
@@ -594,14 +585,4 @@ export function syncInputsFromState(): void {
   updateDrBar();
 }
 
-function refresh(): void {
-  recalculate(app);
-  syncInputsFromState();
-  updateOutputs(app);
-  drawChart(app);
-  drawDistanceChart(app);
-  drawTemporalChart(app);
-  updateAdvancedSensorSpecs();
-  updateShutterPresetStyles();
-  updateFpsPresetStyles();
-}
+

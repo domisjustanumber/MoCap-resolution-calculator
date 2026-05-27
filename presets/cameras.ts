@@ -5,15 +5,11 @@ import imx219Raw from './cameras/pi-cam-v2.json';
 import imx477Raw from './cameras/pi-hq-cam.json';
 import ov9281Raw from './cameras/ov9281-module.json';
 
-function loadCamera(raw: unknown): CameraPreset {
-  return raw as CameraPreset;
-}
-
 const cameras: CameraPreset[] = [
-  loadCamera(ov5647Raw),
-  loadCamera(imx219Raw),
-  loadCamera(imx477Raw),
-  loadCamera(ov9281Raw),
+  ov5647Raw as CameraPreset,
+  imx219Raw as CameraPreset,
+  imx477Raw as CameraPreset,
+  ov9281Raw as CameraPreset,
 ];
 
 export const CAMERA_PRESETS: CameraPreset[] = cameras;

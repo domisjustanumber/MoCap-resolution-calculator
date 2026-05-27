@@ -1,0 +1,5 @@
+1920@1/60: minFeature=98.63 snr=19.82 bottleneck=motion-limited
+1296@1/180 strict: minFeature=32.82 snr=21.22 bottleneck=motion-limited
+1296@1/30: minFeature=197.81 snr=29.37 bottleneck=motion-limited
+optimize 10%: 180/1296x972 minF=32.82
+spatial worthwhile 1920@60 vs strict: false

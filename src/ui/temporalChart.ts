@@ -1,8 +1,7 @@
-// Multi-Camera Kinematic Sync Error Distribution
-// Monte Carlo simulation + KDE, based on temporal_chart_example.html
+import type { AppStateFull } from '../types';
+import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
+import { getCachedMaxErrors, getCachedRmseErrors, getCachedTotalErrors, runAndCacheSimulation, getTemporalZoom, computeStats, getSyncInputsHash } from '../temporalState';
 
-const SAMPLE_SIZE = 2500;
-const MIN_SCALE_MM = 0;
 const CANVAS_Y_MIN = 0.0;
 const CANVAS_Y_MAX = 1.0;
 
@@ -12,219 +11,15 @@ let mouseX = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
 
-// Cached simulation results — only regenerate when inputs change
-let cachedMaxErrors: Float32Array | null = null;
-let cachedRmseErrors: Float32Array | null = null;
 let cachedMaxDensity: Float32Array | null = null;
 let cachedRmseDensity: Float32Array | null = null;
-let cachedMaxStats: { avg: number; median: number; p95: number } | null = null;
-
-import type { MotionParams, AppStateFull } from '../types';
-import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { snapFpsToRegion, snapShutterToRegion } from '../temporalQuantize';
-import { DEFAULT_SNR_UNDERSHOOT_PCT } from '../constants';
-
-// Motion parameters — shared across spatial chart, engine, and temporal sim
-let motionParams: MotionParams = {
-  linearVelocity: 1.5,
-  acceleration: 0,
-  angularVelocity: 0,
-  subjectHalfWidth: 0.5,
-};
-
-// Chart inputs
-let zoomMax = 200;
-let targetVelocity = 0; // m/s — used for temporal Monte Carlo simulation only
-let frameRate = 30;     // fps
-let shutterDenom = 60;  // 1/N seconds
-let phaseOffset = 16.6; // ms
-let jitterMs = 10.0;    // ms
-
-let errorBudgetMm = 5;
-let snrUndershootPct = DEFAULT_SNR_UNDERSHOOT_PCT;
-
-let syncToggle = false;
-export function isSyncToggleOn(): boolean { return syncToggle; }
-export function setSyncToggle(on: boolean): void { syncToggle = on; }
-
-function makeSimHash(): string {
-  return String(targetVelocity) + String(frameRate) + String(phaseOffset) + String(jitterMs);
-}
-
-function runAndCacheSimulation(): void {
-  const inputHash = makeSimHash();
-  if (inputHash === simHash && cachedMaxErrors && cachedRmseErrors) return;
-  simHash = inputHash;
-  const { maxErrors, rmseErrors } = runSimulation();
-  cachedMaxErrors = maxErrors;
-  cachedRmseErrors = rmseErrors;
-  cachedMaxDensity = calculateDensityCurve(maxErrors, zoomMax);
-  cachedRmseDensity = calculateDensityCurve(rmseErrors, zoomMax);
-  cachedMaxStats = computeStats(maxErrors);
-}
-
-export function getSyncErrorP95(): number {
-  runAndCacheSimulation();
-  return cachedMaxStats!.p95;
-}
-export function getSyncInputsHash(): string {
-  return makeSimHash();
-}
-
-export function getMotionParams(): MotionParams { return { ...motionParams }; }
-export function setMotionParams(p: Partial<MotionParams>): void {
-  if (p.linearVelocity !== undefined) motionParams.linearVelocity = Math.max(0, Math.min(20, p.linearVelocity));
-  if (p.acceleration !== undefined) motionParams.acceleration = Math.max(0, Math.min(20, p.acceleration));
-  if (p.angularVelocity !== undefined) motionParams.angularVelocity = Math.max(0, Math.min(360, p.angularVelocity));
-  motionParams.subjectHalfWidth = 0.5;
-}
-export function getLinearVelocity(): number { return motionParams.linearVelocity; }
-export function setLinearVelocity(v: number): void { motionParams.linearVelocity = Math.max(0, Math.min(20, v)); }
-export function setAcceleration(v: number): void { motionParams.acceleration = Math.max(0, Math.min(20, v)); }
-export function setAngularVelocity(v: number): void { motionParams.angularVelocity = Math.max(0, Math.min(360, v)); }
-export function setSubjectHalfWidth(_v: number): void { motionParams.subjectHalfWidth = 0.5; }
-
-export function getTemporalVelocity(): number { return targetVelocity; }
-export function getSpatialVelocity(): number { return motionParams.linearVelocity; }
-export function setSpatialVelocity(v: number): void { motionParams.linearVelocity = Math.max(0, Math.min(20, v)); }
-export function getFrameRate(): number { return frameRate; }
-export function getShutterTime(): number { return 1 / shutterDenom; }
-export function getShutterDenom(): number { return shutterDenom; }
-
-export function getErrorBudget(): number { return errorBudgetMm; }
-export function setErrorBudget(mm: number): void {
-  errorBudgetMm = Math.max(0.5, Math.min(25, mm));
-}
-
-export function getSnrUndershootPct(): number { return snrUndershootPct; }
-export function setSnrUndershootPct(pct: number): void {
-  snrUndershootPct = Math.max(0, Math.min(50, pct));
-}
-
-export function setTemporalZoom(max: number): void {
-  zoomMax = Math.max(10, Math.min(500, Math.round(max)));
-  if (appRef) drawTemporalChart(appRef, true);
-}
-export function setTemporalVelocity(v: number): void {
-  targetVelocity = Math.max(0, Math.min(20, v));
-  if (appRef) drawTemporalChart(appRef, true);
-}
-export function setTemporalPhase(ms: number): void {
-  phaseOffset = Math.max(0, Math.min(300, ms));
-  if (appRef) drawTemporalChart(appRef, true);
-}
-let maxFps = 240;
-export function setMaxFpsLimit(max: number): void { maxFps = max; }
-export function getMaxFpsLimit(): number { return maxFps; }
-
-let maxShutterDenom = 8000;
-export function setMaxShutterLimit(max: number): void { maxShutterDenom = max; }
-export function getMaxShutterLimit(): number { return maxShutterDenom; }
-
-// Region frequency state
-let regionHz = 50;   // 50, 60, or 0 for Free
-export function getRegionHz(): number { return regionHz; }
-
-export function setRegionHz(hz: number): void {
-  regionHz = hz;
-  frameRate = snapFpsToRegion(frameRate, hz, maxFps, 'nearest');
-  if (shutterDenom < frameRate) {
-    shutterDenom = snapShutterToRegion(frameRate, hz, frameRate, maxShutterDenom, 'ceil');
-  } else {
-    shutterDenom = Math.max(frameRate, snapShutterToRegion(shutterDenom, hz, frameRate, maxShutterDenom, 'nearest'));
-  }
-}
-
-export function setFrameRate(fps: number): void {
-  frameRate = Math.max(1, Math.min(maxFps, Math.round(fps)));
-  if (shutterDenom < frameRate) {
-    shutterDenom = snapShutterToRegion(frameRate, regionHz, frameRate, maxShutterDenom, 'ceil');
-  }
-  if (appRef) drawTemporalChart(appRef, true);
-}
-
-export function setShutterDenom(d: number): void {
-  const minDenom = frameRate;
-  shutterDenom = Math.max(minDenom, Math.min(maxShutterDenom, Math.round(d)));
-  if (appRef) drawTemporalChart(appRef, true);
-}
-export function setTemporalJitter(ms: number): void {
-  jitterMs = Math.max(0, Math.min(300, ms));
-  if (appRef) drawTemporalChart(appRef, true);
-}
-
-function mapZoomedMetricsToPixels(
-  mmValue: number,
-  densityValue: number,
-  activeZoomMax: number,
-  yFloorPixel: number,
-  chartMaxHeightPixels: number,
-  paddingLeft: number,
-  chartWidth: number,
-): { x: number; y: number } {
-  const clampedMm = Math.max(MIN_SCALE_MM, Math.min(mmValue, activeZoomMax));
-  const pixelX = paddingLeft + (clampedMm / activeZoomMax) * chartWidth;
-
-  const clampedDensity = Math.max(CANVAS_Y_MIN, Math.min(densityValue, CANVAS_Y_MAX));
-  const pixelY = yFloorPixel - (clampedDensity / CANVAS_Y_MAX) * chartMaxHeightPixels;
-
-  return { x: pixelX, y: pixelY };
-}
-
-function niceStep(range: number, divisions: number): number {
-  const raw = range / divisions;
-  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
-  const normalized = raw / magnitude;
-  if (normalized <= 1.5) return magnitude;
-  if (normalized <= 3) return 2 * magnitude;
-  if (normalized <= 7) return 5 * magnitude;
-  return 10 * magnitude;
-}
-
-interface SimResult {
-  maxErrors: Float32Array;
-  rmseErrors: Float32Array;
-}
-
-function runSimulation(): SimResult {
-  const v = targetVelocity;       // m/s = mm/ms
-  const fps = frameRate;
-  const phaseMs = phaseOffset;
-  const jitMs = jitterMs;
-
-  const frameTimeMs = 1000 / fps;
-  const v_mm_ms = v;
-
-  const maxErrors = new Float32Array(SAMPLE_SIZE);
-  const rmseErrors = new Float32Array(SAMPLE_SIZE);
-
-  for (let i = 0; i < SAMPLE_SIZE; i++) {
-    const basePhase = Math.random() * frameTimeMs;
-
-    // Box-Muller Gaussian jitter
-    const u1 = 1.0 - Math.random();
-    const u2 = 1.0 - Math.random();
-    const randGen = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
-
-    const cam1Time = basePhase;
-    const cam2Time = basePhase + phaseMs + randGen * jitMs;
-
-    const deltaT = Math.abs(cam1Time - cam2Time);
-    const spatialError = deltaT * v_mm_ms;
-
-    maxErrors[i] = spatialError;
-    rmseErrors[i] = spatialError / Math.sqrt(2);
-  }
-
-  return { maxErrors, rmseErrors };
-}
+let cachedTotalDensity: Float32Array | null = null;
 
 function calculateDensityCurve(data: Float32Array, maxZoomMM: number): Float32Array {
   const binCount = 300;
   const densities = new Float32Array(binCount);
   const step = maxZoomMM / binCount;
 
-  // Silverman's rule of thumb for KDE bandwidth
   const n = data.length;
   const sorted = [...data].sort((a, b) => a - b);
   const mean = sorted.reduce((s, v) => s + v, 0) / n;
@@ -261,12 +56,21 @@ function calculateDensityCurve(data: Float32Array, maxZoomMM: number): Float32Ar
   return densities;
 }
 
-function computeStats(data: Float32Array): { avg: number; median: number; p95: number } {
-  const sorted = [...data].sort((a, b) => a - b);
-  const avg = data.reduce((a, b) => a + b, 0) / data.length;
-  const median = sorted[Math.floor(sorted.length * 0.5)];
-  const p95 = sorted[Math.floor(sorted.length * 0.95)];
-  return { avg, median, p95 };
+function ensureDensityCurves(): void {
+  const zoomMax = getTemporalZoom();
+  runAndCacheSimulation();
+  const rawMax = getCachedMaxErrors();
+  const rawRmse = getCachedRmseErrors();
+  const rawTotal = getCachedTotalErrors();
+  if (!rawMax || !rawRmse || !rawTotal) return;
+
+  const h = String(zoomMax) + String(rawMax.length) + getSyncInputsHash();
+  if (h === simHash && cachedMaxDensity) return;
+  simHash = h;
+
+  cachedMaxDensity = calculateDensityCurve(rawMax, zoomMax);
+  cachedRmseDensity = calculateDensityCurve(rawRmse, zoomMax);
+  cachedTotalDensity = calculateDensityCurve(rawTotal, zoomMax);
 }
 
 export function drawTemporalChart(app: AppStateFull, force = false): void {
@@ -274,22 +78,17 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   if (!canvas) return;
   appRef = app;
 
-  const hash =
-    String(zoomMax) +
-    String(targetVelocity) +
-    String(frameRate) +
-    String(phaseOffset) +
-    String(jitterMs);
+  const zoomMax = getTemporalZoom();
+  const hash = String(zoomMax) + getSyncInputsHash();
   if (hash === lastHash && !force) return;
   lastHash = hash;
 
-  // Only re-run the Monte Carlo simulation when input values change
-  runAndCacheSimulation();
+  ensureDensityCurves();
 
   const parent = canvas.parentElement;
   if (!parent) return;
   const cssW = getCssWidth(parent);
-  const cssH = cssW * (180 / 600);
+  const cssH = Math.max(200, Math.min(400, cssW * 0.45));
   sizeCanvas(canvas, cssW, cssH);
 
   const ctx = getCanvasContext(canvas, cssW, cssH);
@@ -302,12 +101,14 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
 
   drawBackground(ctx, cssW, cssH);
 
-  // Use cached simulation results (stable across mouse moves)
   const maxDensity = cachedMaxDensity ?? new Float32Array(300);
   const rmseDensity = cachedRmseDensity ?? new Float32Array(300);
-  const maxStats = cachedMaxStats ?? { avg: 0, median: 0, p95: 0 };
+  const totalDensity = cachedTotalDensity ?? new Float32Array(300);
+  const rawMax = getCachedMaxErrors();
+  const rawTotal = getCachedTotalErrors();
+  const maxStats = rawMax ? computeStats(rawMax) : { avg: 0, median: 0, p95: 0 };
+  const totalStats = rawTotal ? computeStats(rawTotal) : { avg: 0, median: 0, p95: 0 };
 
-  // Grid lines
   const xStep = niceStep(zoomMax, 8);
   const px = (mm: number) =>
     mapZoomedMetricsToPixels(mm, 0, zoomMax, yFloorPixel, plotH, pad.left, plotW).x;
@@ -316,10 +117,8 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
 
   drawGrid(ctx, pad, cssW, cssH, zoomMax, xStep, 1.0, 0.1, px, py);
 
-  // Axes
   drawAxes(ctx, pad, cssW, cssH);
 
-  // Y-axis labels
   ctx.fillStyle = '#64748b';
   ctx.font = '12px monospace';
   ctx.textAlign = 'right';
@@ -335,7 +134,6 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   ctx.fillText('Probability Density', 0, 0);
   ctx.restore();
 
-  // X-axis labels
   ctx.textAlign = 'center';
   ctx.fillStyle = '#64748b';
   ctx.font = '12px monospace';
@@ -347,25 +145,27 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
   ctx.textAlign = 'center';
   ctx.fillText('Spatial Error (mm)', pad.left + plotW / 2, cssH - 6);
 
-  // Draw filled curves
-  drawEnvelope(ctx, maxDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#ef4444');
-  drawEnvelope(ctx, rmseDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#3b82f6');
+  // Sync-only envelopes (faded)
+  drawEnvelope(ctx, maxDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#ef444466', '#ef444444');
+  drawEnvelope(ctx, rmseDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#3b82f666', '#3b82f644');
 
-  // Statistical markers for max error distribution
-  drawMarkers(ctx, maxStats, yFloorPixel, plotH, pad, plotW, zoomMax);
+  // Total error envelopes (sync + motion blur)
+  drawEnvelope(ctx, totalDensity, yFloorPixel, plotH, pad, plotW, zoomMax, '#f97316', '#f9731622');
 
-  // Legend
+  drawMarkers(ctx, totalStats, yFloorPixel, plotH, pad, plotW, zoomMax);
+
   const lx = pad.left + 10;
   const ly = pad.top + 16;
   ctx.font = '12px monospace';
   ctx.textAlign = 'left';
 
   ctx.fillStyle = '#ef4444';
-  ctx.fillText('── Max Error', lx, ly);
+  ctx.fillText('── Sync Max', lx, ly);
   ctx.fillStyle = '#3b82f6';
-  ctx.fillText('── RMSE', lx, ly + 16);
+  ctx.fillText('── Sync RMSE', lx, ly + 16);
+  ctx.fillStyle = '#f97316';
+  ctx.fillText('── Total (sync+blur)', lx, ly + 32);
 
-  // Hover cursor + tooltip
   if (mouseInCanvas && mouseX >= pad.left && mouseX <= cssW - pad.right) {
     const hoverMm = ((mouseX - pad.left) / plotW) * zoomMax;
     const hoverX = px(hoverMm);
@@ -379,18 +179,18 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Tooltip
     const binCount = 300;
     const binStep = zoomMax / binCount;
     const bin = Math.min(binCount - 1, Math.max(0, Math.floor(hoverMm / binStep)));
     const maxD = bin < maxDensity.length ? maxDensity[bin] : 0;
     const rmseD = bin < rmseDensity.length ? rmseDensity[bin] : 0;
+    const totalD = bin < totalDensity.length ? totalDensity[bin] : 0;
 
     const lines = [
       `${hoverMm.toFixed(1)} mm`,
-      `Max: ${maxD.toFixed(3)}`,
-      `RMSE: ${rmseD.toFixed(3)}`,
-      `Max μ=${maxStats.avg.toFixed(1)} σ₉₅=${maxStats.p95.toFixed(1)}`,
+      `Sync Max: ${maxD.toFixed(3)}`,
+      `Total: ${totalD.toFixed(3)}`,
+      `Total μ=${totalStats.avg.toFixed(1)} σ₉₅=${totalStats.p95.toFixed(1)}`,
     ];
 
     ctx.font = 'bold 11px monospace';
@@ -417,7 +217,7 @@ export function drawTemporalChart(app: AppStateFull, force = false): void {
     ctx.fillStyle = '#ef4444';
     ctx.font = '10px monospace';
     ctx.fillText(lines[1], tipX + 6, tipY + 27);
-    ctx.fillStyle = '#3b82f6';
+    ctx.fillStyle = '#f97316';
     ctx.fillText(lines[2], tipX + 6, tipY + 41);
     ctx.fillStyle = '#94a3b8';
     ctx.fillText(lines[3], tipX + 6, tipY + 55);
@@ -434,28 +234,39 @@ function drawEnvelope(
   pad: { left: number; right: number },
   plotW: number,
   zMax: number,
-  color: string,
+  strokeColor: string,
+  fillColor?: string,
 ): void {
   if (densities.length === 0) return;
   const n = densities.length;
 
-  ctx.beginPath();
-  const startX = pad.left;
-  ctx.moveTo(startX, yFloor);
+  if (fillColor) {
+    ctx.beginPath();
+    const startX = pad.left;
+    ctx.moveTo(startX, yFloor);
 
+    for (let i = 0; i < n; i++) {
+      const x = pad.left + (i / (n - 1)) * plotW;
+      const pt = mapZoomedMetricsToPixels(0, densities[i], zMax, yFloor, plotH, pad.left, plotW);
+      ctx.lineTo(x, pt.y);
+    }
+
+    ctx.lineTo(pad.left + plotW, yFloor);
+    ctx.closePath();
+
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+  }
+
+  ctx.beginPath();
   for (let i = 0; i < n; i++) {
     const x = pad.left + (i / (n - 1)) * plotW;
     const pt = mapZoomedMetricsToPixels(0, densities[i], zMax, yFloor, plotH, pad.left, plotW);
-    ctx.lineTo(x, pt.y);
+    if (i === 0) ctx.moveTo(x, pt.y);
+    else ctx.lineTo(x, pt.y);
   }
 
-  ctx.lineTo(pad.left + plotW, yFloor);
-  ctx.closePath();
-
-  ctx.fillStyle = color + '22';
-  ctx.fill();
-
-  ctx.strokeStyle = color;
+  ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 2;
   ctx.stroke();
 }
@@ -496,6 +307,35 @@ function drawMarkers(
     ctx.fillText(`${m.label}:${m.val.toFixed(1)}mm`, xPixel + 4, labelY);
     labelY += 16;
   }
+}
+
+function mapZoomedMetricsToPixels(
+  mmValue: number,
+  densityValue: number,
+  activeZoomMax: number,
+  yFloorPixel: number,
+  chartMaxHeightPixels: number,
+  paddingLeft: number,
+  chartWidth: number,
+): { x: number; y: number } {
+  const MIN_SCALE_MM = 0;
+  const clampedMm = Math.max(MIN_SCALE_MM, Math.min(mmValue, activeZoomMax));
+  const pixelX = paddingLeft + (clampedMm / activeZoomMax) * chartWidth;
+
+  const clampedDensity = Math.max(CANVAS_Y_MIN, Math.min(densityValue, CANVAS_Y_MAX));
+  const pixelY = yFloorPixel - (clampedDensity / CANVAS_Y_MAX) * chartMaxHeightPixels;
+
+  return { x: pixelX, y: pixelY };
+}
+
+function niceStep(range: number, divisions: number): number {
+  const raw = range / divisions;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(raw)));
+  const normalized = raw / magnitude;
+  if (normalized <= 1.5) return magnitude;
+  if (normalized <= 3) return 2 * magnitude;
+  if (normalized <= 7) return 5 * magnitude;
+  return 10 * magnitude;
 }
 
 function setupEvents(canvas: HTMLCanvasElement): void {

@@ -4,7 +4,7 @@ import { runOptimization, minAcceptableSnrDb } from '../src/optimizer';
 import { calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz, setMotionParams, setFrameRate, setShutterDenom } from '../src/ui/temporalChart';
+import { setRegionHz, setMotionParams, setFrameRate, setShutterDenom } from '../src/temporalState';
 
 const walking = { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10, subjectHalfWidth: 0.5 };
 
@@ -55,7 +55,7 @@ describe('Pi Cam v1 default load — spatial slack picks 1/60', () => {
     expect(result!.shutterDenom).toBe(60);
     expect(result!.extractedWidth).toBe(1920);
     expect(result!.extractedHeight).toBe(1080);
-    expect(result!.snrMet).toBe(false);
+    expect(result!.snrMet).toBe(true); // optimal gain makes up the gap
 
     const appAfter = recalculate({
       ...app,

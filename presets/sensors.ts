@@ -6,16 +6,11 @@ import imx219Raw from './sensors/imx219.json';
 import imx477Raw from './sensors/imx477.json';
 import ov9281Raw from './sensors/ov9281.json';
 
-function loadSensor(raw: unknown): SensorPreset {
-  const d = raw as SensorPreset;
-  return d;
-}
-
 const sensors: Record<string, SensorPreset> = {
-  ov5647: loadSensor(ov5647Raw),
-  imx219: loadSensor(imx219Raw),
-  imx477: loadSensor(imx477Raw),
-  ov9281: loadSensor(ov9281Raw),
+  ov5647: ov5647Raw as SensorPreset,
+  imx219: imx219Raw as SensorPreset,
+  imx477: imx477Raw as SensorPreset,
+  ov9281: ov9281Raw as SensorPreset,
 };
 
 export const SENSOR_PRESETS = sensors;

@@ -4,7 +4,7 @@ import { calculateDerived, calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { DEFAULT_STATE, createState, applyPreset, recalculate } from '../src/state';
 import { SENSOR_RADIOMETRY } from '../presets';
-import { setRegionHz, setFrameRate, getFrameRate, getMaxFpsLimit } from '../src/ui/temporalChart';
+import { setRegionHz, setFrameRate, getFrameRate, getMaxFpsLimit } from '../src/temporalState';
 import { isValidRegionFps } from '../src/temporalQuantize';
 import type { AppStateFull, MotionParams } from '../src/types';
 
@@ -113,8 +113,8 @@ describe('runOptimization SNR guarantee', () => {
     const result = runOptimization(app, slowMotion, 5, 0);
     expect(result).not.toBeNull();
     expect(isValidRegionFps(result!.fps, 60)).toBe(true);
-    expect(result!.fps).toBe(30);
-    expect(result!.shutterDenom).toBeLessThanOrEqual(30);
+    expect(result!.fps).toBe(60);
+    expect(result!.shutterDenom).toBeGreaterThanOrEqual(60);
     expect(result!.snrMet).toBe(true);
     expect(actualSnr(app, result!)).toBeGreaterThanOrEqual(app.state.desiredSnrDb - 0.5);
   });

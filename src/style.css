@@ -185,6 +185,67 @@ html {
     @apply cursor-grabbing;
   }
 
+  .sync-summary {
+    @apply text-sm leading-relaxed text-slate-300 mb-1;
+  }
+
+  /* ── Timing mode pill toggle ── */
+  .timing-pill {
+    @apply relative inline-flex items-center rounded-full bg-slate-700 h-5 px-0.5;
+    width: 98px;
+    border: none;
+    cursor: pointer;
+  }
+  .timing-pill-dot {
+    @apply absolute rounded-full bg-blue-500 transition-transform;
+    width: 44px;
+    height: 16px;
+    top: 2px;
+    left: 2px;
+  }
+  .timing-pill.frames .timing-pill-dot {
+    transform: translateX(0);
+  }
+  .timing-pill.ms .timing-pill-dot {
+    transform: translateX(48px);
+  }
+  .timing-pill-opt {
+    @apply relative z-10 text-[9px] font-medium transition-colors flex-1 text-center leading-none;
+  }
+  .timing-pill-opt.active {
+    @apply text-white;
+  }
+  .timing-pill-opt:not(.active) {
+    @apply text-slate-500;
+  }
+
+  /* ── Link mode pill toggle ── */
+  .link-pill {
+    @apply relative inline-flex items-center rounded-full bg-slate-700 h-6 px-0.5;
+    width: 110px;
+    border: none;
+    cursor: pointer;
+  }
+  .link-pill-dot {
+    @apply absolute rounded-full bg-blue-500 transition-transform;
+    width: 50px;
+    height: 20px;
+    top: 2px;
+    left: 2px;
+  }
+  .link-pill.linked .link-pill-dot {
+    transform: translateX(54px);
+  }
+  .link-pill-opt {
+    @apply relative z-10 text-[10px] font-medium transition-colors flex-1 text-center leading-none;
+  }
+  .link-pill-opt.active {
+    @apply text-white;
+  }
+  .link-pill-opt:not(.active) {
+    @apply text-slate-500;
+  }
+
   /* ── Distance chart Y-axis slider column ── */
   .vertical-slider-col {
     @apply flex flex-col items-center w-4;

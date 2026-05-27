@@ -1,0 +1,6 @@
+1920x1080 1/30 baselineFE=230.7 optSnr=23.11 uiPath=-
+1920x1080 1/60 baselineFE=230.7 optSnr=19.82 uiPath=19.82
+1920x1080 1/180 baselineFE=230.7 optSnr=14.07 uiPath=-
+1296x972 1/30 baselineFE=115.4 optSnr=29.37 uiPath=-
+1296x972 1/60 baselineFE=115.4 optSnr=26.28 uiPath=26.28
+1296x972 1/180 baselineFE=115.4 optSnr=21.22 uiPath=-

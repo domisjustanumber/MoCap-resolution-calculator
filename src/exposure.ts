@@ -1,20 +1,14 @@
 import type { AppState, DerivedState, SensorRadiometry, ExposureOptimization, MotionParams } from './types';
 import {
   PHOTONS_PER_UM2_PER_LUX_SEC,
-  DARK_CURRENT_DOUBLING_C,
   EXPOSURE_HEADROOM_FACTOR,
   FWC_TARGET_FILL,
   GAIN_MIN,
   GAIN_MAX,
   MOTION_MTF50_CONST,
-  RAW_FORMATS,
-  CHROMA_UYVY_SNR_DB,
-  CHROMA_OTHER_SNR_DB,
+  chromaSnrPenaltyDb,
+  darkCurrentAtTemp,
 } from './constants';
-
-function darkCurrentAtTemp(dc25: number, tempC: number): number {
-  return dc25 * Math.pow(2, (tempC - 25) / DARK_CURRENT_DOUBLING_C);
-}
 
 export function calculateExposureOptimizer(
   state: Readonly<AppState>,
@@ -22,7 +16,8 @@ export function calculateExposureOptimizer(
   radiometry: Readonly<SensorRadiometry>,
   motion: MotionParams,
   targetFEffectiveLpMm: number,
-  manualShutterOverride?: number,
+  shutterTime?: number,
+  enableTwoPassGain?: boolean,
 ): ExposureOptimization {
   const N = state.aperture;
   const lux = state.luxAtSubject;
@@ -37,13 +32,14 @@ export function calculateExposureOptimizer(
 
   const DC = darkCurrentAtTemp(radiometry.darkCurrentE, state.temperatureC);
   const S = electronsPerPxPerSec;
-  const RN2 = radiometry.readNoiseE * radiometry.readNoiseE;
+
+  let effectiveGain = state.gain > 0 ? state.gain : 1.0;
+  let effectiveReadNoiseE = radiometry.readNoiseE / effectiveGain;
+  let effectiveFwc = radiometry.fullWellCapacity / effectiveGain;
+  let RN2 = effectiveReadNoiseE * effectiveReadNoiseE;
 
   // Inflate SNR target to compensate for chroma subsampling penalty
-  let effectiveSnrTargetDb = state.desiredSnrDb;
-  if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {
-    effectiveSnrTargetDb += state.outputFormat === 'uyuv' ? CHROMA_UYVY_SNR_DB : CHROMA_OTHER_SNR_DB;
-  }
+  let effectiveSnrTargetDb = state.desiredSnrDb + chromaSnrPenaltyDb(state);
   const snrTargetLinear = Math.pow(10, effectiveSnrTargetDb / 20);
 
   const a = S * S;
@@ -75,7 +71,7 @@ export function calculateExposureOptimizer(
 
   let tSaturation = Infinity;
   if (S > 0) {
-    tSaturation = radiometry.fullWellCapacity / S;
+    tSaturation = effectiveFwc / S;
   }
 
   // Pass 1 interim tOptimal to estimate the acceleration contribution
@@ -88,33 +84,51 @@ export function calculateExposureOptimizer(
     tMotionMax = computeTMotionMax(vEff2);
   }
 
-  let photonStarved: boolean;
-  let tOptimal: number;
+  const saturationCap = EXPOSURE_HEADROOM_FACTOR * tSaturation;
+  let tCeiling = Math.min(saturationCap, tMotionMax);
 
-  if (manualShutterOverride !== undefined) {
-    // Manual mode: use the user's shutter time, capped at saturation ceiling
-    const saturationCap = EXPOSURE_HEADROOM_FACTOR * tSaturation;
-    tOptimal = Math.max(0.00001, isFinite(saturationCap) ? Math.min(manualShutterOverride, saturationCap) : manualShutterOverride);
-    photonStarved = false;
+  let tOptimal: number;
+  if (shutterTime !== undefined) {
+    tOptimal = Math.max(0.00001, isFinite(saturationCap) ? Math.min(shutterTime, saturationCap) : shutterTime);
   } else {
-    // Optimizer mode: find best exposure within motion + saturation bounds
-    const tCeiling = Math.min(EXPOSURE_HEADROOM_FACTOR * tSaturation, tMotionMax);
-    photonStarved = !isFinite(tMinusSnr) || tMinusSnr > tCeiling;
     tOptimal = Math.max(0.00001, tCeiling);
   }
 
-  const actualElectrons = S * tOptimal;
+  let actualElectrons = S * tOptimal;
   const targetElectrons = FWC_TARGET_FILL * radiometry.fullWellCapacity;
   let optimalGain = GAIN_MIN;
   if (actualElectrons > 0) {
     optimalGain = Math.max(GAIN_MIN, Math.min(GAIN_MAX, targetElectrons / actualElectrons));
   }
 
-  const signalPercentFwc = radiometry.fullWellCapacity > 0
-    ? (actualElectrons / radiometry.fullWellCapacity) * 100
+  // Second pass: recompute with optimal gain.  Only fires when the caller explicitly
+  // enables it (shutterTime must be provided and enableTwoPassGain must be true).
+  if (enableTwoPassGain && shutterTime !== undefined && state.gain === 0 && Math.abs(optimalGain - 1.0) > 1e-6) {
+    effectiveGain = optimalGain;
+    effectiveReadNoiseE = radiometry.readNoiseE / effectiveGain;
+    effectiveFwc = radiometry.fullWellCapacity / effectiveGain;
+    RN2 = effectiveReadNoiseE * effectiveReadNoiseE;
+
+    tSaturation = S > 0 ? effectiveFwc / S : Infinity;
+    const cap2 = EXPOSURE_HEADROOM_FACTOR * tSaturation;
+    tCeiling = Math.min(cap2, tMotionMax);
+
+    tOptimal = Math.max(0.00001, isFinite(cap2) ? Math.min(shutterTime, cap2) : shutterTime);
+
+    actualElectrons = S * tOptimal;
+    if (actualElectrons > 0) {
+      optimalGain = Math.max(GAIN_MIN, Math.min(GAIN_MAX, targetElectrons / actualElectrons));
+    }
+  }
+
+  // photonStarved: unconditional from the final envelope
+  const photonStarved = !isFinite(tMinusSnr) || tMinusSnr > tCeiling;
+
+  const signalPercentFwc = effectiveFwc > 0
+    ? (actualElectrons / effectiveFwc) * 100
     : 0;
-  const headroomStops = radiometry.fullWellCapacity > 0 && actualElectrons > 1
-    ? Math.log2(radiometry.fullWellCapacity / actualElectrons)
+  const headroomStops = effectiveFwc > 0 && actualElectrons > 1
+    ? Math.log2(effectiveFwc / actualElectrons)
     : 99;
 
   const shotNoise = Math.sqrt(actualElectrons);
