@@ -1,0 +1,337 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Optical System Spatial Resolution Calculator" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - button "Spatial Resolution" [ref=e5] [cursor=pointer]
+      - button "Camera sync" [ref=e6] [cursor=pointer]
+      - button "Acceleration" [ref=e7] [cursor=pointer]
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - paragraph [ref=e10]: Camera
+      - button "Pi Cam v1 (OV5647)" [ref=e11] [cursor=pointer]
+      - button "Pi Cam v2 (IMX219)" [ref=e12] [cursor=pointer]
+      - button "Pi HQ Cam (IMX477)" [ref=e13] [cursor=pointer]
+      - button "OV9281 Module" [ref=e14] [cursor=pointer]
+      - button "Custom" [ref=e15] [cursor=pointer]
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e21]: Spatial Resolution
+            - paragraph [ref=e23]: Curves use diffraction-theoretical lens MTF. Real aberrated lenses degrade faster — consult actual MTF charts when available.
+          - generic [ref=e24]:
+            - generic [ref=e25]:
+              - generic [ref=e26]: Minimum resolvable feature
+              - generic [ref=e27]: ▲ Hover or click to pin
+            - generic [ref=e28]:
+              - generic [ref=e29]:
+                - generic [ref=e30]: "100"
+                - slider [ref=e31] [cursor=pointer]: "100"
+                - generic [ref=e32]: "0"
+              - generic [ref=e35]:
+                - generic [ref=e36]: X
+                - slider "X" [ref=e37] [cursor=pointer]: "3"
+                - generic [ref=e38]: 3m
+        - generic [ref=e39]:
+          - generic [ref=e40]:
+            - paragraph [ref=e41]: Target Motion
+            - generic [ref=e42]:
+              - button "Static" [ref=e43] [cursor=pointer]
+              - button "Walking" [ref=e44] [cursor=pointer]
+              - button "Sports" [ref=e45] [cursor=pointer]
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - generic [ref=e48]: Velocity
+                - slider [ref=e50] [cursor=pointer]: "1.5"
+                - spinbutton [ref=e51]: "1.5"
+              - generic [ref=e52]:
+                - generic [ref=e53]: Acceleration
+                - slider [ref=e55] [cursor=pointer]: "0.5"
+                - spinbutton [ref=e56]: "0.5"
+              - generic [ref=e57]:
+                - generic [ref=e58]: Rotation
+                - slider [ref=e60] [cursor=pointer]: "10"
+                - spinbutton [ref=e61]: "10"
+          - generic [ref=e62]:
+            - generic [ref=e63]:
+              - paragraph [ref=e64]: Region
+              - generic [ref=e65]:
+                - button "50Hz" [ref=e66] [cursor=pointer]
+                - button "60Hz" [ref=e67] [cursor=pointer]
+                - button "Free" [ref=e68] [cursor=pointer]
+            - generic [ref=e69]:
+              - paragraph [ref=e70]: FPS
+              - generic [ref=e71]:
+                - spinbutton [ref=e72]: "30"
+                - button "30" [ref=e73] [cursor=pointer]
+                - button "60" [ref=e74]
+                - button "120" [ref=e75]
+                - button "180" [ref=e76]
+                - button "240" [ref=e77]
+          - generic [ref=e78]:
+            - generic [ref=e79]:
+              - paragraph [ref=e80]: Shutter speed
+              - generic [ref=e81]:
+                - button "1/30" [ref=e82] [cursor=pointer]
+                - button "1/60" [ref=e83] [cursor=pointer]
+                - button "1/120" [ref=e84] [cursor=pointer]
+                - button "1/240" [ref=e85] [cursor=pointer]
+                - button "1/480" [ref=e86] [cursor=pointer]
+                - button "1/960" [ref=e87] [cursor=pointer]
+                - button "1/1920" [ref=e88] [cursor=pointer]
+                - button "1/3840" [ref=e89] [cursor=pointer]
+                - button "1/7680" [ref=e90] [cursor=pointer]
+                - generic [ref=e91]:
+                  - generic [ref=e92]: 1/
+                  - spinbutton [ref=e93]: "60"
+            - generic [ref=e94]:
+              - paragraph [ref=e95]: Gain
+              - generic [ref=e96]:
+                - generic [ref=e97]:
+                  - slider [ref=e98] [cursor=pointer]: "8"
+                  - generic [ref=e99]:
+                    - generic [ref=e100]: 1× Unity
+                    - generic [ref=e101]: 2×
+                    - generic [ref=e102]: 4×
+                    - generic [ref=e103]: 8× Max
+                - spinbutton [ref=e104]: "8.0"
+          - generic [ref=e105]:
+            - paragraph [ref=e106]: Exposure Optimizer
+            - generic [ref=e107]:
+              - button "Optimize" [ref=e108] [cursor=pointer]
+              - spinbutton "Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" [ref=e109]: "10"
+              - generic [ref=e110]: "% SNR slack"
+            - generic [ref=e111]:
+              - generic [ref=e112]: Current SNR
+              - generic [ref=e113]:
+                - slider "Target SNR" [ref=e116]
+                - generic [ref=e117]: 12.4 dB
+                - spinbutton "Target SNR" [ref=e118]: "20"
+                - generic [ref=e119]: dB
+            - generic [ref=e120]:
+              - generic [ref=e121]: Max Acceleration
+              - generic [ref=e122]:
+                - slider "Target acceleration" [ref=e125]
+                - generic [ref=e126]: 5 m/s²
+                - spinbutton "Target acceleration" [ref=e127]: "0.5"
+                - generic [ref=e128]: m/s²
+            - generic [ref=e129]:
+              - generic [ref=e130]: Max Rotation
+              - generic [ref=e131]:
+                - slider "Target rotation" [ref=e134]
+                - generic [ref=e135]: 17.189 °/s
+                - spinbutton "Target rotation" [ref=e136]: "10"
+                - generic [ref=e137]: °/s
+          - generic [ref=e138]:
+            - paragraph [ref=e139]: Light level
+            - generic [ref=e140]:
+              - button "Moonlight" [ref=e141] [cursor=pointer]
+              - button "Indoor" [ref=e142] [cursor=pointer]
+              - button "Overcast" [ref=e143] [cursor=pointer]
+              - button "Daylight" [ref=e144] [cursor=pointer]
+              - button "Sunlight" [ref=e145] [cursor=pointer]
+            - generic [ref=e146]:
+              - generic [ref=e147]: Lux
+              - slider [ref=e148] [cursor=pointer]: "100"
+              - spinbutton [ref=e149]: "100"
+              - generic [ref=e150]: lux
+            - generic [ref=e151]:
+              - generic [ref=e152]: 0.2 Moon
+              - generic [ref=e153]: 100 Ind.
+              - generic [ref=e154]: 10000 Day
+              - generic [ref=e155]: 100000 Sun
+          - generic [ref=e156]:
+            - paragraph [ref=e157]: Include camera sync error
+            - button "Off" [ref=e158] [cursor=pointer]
+      - generic [ref=e159]: "⟳ Motion-limited: subject velocity blurs detail (MTF50 at 6.7 lp/mm). Software: faster shutter speed, increase frame rate, reduce resolution to raise FPS. Hardware: wider-aperture lens for shorter exposures, then higher-sensitivity sensor."
+      - generic [ref=e161]:
+        - group "Lens" [ref=e162]:
+          - generic [ref=e163]: Lens
+          - generic [ref=e164]:
+            - generic [ref=e165]:
+              - generic [ref=e166]: Focal Length
+              - generic [ref=e167]:
+                - spinbutton "Focal Length" [ref=e168]: "3.6"
+                - generic [ref=e169]: mm
+            - generic [ref=e170]:
+              - generic [ref=e171]: Diagonal FoV
+              - generic [ref=e172]:
+                - spinbutton "Diagonal FoV" [ref=e173]: "46.4"
+                - generic [ref=e174]: °
+            - generic [ref=e175]:
+              - generic [ref=e176]: Aperture
+              - generic [ref=e177]:
+                - generic [ref=e178]: f/
+                - spinbutton "Aperture" [ref=e179]: "2.0"
+            - generic [ref=e180]:
+              - generic [ref=e181]: Lens Quality
+              - generic [ref=e182]:
+                - button "Plastic" [ref=e183] [cursor=pointer]
+                - button "Glass" [ref=e184] [cursor=pointer]
+                - button "Premium" [ref=e185] [cursor=pointer]
+              - generic [ref=e186]:
+                - generic [ref=e187]: Dynamic Range
+                - generic [ref=e188]:
+                  - slider [ref=e189] [cursor=pointer]: "59"
+                  - spinbutton [ref=e190]: "59"
+                  - generic [ref=e191]: dB
+                - generic [ref=e192]:
+                  - generic [ref=e193]: 50–65 dB Consumer
+                  - generic [ref=e194]: 65–90 dB Industrial
+                  - generic [ref=e195]: 90–140 dB Scientific
+            - generic [ref=e196]:
+              - generic [ref=e197]: Lens light transmission
+              - generic [ref=e198]:
+                - spinbutton "Lens light transmission" [ref=e199]: "0.60"
+                - generic [ref=e200]: (0–1)
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - text: Light Wavelength
+                - generic [ref=e204]: Green
+              - generic [ref=e205]:
+                - button "470 nm (Blue)" [ref=e206] [cursor=pointer]
+                - button "550 nm (Green)" [ref=e207] [cursor=pointer]
+                - button "650 nm (Red)" [ref=e208] [cursor=pointer]
+                - button "850 nm (NIR)" [ref=e209] [cursor=pointer]
+                - button "940 nm (NIR)" [ref=e210] [cursor=pointer]
+            - generic [ref=e212]:
+              - generic [ref=e213]: Lens Cutoff
+              - generic [ref=e214]: 545 lp/mm
+        - group "Sensor" [ref=e215]:
+          - generic [ref=e216]: Sensor
+          - generic [ref=e217]:
+            - generic [ref=e218]:
+              - generic [ref=e219]: Sensor model
+              - generic [ref=e220]:
+                - button "OV5647" [ref=e221] [cursor=pointer]
+                - button "IMX219" [ref=e222] [cursor=pointer]
+                - button "IMX477" [ref=e223] [cursor=pointer]
+                - button "OV9281" [ref=e224] [cursor=pointer]
+                - button "Custom" [ref=e225] [cursor=pointer]
+            - generic [ref=e226]:
+              - generic [ref=e227]: Shutter Type
+              - generic [ref=e228]:
+                - generic [ref=e229]:
+                  - radio "Global" [ref=e230]
+                  - text: Global
+                - generic [ref=e231]:
+                  - radio "Rolling" [checked] [ref=e232]
+                  - text: Rolling
+            - generic [ref=e233]:
+              - generic [ref=e234]:
+                - radio "Monochrome" [ref=e235]
+                - text: Monochrome
+              - generic [ref=e236]:
+                - radio "Colour" [checked] [ref=e237]
+                - text: Colour
+            - generic [ref=e238]:
+              - generic [ref=e239]: Pixel Pitch
+              - generic [ref=e240]:
+                - spinbutton "Pixel Pitch" [ref=e241]: "1.4"
+                - generic [ref=e242]: μm
+            - generic [ref=e243]:
+              - generic [ref=e244]:
+                - generic [ref=e245]: Native Horiz. Pixels
+                - spinbutton "Native Horiz. Pixels" [ref=e246]: "2592"
+              - generic [ref=e247]:
+                - generic [ref=e248]: Native Vert. Pixels
+                - spinbutton "Native Vert. Pixels" [ref=e249]: "1944"
+            - generic [ref=e250]:
+              - checkbox "OLPF Present (Optical Low-Pass / Anti-Aliasing Filter, typically yes on webcams)" [checked] [ref=e251]
+              - generic [ref=e252]: OLPF Present (Optical Low-Pass / Anti-Aliasing Filter, typically yes on webcams)
+            - generic [ref=e254]:
+              - generic [ref=e255]: Sensor Width
+              - generic [ref=e256]: 3.63 mm
+              - generic [ref=e257]: Sensor Height
+              - generic [ref=e258]: 2.72 mm
+              - generic [ref=e259]: Sensor Diagonal
+              - generic [ref=e260]: 4.54 mm
+              - generic [ref=e261]: Sensor Size
+              - generic [ref=e262]: 1/3.6"
+              - generic [ref=e263]: Native Nyquist
+              - generic [ref=e264]: 304 lp/mm
+              - generic [ref=e265]: QE @ 550nm
+              - generic [ref=e266]: 55%
+              - generic [ref=e267]: Full-well capacity
+              - generic [ref=e268]: 3,500 e⁻
+              - generic [ref=e269]: Read noise
+              - generic [ref=e270]: 4.0 e⁻ RMS
+              - generic [ref=e271]: Dark current @ 25°C
+              - generic [ref=e272]: 25 e⁻/s
+              - generic [ref=e273]: Conversion gain
+              - generic [ref=e274]: 150 µV/e⁻
+              - generic [ref=e275]: ADC bits
+              - generic [ref=e276]: 10-bit
+              - generic [ref=e277]: Readout time
+              - generic [ref=e278]: 32 µs/row
+              - generic [ref=e279]: CFA factor
+              - generic [ref=e280]: "0.55"
+        - group "Light & Temperature" [ref=e281]:
+          - generic [ref=e282]: Light & Temperature
+          - generic [ref=e283]:
+            - generic [ref=e284]:
+              - generic [ref=e285]: Subject reflectance
+              - generic [ref=e286]:
+                - spinbutton "Subject reflectance" [ref=e287]: "0.18"
+                - generic [ref=e288]: (0–1)
+            - generic [ref=e289]:
+              - generic [ref=e290]: Sensor temperature
+              - generic [ref=e291]:
+                - spinbutton "Sensor temperature" [ref=e292]: "25"
+                - generic [ref=e293]: °C
+        - generic [ref=e294]:
+          - group "Sensor Output" [ref=e295]:
+            - generic [ref=e296]: Sensor Output
+            - generic [ref=e297]:
+              - generic [ref=e298]:
+                - generic [ref=e299]: Output Resolution
+                - combobox "Output Resolution" [ref=e300]:
+                  - option "2592x1944 — native"
+                  - option "1920x1080 — cropping" [selected]
+                  - option "1296x972 — binning"
+                  - option "640x480 — subsampling+cropping"
+              - generic [ref=e301]:
+                - generic [ref=e302]:
+                  - generic [ref=e303]: Extracted Horiz. Pixels
+                  - spinbutton "Extracted Horiz. Pixels" [ref=e304]: "1920"
+                - generic [ref=e305]:
+                  - generic [ref=e306]: Extracted Vert. Pixels
+                  - spinbutton "Extracted Vert. Pixels" [ref=e307]: "1080"
+              - generic [ref=e308]:
+                - generic [ref=e309]: Readout Method
+                - combobox "Readout Method" [ref=e310]:
+                  - option "Native (Full Sensor)"
+                  - option "Binning"
+                  - option "Subsampling (line-skip / average)"
+                  - option "Cropping" [selected]
+              - generic [ref=e312]:
+                - generic [ref=e313]: Effective Nyquist
+                - generic [ref=e314]: 304 lp/mm
+                - generic [ref=e315]: Effective Diagonal FoV
+                - generic [ref=e316]: 46.4°
+          - group "Compression" [ref=e317]:
+            - generic [ref=e318]: Compression
+            - generic [ref=e319]:
+              - generic [ref=e320]:
+                - generic [ref=e321]: Output Format
+                - combobox "Output Format" [ref=e322]:
+                  - option "MJPG (Motion JPEG)" [selected]
+                  - option "UYVY (YUV 4:2:2)"
+                  - option "NV12 (YUV 4:2:0)"
+                  - option "H.264 (AVC)"
+                  - option "RAW8 (Bayer 8-bit)"
+                  - option "RAW10 (Bayer 10-bit)"
+              - generic [ref=e323]:
+                - generic [ref=e324]: MJPG Quality (Q) 60
+                - slider "MJPG Quality (Q) 60" [ref=e325] [cursor=pointer]: "60"
+              - generic [ref=e326]:
+                - generic [ref=e327]: H.264 QP N/A
+                - slider "H.264 QP N/A" [disabled] [ref=e328]: "23"
+                - generic [ref=e329]: Target Bitrate N/A
+                - slider "Target Bitrate N/A" [disabled] [ref=e330]: "4"
+              - generic [ref=e331]:
+                - paragraph [ref=e332]: Estimated Bitrate
+                - paragraph [ref=e333]: 48 Mbps
+              - generic [ref=e334]:
+                - paragraph [ref=e335]: CV features should span ≥ 8 px to avoid 8×8 macroblock distortion.
+                - paragraph [ref=e336]: "Colour mode: MJPG quarters color resolution (4:2:0 — half H × half V)."

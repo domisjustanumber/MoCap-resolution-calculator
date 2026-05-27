@@ -200,11 +200,13 @@ function buildBlurCloud(): THREE.Group | null {
       const i = indices[tier.start + j];
       const syncM = syncErrors[i] / 1000;
       const blurHalfM = (blurs[i] / 1000) / 2;
+      // Random sign so points scatter symmetrically along ±velocity
+      const sign = Math.random() < 0.5 ? -1 : 1;
 
       const lateralMag = (syncM + blurHalfM * 2) * 0.25 * (0.5 + Math.random());
       const theta = Math.random() * Math.PI * 2;
       const center = new THREE.Vector3()
-        .addScaledVector(dir, syncM)
+        .addScaledVector(dir, syncM * sign)
         .addScaledVector(right, Math.cos(theta) * lateralMag)
         .addScaledVector(localUp, Math.sin(theta) * lateralMag);
 
@@ -227,7 +229,7 @@ function buildBlurCloud(): THREE.Group | null {
     geo.setPositions(positions);
     const mat = new LineMaterial({
       color: tier.color,
-      linewidth: getObjectSizeMm() / 1000,  // matches object radius in world units
+      linewidth: 0.003,  // fixed 3mm — thin enough to not merge into a solid block
       transparent: true,
       opacity: tier.opacity,
       depthWrite: false,

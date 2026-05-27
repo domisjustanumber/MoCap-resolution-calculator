@@ -1,0 +1,7 @@
+baseline fE=230.71428571428575
+initial res=1920x1080
+1920 1/30 snr=23.11 meetsStrict=true inSlack10=false
+1920 1/60 snr=19.82 meetsStrict=false inSlack10=true
+1920 1/120 snr=16.29 meetsStrict=false inSlack10=false
+1920 1/180 snr=14.07 meetsStrict=false inSlack10=false
+result: 180/1296x972

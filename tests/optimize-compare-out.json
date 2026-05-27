@@ -1,0 +1,106 @@
+{
+  "pi-cam-v1@50Hz": {
+    "before": {
+      "fps": 30,
+      "sd": 60,
+      "res": "1920x1080",
+      "snr": 12.370680549442483,
+      "feat1m": 27.397660578483695,
+      "feat2m": 27.397660578483695,
+      "bottleneck": "motion-limited"
+    },
+    "after": {
+      "fps": 25,
+      "sd": 50,
+      "res": "1296x972",
+      "snr": 13.434243105852923,
+      "feat1m": 32.895346119443744,
+      "feat2m": 32.895346119443744,
+      "snrMet": true,
+      "bottleneck": "motion-limited",
+      "atOneSixtiethSameConfig": {
+        "snr": 12.370680549442483,
+        "feat1m": 27.397660578483695,
+        "feat2m": 27.397660578483695
+      }
+    }
+  },
+  "pi-hq-cam@50Hz": {
+    "before": {
+      "fps": 30,
+      "sd": 60,
+      "res": "2028x1520",
+      "snr": 21.3546812540827,
+      "feat1m": 27.397660578483695,
+      "feat2m": 27.397660578483695,
+      "bottleneck": "motion-limited"
+    },
+    "after": {
+      "fps": 25,
+      "sd": 100,
+      "res": "2028x1520",
+      "snr": 18.970617369224467,
+      "feat1m": 16.42044297246248,
+      "feat2m": 16.42044297246248,
+      "snrMet": false,
+      "bottleneck": "motion-limited",
+      "atOneSixtiethSameConfig": {
+        "snr": 21.3546812540827,
+        "feat1m": 27.397660578483695,
+        "feat2m": 27.397660578483695
+      }
+    }
+  },
+  "pi-cam-v1@60Hz": {
+    "before": {
+      "fps": 30,
+      "sd": 60,
+      "res": "1920x1080",
+      "snr": 12.370680549442483,
+      "feat1m": 27.397660578483695,
+      "feat2m": 27.397660578483695,
+      "bottleneck": "motion-limited"
+    },
+    "after": {
+      "fps": 30,
+      "sd": 60,
+      "res": "1296x972",
+      "snr": 12.370680549442483,
+      "feat1m": 27.397660578483695,
+      "feat2m": 27.397660578483695,
+      "snrMet": true,
+      "bottleneck": "motion-limited",
+      "atOneSixtiethSameConfig": {
+        "snr": 12.370680549442483,
+        "feat1m": 27.397660578483695,
+        "feat2m": 27.397660578483695
+      }
+    }
+  },
+  "pi-hq-cam@60Hz": {
+    "before": {
+      "fps": 30,
+      "sd": 60,
+      "res": "2028x1520",
+      "snr": 21.3546812540827,
+      "feat1m": 27.397660578483695,
+      "feat2m": 27.397660578483695,
+      "bottleneck": "motion-limited"
+    },
+    "after": {
+      "fps": 30,
+      "sd": 120,
+      "res": "2028x1520",
+      "snr": 18.09832532889351,
+      "feat1m": 13.679920532812536,
+      "feat2m": 13.679920532812536,
+      "snrMet": false,
+      "bottleneck": "motion-limited",
+      "atOneSixtiethSameConfig": {
+        "snr": 21.3546812540827,
+        "feat1m": 27.397660578483695,
+        "feat2m": 27.397660578483695
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "strict": {
+    "fps": 25,
+    "shutterDenom": 50,
+    "extractedWidth": 2028,
+    "extractedHeight": 1520,
+    "selectedV4l2Mode": 1,
+    "readoutPitchMultiplier": 2,
+    "readoutFullFoV": true,
+    "readoutMethod": "binning",
+    "minFeatureSize": 663.4099229293842,
+    "snrMet": true
+  },
+  "relaxed": {
+    "fps": 50,
+    "shutterDenom": 200,
+    "extractedWidth": 2028,
+    "extractedHeight": 1080,
+    "selectedV4l2Mode": 2,
+    "readoutPitchMultiplier": 2,
+    "readoutFullFoV": false,
+    "readoutMethod": "binning",
+    "minFeatureSize": 164.87583592499342,
+    "snrMet": false
+  }
+}

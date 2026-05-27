@@ -312,7 +312,7 @@ function runSimulation(): SimResult {
     const basePhase = Math.random() * frameTimeMs;
     const times: number[] = [];
     for (let c = 0; c < count; c++) {
-      times.push(basePhase + c * stepMs + gaussRandom() * jitMs);
+      times.push(basePhase + (c - (count - 1) / 2) * stepMs + gaussRandom() * jitMs);
     }
 
     let maxError = 0;

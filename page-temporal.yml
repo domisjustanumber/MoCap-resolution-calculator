@@ -1,0 +1,46 @@
+- generic [ref=e1]:
+  - banner [ref=e2]:
+    - heading "Optical System Spatial Resolution Calculator" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - button "Spatial Resolution" [ref=e5] [cursor=pointer]
+      - button "Camera sync" [active] [ref=e6] [cursor=pointer]
+      - button "Acceleration" [ref=e7] [cursor=pointer]
+  - main [ref=e8]:
+    - generic [ref=e338]:
+      - generic [ref=e339]:
+        - generic [ref=e340]: Camera Sync Error Distribution
+        - generic [ref=e341]: Kinematic @ 30 fps
+      - generic [ref=e343]:
+        - text: X-axis scale
+        - slider "X-axis scale" [ref=e344] [cursor=pointer]: "200"
+        - text: 200 mm
+      - generic [ref=e345]:
+        - generic [ref=e346]:
+          - generic [ref=e347]:
+            - button "Static" [ref=e348] [cursor=pointer]
+            - button "Walking" [ref=e349] [cursor=pointer]
+            - button "Sports" [ref=e350] [cursor=pointer]
+          - generic [ref=e351]:
+            - text: Acceleration
+            - generic [ref=e352]:
+              - slider [ref=e353] [cursor=pointer]: "0.5"
+              - spinbutton [ref=e354]: "0.5"
+              - generic [ref=e355]: m/s²
+          - generic [ref=e356]:
+            - text: Angular velocity
+            - generic [ref=e357]:
+              - slider [ref=e358] [cursor=pointer]: "10"
+              - spinbutton [ref=e359]: "10"
+              - generic [ref=e360]: °/s
+        - generic [ref=e361]:
+          - text: Distance from camera
+          - slider "Distance from camera" [ref=e362] [cursor=pointer]: "2"
+          - text: 2.0 m
+        - generic [ref=e363]:
+          - text: Camera timing offset
+          - slider "Camera timing offset" [ref=e364] [cursor=pointer]: "16.6"
+          - text: 16.6 ms
+        - generic [ref=e365]:
+          - text: Camera timing jitter
+          - slider "Camera timing jitter" [ref=e366] [cursor=pointer]: "10"
+          - text: 10.0 ms
