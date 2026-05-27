@@ -55,7 +55,7 @@ describe('Pi Cam v1 default load — spatial slack picks 1/60', () => {
     expect(result!.shutterDenom).toBe(60);
     expect(result!.extractedWidth).toBe(1920);
     expect(result!.extractedHeight).toBe(1080);
-    expect(result!.snrMet).toBe(false);
+    expect(result!.snrMet).toBe(true); // optimal gain makes up the gap
 
     const appAfter = recalculate({
       ...app,

@@ -37,6 +37,7 @@ export function initOptimizerPanel(a: AppStateFull, rf: () => void): void {
         app.state.readoutPitchMultiplier = result.readoutPitchMultiplier;
         app.state.readoutFullFoV        = result.readoutFullFoV;
         app.state.readoutMethod         = result.readoutMethod;
+        app.state.gain                  = result.optimalGain;
         recalculate(app);
         setFrameRate(result.fps);
         setShutterDenom(result.shutterDenom);

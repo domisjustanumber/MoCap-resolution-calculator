@@ -507,6 +507,10 @@ export function syncInputsFromState(): void {
       else if (key === 'pixelPitch') el.value = app.state.pixelPitch.toFixed(1);
       else if (key === 'focalLength') el.value = app.state.focalLength.toFixed(1);
       else if (key === 'lensTransmission') el.value = app.state.lensTransmission.toFixed(2);
+      else if (key === 'luxAtSubject') {
+        const v = app.state.luxAtSubject;
+        el.value = v < 1 ? v.toFixed(3) : v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : String(Math.round(v));
+      }
       else el.value = String(app.state[key]);
     }
   });
@@ -554,7 +558,7 @@ export function syncInputsFromState(): void {
 
   const luxSlider = document.getElementById('lux-slider') as HTMLInputElement | null;
   if (luxSlider && luxSlider !== document.activeElement) {
-    luxSlider.value = String(app.state.luxAtSubject);
+    luxSlider.value = String(Math.log10(app.state.luxAtSubject).toFixed(2));
   }
 
   const monochromeEl = document.getElementById('mode-monochrome') as HTMLInputElement | null;

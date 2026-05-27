@@ -19,6 +19,7 @@ export interface OptimizationResult {
   readoutMethod: ReadoutMethod;
   minFeatureSize: number;
   snrMet: boolean;
+  optimalGain: number;
 }
 
 interface CandidateSpec {
@@ -49,6 +50,7 @@ interface ResolvedCandidate {
   maxShutter: number;
   targetFreq: number;
   snrDb: number;
+  exposure: ExposureOptimization;
 }
 
 export function minAcceptableSnrDb(desiredSnrDb: number, undershootPct: number): number {
@@ -265,6 +267,7 @@ export function runOptimization(
           maxShutter: c.maxShutterDenom,
           targetFreq: baseline.fEffective,
           snrDb: baselineStrict.snrDb,
+          exposure: baselineStrict.exposure,
         };
       }
     }
@@ -290,6 +293,7 @@ export function runOptimization(
         maxShutter: c.maxShutterDenom,
         targetFreq,
         snrDb,
+        exposure,
       };
 
       if (snrDb >= tempState.desiredSnrDb) {
@@ -328,6 +332,7 @@ export function runOptimization(
           maxShutter: c.maxShutterDenom,
           targetFreq: timing.targetFreq,
           snrDb: timing.snrDb,
+          exposure: timing.exposure,
         });
       }
     }
@@ -450,14 +455,9 @@ export function runOptimization(
     meetsSnr,
   );
 
-  const finalSnrMet = snrAtShutter(
-    winnerState,
-    winnerDerived,
-    radiometry,
-    motion,
-    bestTargetFreq,
-    1 / snapped.shutterDenom,
-  ) >= app.state.desiredSnrDb;
+  const finalExposure = calculateExposureOptimizer(winnerState, winnerDerived, radiometry, motion, bestTargetFreq, 1 / snapped.shutterDenom, true);
+  const finalSnrDb = finalExposure.snrAtOptimalDb - chromaSnrPenaltyDb(winnerState);
+  const finalSnrMet = finalSnrDb >= app.state.desiredSnrDb;
 
   return {
     fps: snapped.fps,
@@ -470,6 +470,7 @@ export function runOptimization(
     readoutMethod: bestReadoutMethod,
     minFeatureSize: bestMinFeature,
     snrMet: finalSnrMet,
+    optimalGain: winner.exposure.optimalGain,
   };
 }
 

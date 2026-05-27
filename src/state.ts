@@ -38,9 +38,9 @@ export const DEFAULT_STATE: AppState = {
   diagonalFov: 0,
   aperture: 2.0,
   wavelength: 550,
-  pixelPitch: 1.4,
-  nativeWidth: 2592,
-  nativeHeight: 1944,
+  pixelPitch: 3.0,
+  nativeWidth: 1280,
+  nativeHeight: 800,
   olpfPresent: true,
   extractedWidth: 640,
   extractedHeight: 480,
@@ -54,7 +54,7 @@ export const DEFAULT_STATE: AppState = {
   readoutFullFoV: true,
   measurementMode: 'monochrome',
   lensTier: 'cheap-plastic',
-  shutterType: 'rolling' as const,
+  shutterType: 'global' as const,
   distanceToSubject: 1,
   dynamicRangeDb: 66,
   luxAtSubject: DEFAULT_LUX_SUBJECT,
@@ -69,8 +69,8 @@ export function createState(): AppStateFull {
   const state = { ...DEFAULT_STATE };
   const derived = calculateDerived(state);
   const results = calculateResults(state, derived, getMotionParams(), getShutterTime(), getFrameRate(), getSyncErrorP95(), isSyncToggleOn());
-  const app: AppStateFull = { state, activePreset: 'pi-cam-v1', activeSensorPreset: 'ov5647', activeLensPreset: 'cheap-plastic', derived, results };
-  return applyPreset(app, {}, 'pi-cam-v1');
+  const app: AppStateFull = { state, activePreset: 'ov9281-module', activeSensorPreset: 'ov9281', activeLensPreset: 'cheap-plastic', derived, results };
+  return applyPreset(app, {}, 'ov9281-module');
 }
 
 export function readoutTypeToMethod(readoutType?: string): ReadoutMethod {

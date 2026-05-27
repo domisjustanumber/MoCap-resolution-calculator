@@ -15,7 +15,6 @@
     <div class="flex gap-1">
       <button id="tab-spatial" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium active">Spatial Resolution</button>
       <button id="tab-temporal" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Camera sync</button>
-      <button id="tab-acceleration" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Acceleration</button>
     </div>
   </header>
 
@@ -145,59 +144,6 @@
           </div>
         </div>
 
-        <!-- Tab: Acceleration -->
-        <div id="panel-acceleration" class="hidden">
-          <div class="rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <div class="mb-1">
-              <span class="section-label">Kinematic Motion Resolution Limits</span>
-            </div>
-            <div class="grid grid-cols-3 gap-3 mb-4">
-              <div class="stat-card">
-                <p class="section-label text-sky-400">Max Acceleration</p>
-                <p id="accel-m-s2" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-                <p id="accel-g" class="text-[10px] text-slate-500">—</p>
-              </div>
-              <div class="stat-card">
-                <p class="section-label text-sky-400">Nyquist Boundary</p>
-                <p id="accel-turn" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-                <p class="text-[10px] text-slate-500">Max Turn Rate</p>
-              </div>
-              <div class="stat-card">
-                <p class="section-label text-sky-400">State Latency</p>
-                <p id="accel-latency" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-                <p class="text-[10px] text-slate-500">2-Frame Window</p>
-              </div>
-              <div class="stat-card">
-                <p class="section-label text-emerald-400">Subject Accel</p>
-                <p id="accel-subject-accel" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-                <p class="text-[10px] text-slate-500">from motion preset</p>
-              </div>
-              <div class="stat-card">
-                <p class="section-label text-emerald-400">Subject Rotation</p>
-                <p id="accel-subject-rot" class="mt-0.5 text-lg font-bold font-mono text-slate-100">—</p>
-                <p class="text-[10px] text-slate-500">from motion preset</p>
-              </div>
-            </div>
-            <div class="grid gap-4 lg:grid-cols-2 mb-4">
-              <div>
-                <label class="text-xs font-medium text-slate-400">
-                  Frame Rate: <span id="accel-fps-label" class="font-bold text-sky-400">30</span> FPS
-                </label>
-                <input id="accel-fps" class="w-full" type="range" min="15" max="240" step="1" value="30" />
-              </div>
-              <div>
-                <label class="text-xs font-medium text-slate-400">
-                  Error Budget: <span id="accel-budget-label" class="font-bold text-sky-400">5.0</span> mm
-                </label>
-                <input id="accel-budget" class="w-full" type="range" min="0.5" max="25" step="0.5" value="5" />
-              </div>
-            </div>
-            <p class="mt-3 text-[11px] leading-relaxed text-slate-500">
-              <strong>Tracking Takeaway:</strong> Acceleration error scales <em>quadratically</em> with frame rate (a ∝ FPS²). Doubling frame rate gives <strong>4×</strong> tracking protection against sudden direction changes and velocity spikes.
-            </p>
-          </div>
-        </div>
-
         <!-- Quick controls -->
         <div id="quick-controls" class="mt-3 flex gap-1.5 items-stretch">
           <!-- Target Motion -->
@@ -208,29 +154,7 @@
               <button data-velocity="walking" class="vel-preset">Walking</button>
               <button data-velocity="sports" class="vel-preset">Sports</button>
             </div>
-            <div class="flex flex-col gap-1.5">
-              <div class="flex items-center gap-1">
-                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Velocity</span>
-                <div class="flex-1 min-w-0">
-                  <input id="velocity-slider" class="w-full" type="range" min="0" max="100" step="0.1" value="0" />
-                </div>
-                <input id="velocity-custom" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="100" placeholder="m/s" />
-              </div>
-              <div class="flex items-center gap-1">
-                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Acceleration</span>
-                <div class="flex-1 min-w-0">
-                  <input id="accel-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="0.5" />
-                </div>
-                <input id="accel-custom" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="0.5" />
-              </div>
-              <div class="flex items-center gap-1">
-                <span class="text-[10px] font-medium text-slate-500 w-12 shrink-0">Rotation</span>
-                <div class="flex-1 min-w-0">
-                  <input id="angular-slider" class="w-full" type="range" min="0" max="360" step="1" value="10" />
-                </div>
-                <input id="angular-custom" class="calc-input input-compact w-10" type="number" step="1" min="0" max="360" value="10" />
-              </div>
-            </div>
+
           </div>
 
 
@@ -282,7 +206,7 @@
           </div>
 
           <!-- Exposure Optimizer + SNR bar -->
-          <div class="shrink-0 quick-ctrl w-60">
+          <div class="shrink-0 quick-ctrl w-72">
             <p class="quick-ctrl-title">Exposure Optimizer</p>
             <div class="flex items-center gap-1">
               <button id="optimize-btn" class="action-btn">Optimize</button>
@@ -339,7 +263,7 @@
             </div>
             <div class="mt-1 flex items-center gap-1">
               <label class="text-[10px] font-medium text-slate-500 whitespace-nowrap">Lux</label>
-              <input id="lux-slider" class="w-full" type="range" min="0" max="110000" step="1" value="100" />
+               <input id="lux-slider" class="w-full" type="range" min="-2" max="5.05" step="0.01" value="2" />
               <input id="luxAtSubject" class="calc-input input-compact w-14" type="number" step="1" min="0.01" max="110000" value="100" />
               <span class="text-[10px] text-slate-600">lux</span>
             </div>
@@ -352,7 +276,7 @@
           </div>
 
           <!-- Sync Error Toggle -->
-          <div class="shrink-0 quick-ctrl max-w-28">
+          <div class="flex-1 quick-ctrl">
             <p class="quick-ctrl-title">Include camera sync error</p>
             <button id="sync-toggle" class="sync-toggle">Off</button>
           </div>

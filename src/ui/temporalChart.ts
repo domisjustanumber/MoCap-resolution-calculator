@@ -1,6 +1,6 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
-import { getCachedMaxErrors, getCachedRmseErrors, runAndCacheSimulation, getTemporalZoom, computeStats } from '../temporalState';
+import { getCachedMaxErrors, getCachedRmseErrors, runAndCacheSimulation, getTemporalZoom, computeStats, getSyncInputsHash } from '../temporalState';
 
 const CANVAS_Y_MIN = 0.0;
 const CANVAS_Y_MAX = 1.0;
@@ -62,7 +62,7 @@ function ensureDensityCurves(): void {
   const rawRmse = getCachedRmseErrors();
   if (!rawMax || !rawRmse) return;
 
-  const h = String(zoomMax) + String(rawMax.length);
+  const h = String(zoomMax) + String(rawMax.length) + getSyncInputsHash();
   if (h === simHash && cachedMaxDensity) return;
   simHash = h;
 

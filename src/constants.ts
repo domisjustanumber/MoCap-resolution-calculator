@@ -112,6 +112,10 @@ export function clampStep(value: number, min: number, max: number, step: number)
   return Math.max(min, Math.min(max, v));
 }
 
+export function darkCurrentAtTemp(dc25: number, tempC: number): number {
+  return dc25 * Math.pow(2, (tempC - 25) / DARK_CURRENT_DOUBLING_C);
+}
+
 export const DEFAULT_RADIOMETRY: SensorRadiometry = {
   qePercent: 60,
   fullWellCapacity: 5000,

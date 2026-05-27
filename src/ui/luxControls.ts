@@ -1,6 +1,13 @@
 import type { AppStateFull } from '../types';
 import { setField } from '../state';
 
+function luxDisplay(v: number): string {
+  if (v < 1) return v.toFixed(3);
+  if (v < 10) return v.toFixed(2);
+  if (v < 100) return v.toFixed(1);
+  return String(Math.round(v));
+}
+
 const LUX_PRESETS: Record<string, number> = {
   '0.2': 0.2,
   '100': 100,
@@ -39,9 +46,10 @@ export function initLuxControls(a: AppStateFull, rf: () => void): void {
   const luxInput = document.getElementById('luxAtSubject') as HTMLInputElement | null;
   if (luxSlider && luxInput) {
     luxSlider.addEventListener('input', () => {
-      const v = parseFloat(luxSlider.value);
+      const logV = parseFloat(luxSlider.value);
+      const v = Math.pow(10, logV);
       setField(app, 'luxAtSubject', v);
-      if (luxInput !== document.activeElement) luxInput.value = String(v);
+      if (luxInput !== document.activeElement) luxInput.value = luxDisplay(v);
       updateLuxPresetStyles();
       refreshAll();
     });
@@ -49,7 +57,7 @@ export function initLuxControls(a: AppStateFull, rf: () => void): void {
       const v = parseFloat(luxInput.value);
       if (isNaN(v)) return;
       setField(app, 'luxAtSubject', v);
-      if (luxSlider !== document.activeElement) luxSlider.value = String(v);
+      if (luxSlider !== document.activeElement) luxSlider.value = String(Math.log10(v).toFixed(2));
       updateLuxPresetStyles();
       refreshAll();
     });

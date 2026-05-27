@@ -1,6 +1,6 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatFov, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep } from '../constants';
+import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep, darkCurrentAtTemp, chromaSnrPenaltyDb } from '../constants';
 import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
@@ -112,9 +112,10 @@ function updateSnrBar(app: AppStateFull): void {
   const effectiveGain = app.state.gain > 0 ? app.state.gain : 1.0;
   const effectiveReadNoiseE = radiometry.readNoiseE / effectiveGain;
   const RN2 = effectiveReadNoiseE * effectiveReadNoiseE;
-  const DC = radiometry.darkCurrentE * shutterTime;
+  const DC = darkCurrentAtTemp(radiometry.darkCurrentE, app.state.temperatureC) * shutterTime;
   const totalNoise = Math.sqrt(actualElectrons + RN2 + DC);
-  const snr = totalNoise > 0 ? 20 * Math.log10(actualElectrons / totalNoise) : 0;
+  const snrRaw = totalNoise > 0 ? 20 * Math.log10(actualElectrons / totalNoise) : 0;
+  const snr = snrRaw - chromaSnrPenaltyDb(app.state);
   const target = app.state.desiredSnrDb;
   const snrRounded = Math.round(snr * 10) / 10;
 

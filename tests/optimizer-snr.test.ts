@@ -113,8 +113,8 @@ describe('runOptimization SNR guarantee', () => {
     const result = runOptimization(app, slowMotion, 5, 0);
     expect(result).not.toBeNull();
     expect(isValidRegionFps(result!.fps, 60)).toBe(true);
-    expect(result!.fps).toBe(30);
-    expect(result!.shutterDenom).toBeLessThanOrEqual(30);
+    expect(result!.fps).toBe(60);
+    expect(result!.shutterDenom).toBeGreaterThanOrEqual(60);
     expect(result!.snrMet).toBe(true);
     expect(actualSnr(app, result!)).toBeGreaterThanOrEqual(app.state.desiredSnrDb - 0.5);
   });

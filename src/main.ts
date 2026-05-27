@@ -10,7 +10,6 @@ import { initFpsShutterControls, updateFpsPresetStyles, updateShutterPresetStyle
 import { initOptimizerPanel } from './ui/optimizerPanel';
 import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
 import { updateGainDisplay } from './ui/gainDisplay';
-import { initAcceleration, updateAccelOutputs } from './ui/accelerationChart';
 import { setTemporalPhase, setTemporalJitter, setTemporalZoom } from './temporalState';
 
 const app = createState();
@@ -22,7 +21,6 @@ let refreshAll = function(): void {
   drawChart(app);
   drawDistanceChart(app);
   drawTemporalChart(app);
-  updateAccelOutputs();
   updateAdvancedSensorSpecs(app);
   updateGainDisplay(app);
   updateShutterPresetStyles();
@@ -34,7 +32,6 @@ updateOutputs(app);
 drawChart(app);
 drawDistanceChart(app);
 drawTemporalChart(app);
-initAcceleration();
 
 initExposurePanel(app, refreshAll, () => {
   setActiveMotionPreset('custom');
@@ -59,10 +56,8 @@ function switchTab(tab: string): void {
   activeTab = tab;
   const spatialPanel = document.getElementById('panel-spatial');
   const temporalPanel = document.getElementById('panel-temporal');
-  const accelPanel = document.getElementById('panel-acceleration');
   const spatialTab = document.getElementById('tab-spatial');
   const temporalTab = document.getElementById('tab-temporal');
-  const accelTab = document.getElementById('tab-acceleration');
   const presetBar = document.getElementById('preset-bar');
   const quickControls = document.getElementById('quick-controls');
   const bottleneckBanner = document.getElementById('bottleneck-banner');
@@ -72,7 +67,6 @@ function switchTab(tab: string): void {
 
   if (spatialPanel) spatialPanel.classList.toggle('hidden', tab !== 'spatial');
   if (temporalPanel) temporalPanel.classList.toggle('hidden', tab !== 'temporal');
-  if (accelPanel) accelPanel.classList.toggle('hidden', tab !== 'acceleration');
 
   if (presetBar) presetBar.classList.toggle('hidden', tab !== 'spatial');
   if (quickControls) quickControls.classList.toggle('hidden', tab !== 'spatial');
@@ -81,7 +75,6 @@ function switchTab(tab: string): void {
 
   if (tab === 'spatial' && spatialTab) spatialTab.classList.add('active');
   if (tab === 'temporal' && temporalTab) temporalTab.classList.add('active');
-  if (tab === 'acceleration' && accelTab) accelTab.classList.add('active');
 
   setTimeout(() => {
     if (tab === 'spatial') { drawChart(app, true); drawDistanceChart(app, true); }
@@ -91,7 +84,6 @@ function switchTab(tab: string): void {
 
 document.getElementById('tab-spatial')?.addEventListener('click', () => switchTab('spatial'));
 document.getElementById('tab-temporal')?.addEventListener('click', () => switchTab('temporal'));
-document.getElementById('tab-acceleration')?.addEventListener('click', () => switchTab('acceleration'));
 
 // --- Y-axis scale for distance chart ---
 function bindDistYRange(): void {
