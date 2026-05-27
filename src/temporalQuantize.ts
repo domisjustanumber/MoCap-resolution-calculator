@@ -92,26 +92,24 @@ export function snapShutterToRegion(
   return Math.min(...valid);
 }
 
-/** Shutter denominators to evaluate at fps: continuous cap plus on-grid values in range. */
+/** Shutter denominators to evaluate at fps: all region-valid values in [fps, upperBound]. */
 export function shuttersForFpsSearch(
   fps: number,
   idealShutterDenom: number,
   maxShutterDenom: number,
   regionHz: number,
 ): number[] {
-  const cap = Math.min(idealShutterDenom, maxShutterDenom);
-  if (fps > cap) return [];
-
-  const shutters = new Set<number>();
-  shutters.add(Math.max(fps, cap));
+  const rawUpper = Math.min(idealShutterDenom, maxShutterDenom);
+  if (fps > rawUpper) return [];
 
   if (regionHz > 0) {
-    for (const d of enumerateRegionShutterDenoms(regionHz, maxShutterDenom)) {
-      if (d >= fps && d <= cap) shutters.add(d);
-    }
+    const upper = snapShutterToRegion(rawUpper, regionHz, fps, maxShutterDenom, 'floor');
+    return enumerateRegionShutterDenoms(regionHz, maxShutterDenom)
+      .filter((d) => d >= fps && d <= upper);
   }
 
-  return [...shutters].sort((a, b) => a - b);
+  // Free region: any integer ≥ fps; evaluate the exposure-optimal cap only (avoid O(n) scan).
+  return [Math.max(fps, Math.round(rawUpper))];
 }
 
 /**

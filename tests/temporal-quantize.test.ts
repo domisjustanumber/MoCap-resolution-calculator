@@ -6,6 +6,7 @@ import {
   snapFpsToRegion,
   snapShutterToRegion,
   snapTimingPreservingSnr,
+  shuttersForFpsSearch,
 } from '../src/temporalQuantize';
 
 describe('temporalQuantize', () => {
@@ -28,6 +29,32 @@ describe('temporalQuantize', () => {
   it('snaps fps to nearest region value', () => {
     expect(snapFpsToRegion(28, 50, 120, 'nearest')).toBe(25);
     expect(snapFpsToRegion(40, 50, 120, 'nearest')).toBe(50);
+  });
+
+  it('shuttersForFpsSearch uses full regional grid, not only preset-like cap', () => {
+    const shutters = shuttersForFpsSearch(120, 1750, 8000, 60);
+    expect(shutters.length).toBeGreaterThan(1);
+    expect(shutters.every((d) => isValidRegionShutterDenom(d, 60) && d >= 120 && d <= 1740)).toBe(true);
+    expect(shutters).toContain(120);
+    expect(shutters).toContain(1740);
+    expect(shutters).not.toContain(1750);
+    expect(shutters).not.toContain(1800);
+  });
+
+  it('shuttersForFpsSearch includes every valid regional step up to floored cap', () => {
+    const shutters = shuttersForFpsSearch(120, 1860, 8000, 60);
+    expect(shutters.length).toBeGreaterThan(1);
+    expect(shutters.every((d) => isValidRegionShutterDenom(d, 60) && d >= 120 && d <= 1860)).toBe(true);
+    expect(shutters).toContain(120);
+    expect(shutters).toContain(1860);
+    expect(shutters).not.toContain(1920);
+  });
+
+  it('shuttersForFpsSearch floors off-grid ideal to nearest valid regional value', () => {
+    const shutters = shuttersForFpsSearch(120, 1750, 8000, 60);
+    expect(shutters.every((d) => d <= 1740)).toBe(true);
+    expect(shutters).toContain(1740);
+    expect(shutters).not.toContain(1750);
   });
 
   it('prefers on-grid timing when SNR still passes', () => {
