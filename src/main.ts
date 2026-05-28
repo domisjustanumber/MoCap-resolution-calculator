@@ -442,23 +442,42 @@ if (showCloudCheckbox) {
   });
 }
 
-// --- Chart tab switching ---
-const PATH_SPATIAL = '/spatial';
-const PATH_TEMPORAL = '/temporal';
+// --- Chart tab switching (query param only — do not change pathname) ---
+const TAB_QUERY_KEY = 'tab';
 
-function normalizePath(path: string): string {
-  const trimmed = path.replace(/\/+$/, '');
-  return trimmed || '/';
+function tabFromSearch(search: string): 'spatial' | 'temporal' {
+  const value = new URLSearchParams(search).get(TAB_QUERY_KEY);
+  return value === 'temporal' ? 'temporal' : 'spatial';
 }
 
-function tabFromPath(path: string): 'spatial' | 'temporal' {
-  const p = normalizePath(path);
-  if (p === PATH_TEMPORAL) return 'temporal';
-  return 'spatial';
+function urlForTab(tab: 'spatial' | 'temporal'): string {
+  const params = new URLSearchParams(window.location.search);
+  if (tab === 'temporal') {
+    params.set(TAB_QUERY_KEY, 'temporal');
+  } else {
+    params.delete(TAB_QUERY_KEY);
+  }
+  const qs = params.toString();
+  return window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
 }
 
-function pathForTab(tab: 'spatial' | 'temporal'): string {
-  return tab === 'temporal' ? PATH_TEMPORAL : PATH_SPATIAL;
+/** Old bookmarks used /spatial or /temporal as pathname; move tab into ?tab= and restore base path. */
+function migrateLegacyTabPathname(): void {
+  const path = window.location.pathname;
+  const temporalMatch = path.match(/\/temporal\/?$/);
+  const spatialMatch = path.match(/\/spatial\/?$/);
+  if (!temporalMatch && !spatialMatch) return;
+  const base = path.replace(/\/(?:temporal|spatial)\/?$/, '') || '/';
+  const tab = temporalMatch ? 'temporal' : 'spatial';
+  const params = new URLSearchParams(window.location.search);
+  if (tab === 'temporal') params.set(TAB_QUERY_KEY, 'temporal');
+  else params.delete(TAB_QUERY_KEY);
+  const qs = params.toString();
+  window.history.replaceState(
+    { tab },
+    '',
+    base + (qs ? '?' + qs : '') + window.location.hash,
+  );
 }
 
 let activeTab = 'spatial';
@@ -500,11 +519,11 @@ function switchTab(tab: string): void {
 
 document.getElementById('tab-spatial')?.addEventListener('click', () => {
   switchTab('spatial');
-  window.history.pushState({ tab: 'spatial' }, '', PATH_SPATIAL);
+  window.history.pushState({ tab: 'spatial' }, '', urlForTab('spatial'));
 });
 document.getElementById('tab-temporal')?.addEventListener('click', () => {
   switchTab('temporal');
-  window.history.pushState({ tab: 'temporal' }, '', PATH_TEMPORAL);
+  window.history.pushState({ tab: 'temporal' }, '', urlForTab('temporal'));
 });
 
 // --- Y-axis scale for distance chart ---
@@ -609,14 +628,14 @@ window.addEventListener('popstate', (e) => {
   const tab =
     e.state?.tab === 'temporal' ? 'temporal'
     : e.state?.tab === 'spatial' ? 'spatial'
-    : tabFromPath(window.location.pathname);
+    : tabFromSearch(window.location.search);
   switchTab(tab);
 });
 
-const initialPath = normalizePath(window.location.pathname);
-const initialTab = tabFromPath(initialPath);
+migrateLegacyTabPathname();
+const initialTab = tabFromSearch(window.location.search);
 switchTab(initialTab);
-window.history.replaceState({ tab: initialTab }, '', pathForTab(initialTab));
+window.history.replaceState({ tab: initialTab }, '', urlForTab(initialTab));
 
 window.addEventListener('beforeunload', () => {
   disposeScene3d();
