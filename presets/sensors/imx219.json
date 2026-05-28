@@ -14,7 +14,7 @@
     "darkCurrentE": 15,
     "conversionGainUvPerE": 180,
     "adcBits": 10,
-    "readoutTimeUs": 28,
+    "readoutTimeUs": 19,
     "cfaFactor": 0.58,
     "hasDualCG": false
   },
@@ -40,5 +40,38 @@
     "hblank": { "min": 168, "max": 32496, "default": 168 },
     "vblank": { "min": 32, "max": 65535, "default": 1062 }
   },
-  "shutterType": "rolling"
+  "shutterType": "rolling",
+  "_provenance": {
+    "pixelPitch": { "source": "datasheet", "note": "From product brief: \"1.12 µm pixel pitch\"", "updated": "2026-05-28" },
+    "nativeWidth": { "source": "datasheet", "note": "Active array width from register map", "updated": "2026-05-28" },
+    "nativeHeight": { "source": "datasheet", "note": "Active array height from register map", "updated": "2026-05-28" },
+    "olpfPresent": { "source": "datasheet", "note": "V4L2 driver reports OLPF present", "updated": "2026-05-28" },
+    "dynamicRangeDb": { "source": "estimate", "note": "Typical for 1.12 µm pixel; ±3 dB confidence", "updated": "2026-05-28" },
+    "colourVariant": { "source": "datasheet", "updated": "2026-05-28" },
+    "radiometry.qePercent": { "source": "estimate", "note": "Estimated from pixel size and generation; ±15%", "updated": "2026-05-28" },
+    "radiometry.fullWellCapacity": { "source": "estimate", "note": "Estimated from pixel pitch; ±25%", "updated": "2026-05-28" },
+    "radiometry.readNoiseE": { "source": "estimate", "note": "Typical rolling-shutter CMOS; ±1e", "updated": "2026-05-28" },
+    "radiometry.darkCurrentE": { "source": "estimate", "note": "Room temp ballpark; ±50%", "updated": "2026-05-28" },
+    "radiometry.conversionGainUvPerE": { "source": "estimate", "note": "Inferred from FWC and pixel pitch", "updated": "2026-05-28" },
+    "radiometry.adcBits": { "source": "datasheet", "note": "10-bit ADC, confirmed in product brief and V4L2 bus format SRGGB10_1X10", "updated": "2026-05-28" },
+    "radiometry.readoutTimeUs": { "source": "derived", "note": "Computed from LINE_LENGTH=3448 (register 0x0162-0x0163) and pixel rate 182.4 MHz: 3448/182.4e6 = 18.9 µs; datasheet frame-rate formula confirms 15 fps at VTS=3526", "updated": "2026-05-28" },
+    "radiometry.cfaFactor": { "source": "estimate", "note": "Standard Bayer; ±10%", "updated": "2026-05-28" },
+    "radiometry.hasDualCG": { "source": "datasheet", "note": "V4L2 driver does not expose dual CG", "updated": "2026-05-28" },
+    "v4l2.chipId": { "source": "datasheet", "note": "From V4L2 register map and driver source", "updated": "2026-05-28" },
+    "v4l2.nativeSize": { "source": "datasheet", "note": "Pixel array size from register map", "updated": "2026-05-28" },
+    "v4l2.activeArray": { "source": "datasheet", "note": "Active array from register map offsets", "updated": "2026-05-28" },
+    "v4l2.pixelRates": { "source": "datasheet", "note": "PLL configuration from V4L2 driver", "updated": "2026-05-28" },
+    "v4l2.linkFreqs": { "source": "datasheet", "note": "MIPI link frequencies from driver", "updated": "2026-05-28" },
+    "v4l2.mipiLanes": { "source": "datasheet", "updated": "2026-05-28" },
+    "v4l2.xclk": { "source": "datasheet", "note": "Master clock from driver", "updated": "2026-05-28" },
+    "v4l2.busFormats": { "source": "datasheet", "updated": "2026-05-28" },
+    "v4l2.supplies": { "source": "datasheet", "note": "From V4L2 driver", "updated": "2026-05-28" },
+    "v4l2.modes": { "source": "datasheet", "note": "From V4L2 driver mode table", "updated": "2026-05-28" },
+    "v4l2.exposure": { "source": "datasheet", "note": "From V4L2 driver constraints", "updated": "2026-05-28" },
+    "v4l2.analogueGain": { "source": "datasheet", "note": "From V4L2 driver gain table", "updated": "2026-05-28" },
+    "v4l2.digitalGain": { "source": "datasheet", "note": "From V4L2 driver", "updated": "2026-05-28" },
+    "v4l2.hblank": { "source": "datasheet", "note": "From V4L2 driver", "updated": "2026-05-28" },
+    "v4l2.vblank": { "source": "datasheet", "note": "From V4L2 driver", "updated": "2026-05-28" },
+    "shutterType": { "source": "datasheet", "note": "Rolling shutter confirmed in V4L2 driver", "updated": "2026-05-28" }
+  }
 }

@@ -2,5 +2,11 @@
   "name": "pi-cam-v2",
   "label": "Pi Cam v2 (IMX219)",
   "sensorName": "imx219",
-  "lensName": "cheap-plastic"
+  "lensName": "cheap-plastic",
+  "_provenance": {
+    "name": { "source": "spec", "note": "Official Raspberry Pi product name" },
+    "label": { "source": "spec", "note": "Standard label for IMX219-based board" },
+    "sensorName": { "source": "spec", "note": "IMX219 sensor confirmed in v2.x revisions" },
+    "lensName": { "source": "spec", "note": "Raspberry Pi supplies fixed-lens module with standard cheap-plastic optics" }
+  }
 }

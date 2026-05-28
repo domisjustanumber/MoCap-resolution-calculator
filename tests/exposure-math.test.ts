@@ -279,8 +279,8 @@ describe('fps', () => {
   it('never exceeds sensor max due to readout', () => {
     const s = makeState({ luxAtSubject: 100000 });
     const o = optimize(s, imx219, 0, 100);
-    // IMX219 readout ≈ 28µs × 2464 rows ≈ 69ms minimum frame time
-    const maxFps = 1 / ((28 * 2464) / 1_000_000);
+    // IMX219 readout ≈ 19µs × 2464 rows ≈ 47ms minimum frame time
+    const maxFps = 1 / ((19 * 2464) / 1_000_000);
     expect(o.optimalFps).toBeLessThanOrEqual(maxFps + 1);
   });
 });

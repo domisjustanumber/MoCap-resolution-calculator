@@ -2,5 +2,11 @@
   "name": "pi-cam-v1",
   "label": "Pi Cam v1 (OV5647)",
   "sensorName": "ov5647",
-  "lensName": "cheap-plastic"
+  "lensName": "cheap-plastic",
+  "_provenance": {
+    "name": { "source": "spec", "note": "Official Raspberry Pi product name" },
+    "label": { "source": "spec", "note": "Standard label for OV5647-based board" },
+    "sensorName": { "source": "spec", "note": "OV5647 sensor confirmed in all revisions" },
+    "lensName": { "source": "spec", "note": "Raspberry Pi supplies fixed-lens module with standard cheap-plastic optics" }
+  }
 }

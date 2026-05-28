@@ -5,5 +5,14 @@
   "qualityScalar": 0.95,
   "focalLength": 12.0,
   "aperture": 1.8,
-  "lensTransmission": 0.95
+  "lensTransmission": 0.95,
+  "_provenance": {
+    "name": { "source": "estimate", "note": "Representative premium multi-element stack" },
+    "label": { "source": "estimate", "note": "Conventional name for high-end lens" },
+    "tier": { "source": "estimate", "note": "Maps to premium-stack lens tier" },
+    "qualityScalar": { "source": "estimate", "note": "Typical MTF quality for premium optics; ±0.05" },
+    "focalLength": { "source": "estimate", "note": "Typical telephoto; ±1.0 mm" },
+    "aperture": { "source": "estimate", "note": "Typical premium f-number; ±0.2" },
+    "lensTransmission": { "source": "estimate", "note": "Typical for multi-coated glass; ±0.03" }
+  }
 }

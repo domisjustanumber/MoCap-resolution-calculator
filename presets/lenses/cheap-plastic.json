@@ -5,5 +5,14 @@
   "qualityScalar": 0.6,
   "focalLength": 3.6,
   "aperture": 2.0,
-  "lensTransmission": 0.60
+  "lensTransmission": 0.60,
+  "_provenance": {
+    "name": { "source": "estimate", "note": "Representative entry-level plastic lens" },
+    "label": { "source": "estimate", "note": "Conventional name for entry-tier lens" },
+    "tier": { "source": "estimate", "note": "Maps to cheap-plastic lens tier" },
+    "qualityScalar": { "source": "estimate", "note": "Typical MTF quality for cheap plastic optics; ±0.1" },
+    "focalLength": { "source": "estimate", "note": "Typical wide-angle; ±0.3 mm" },
+    "aperture": { "source": "estimate", "note": "Typical entry-level f-number; ±0.3" },
+    "lensTransmission": { "source": "estimate", "note": "Typical for uncoated plastic elements; ±0.1" }
+  }
 }

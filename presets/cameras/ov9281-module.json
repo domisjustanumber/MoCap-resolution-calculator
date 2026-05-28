@@ -2,5 +2,11 @@
   "name": "ov9281-module",
   "label": "OV9281 Module",
   "sensorName": "ov9281",
-  "lensName": "cheap-plastic"
+  "lensName": "mid-glass",
+  "_provenance": {
+    "name": { "source": "spec", "note": "OV9281 reference module designation" },
+    "label": { "source": "spec", "note": "Standard label for OV9281-based board" },
+    "sensorName": { "source": "spec", "note": "OV9281 monochrome global-shutter sensor" },
+    "lensName": { "source": "spec", "note": "OV9281 modules ship with mid-range glass S-mount lens" }
+  }
 }

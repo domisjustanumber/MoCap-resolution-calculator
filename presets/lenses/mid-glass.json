@@ -5,5 +5,14 @@
   "qualityScalar": 0.8,
   "focalLength": 6.0,
   "aperture": 2.8,
-  "lensTransmission": 0.85
+  "lensTransmission": 0.85,
+  "_provenance": {
+    "name": { "source": "estimate", "note": "Representative mid-range glass lens" },
+    "label": { "source": "estimate", "note": "Conventional name for mid-tier lens" },
+    "tier": { "source": "estimate", "note": "Maps to mid-glass lens tier" },
+    "qualityScalar": { "source": "estimate", "note": "Typical MTF quality for glass optics; ±0.1" },
+    "focalLength": { "source": "estimate", "note": "Typical standard lens; ±0.5 mm" },
+    "aperture": { "source": "estimate", "note": "Typical mid-range f-number; ±0.3" },
+    "lensTransmission": { "source": "estimate", "note": "Typical for coated glass elements; ±0.05" }
+  }
 }

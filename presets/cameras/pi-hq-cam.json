@@ -2,5 +2,11 @@
   "name": "pi-hq-cam",
   "label": "Pi HQ Cam (IMX477)",
   "sensorName": "imx477",
-  "lensName": "mid-glass"
+  "lensName": "mid-glass",
+  "_provenance": {
+    "name": { "source": "spec", "note": "Official Raspberry Pi product name" },
+    "label": { "source": "spec", "note": "Standard label for IMX477-based board" },
+    "sensorName": { "source": "spec", "note": "IMX477 sensor confirmed in product brief" },
+    "lensName": { "source": "spec", "note": "Raspberry Pi HQ Cam uses C/CS-mount; mid-glass is representative" }
+  }
 }

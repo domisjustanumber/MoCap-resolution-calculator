@@ -60,6 +60,23 @@ export interface V4l2Config {
   vblank: { min: number; max: number; default: number };
 }
 
+/** Source confidence for a preset field. */
+export type ProvenanceSource = 'spec' | 'estimate' | 'derived';
+
+/**
+ * Provenance annotation for a single field or group of fields.
+ * Accepts either a shorthand string or an object with optional reference/notes.
+ */
+export type ProvenanceValue =
+  | ProvenanceSource
+  | { source: ProvenanceSource; ref?: string; note?: string };
+
+/**
+ * Flat map of dot-path field keys → provenance metadata.
+ * Added to preset JSON files as a `_provenance` block.
+ */
+export type ProvenanceMap = Record<string, ProvenanceValue>;
+
 /** A camera preset selects a sensor + lens bundle. */
 export interface CameraPreset {
   /** Unique identifier (e.g. "pi-cam-v2") */
@@ -70,6 +87,8 @@ export interface CameraPreset {
   sensorName: string;
   /** Name of the lens preset this camera uses */
   lensName: string;
+  /** Per-field provenance annotations */
+  _provenance?: ProvenanceMap;
 }
 
 /** A lens preset defines the optical quality tier and its parameters. */
@@ -94,6 +113,8 @@ export interface LensPreset {
   aperture: number;
   /** Lens light transmission (0–1) */
   lensTransmission: number;
+  /** Per-field provenance annotations */
+  _provenance?: ProvenanceMap;
 }
 
 /** A sensor preset defines the physical sensor geometry and radiometric characteristics. */
@@ -120,4 +141,6 @@ export interface SensorPreset {
   v4l2: V4l2Config;
   /** Sensor readout architecture */
   shutterType: 'rolling' | 'global';
+  /** Per-field provenance annotations */
+  _provenance?: ProvenanceMap;
 }
