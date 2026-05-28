@@ -4,6 +4,7 @@ import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, clamped, LENS_TIER_DR } from '../constants';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
 import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
+import { isFieldEstimated, hasAnyEstimated, stripAsterisk } from './provenance';
 
 let app: AppStateFull;
 let refreshAll: () => void;
@@ -362,11 +363,15 @@ export function updatePresetChipStyles(): void {
   });
   const sensorChips = document.querySelectorAll('.sensor-model-chip[data-preset]') as NodeListOf<HTMLButtonElement>;
   sensorChips.forEach((chip) => {
-    if (chip.dataset.preset === app.activeSensorPreset) {
+    const name = chip.dataset.preset;
+    if (name === app.activeSensorPreset) {
       chip.classList.add('active');
     } else {
       chip.classList.remove('active');
     }
+    const base = stripAsterisk(chip.textContent || '');
+    const mark = name && name !== 'custom' && hasAnyEstimated(name) ? '*' : '';
+    chip.textContent = base + mark;
   });
 }
 
@@ -484,6 +489,20 @@ export function updateCompressionControlsState(): void {
   }
 }
 
+function updateProvenanceLabels(): void {
+  const presetName = app.activeSensorPreset;
+  const fields: Array<[string, string]> = [
+    ['pixelPitch', 'pixelPitch'],
+    ['dynamicRangeDb', 'dynamicRangeDb'],
+  ];
+  fields.forEach(([inputId, provenancePath]) => {
+    const label = document.querySelector(`[for="${inputId}"]`) as HTMLLabelElement | null;
+    if (!label) return;
+    const base = stripAsterisk(label.textContent || '');
+    label.textContent = base + (isFieldEstimated(presetName, provenancePath) ? ' *' : '');
+  });
+}
+
 export function syncInputsFromState(): void {
   const numberFields: Array<keyof AppState> = [
     'focalLength',
@@ -583,6 +602,7 @@ export function syncInputsFromState(): void {
   updateShutterPresetStyles();
 
   updateDrBar();
+  updateProvenanceLabels();
 }
 
 

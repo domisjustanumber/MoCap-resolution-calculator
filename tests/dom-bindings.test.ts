@@ -31,10 +31,11 @@ function extractTsIds(tsFiles: string[]): Set<string> {
       ids.add(m[1]);
     }
 
-    // B) First-arg string IDs: setText, bindNumberInput, bindCheckboxInput,
-    //    bindSelectInput, bindRangeInput, bindQcMotionInput, syncTargetInput
+    // B) First-arg string IDs: setText, setSpecValue, bindNumberInput,
+    //    bindCheckboxInput, bindSelectInput, bindRangeInput, bindQcMotionInput,
+    //    syncTargetInput
     for (const m of content.matchAll(
-      /\b(setText|bindNumberInput|bindCheckboxInput|bindSelectInput|bindRangeInput|bindQcMotionInput|syncTargetInput)\(['"]([^'"]+)['"]/g,
+      /\b(setText|setSpecValue|bindNumberInput|bindCheckboxInput|bindSelectInput|bindRangeInput|bindQcMotionInput|syncTargetInput)\(['"]([^'"]+)['"]/g,
     )) {
       ids.add(m[2]);
     }
@@ -81,7 +82,9 @@ const tsIds = extractTsIds(walkTsFiles(srcDir));
 const staleJsRefs: string[] = [];
 
 /** IDs in index.html that no TypeScript file looks up by ID */
-const layoutOnlyIds: string[] = [];
+const layoutOnlyIds: string[] = [
+  'temporal-zoom',  // referenced in main.ts via bindSlider with empty labelId; regex captures only first + third args
+];
 
 // ---------------------------------------------------------------------------
 // Tests
