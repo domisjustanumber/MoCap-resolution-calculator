@@ -1,29 +1,12 @@
-## Minimum Resolvable Object
-Think of this chart as the spatial accuracy of the system. If the chart says 10mm at 2m, that means two objects that are 2m from the camera and less than 10mm apart will appear as one single object to the camera.
+# [MoCap System Resolution Calculator](https://domisjustanumber.github.io/MoCap-resolution-calculator/)
+Hopefully this helps you calculate theoretical minimum resolvable objects when using a Motion Capture system.
 
-### Inputs
-Sensor size
-Capture size
-Lens field of view, f/ stop
+## Spatial
+The Spatial tab sets up your camera. Select your camera, motion type, light level and click optimize to find out what the minimum spatial resolution is. You also get a plot for maximum velocity before motion blur makes it impossible to track, and a suggested minimum ChAruCo square length.
 
-## How to improve results
-1. Increase capture resolution
-2. Decrease camera field of view (less is visible in the frame / more zoomed in)
-3. Decrease distance from the camera
+## Temporal
+On the Temporal tab you can see what effects camera timing offsets will have on your tracking, along with a (rough) 3D visualisation.
+By default, these values are not linked to the Spatial Resolution chart, but if you enable Linked mode, they are all locked together and the temporal offsets will reflect in your spatial resolution. You will also only get valid settings for the camera you have selected in the Temporal Resolution chart.
 
-## Camera sync error
-This chart plots the affect of camera sync issues on the spatial accuracy of the system. It demonstrates the issues that camera timing offsets can have on accuracy.
-
-### Inputs
-- Distance from the camera
-- Velocity of object (how fast is the thing you want to track moving)
-- Camera timing offset (what is the range of camera shutter times. i.e. if camera 1 fires 5ms before camera 2, and camera 3 fires another 5ms later, your phase offset is 10ms).
-- Camera timing jitter - how much unreliability in timing is there from either one camera to the next, or the pacing of the frames from any camera. e.g. if you only know the accuracy of the time you captured the frame to 10ms, then your jitter is 10ms. It has a huge impact on accuracy!
-
-## How to improve results
-- Better camera timing! Know when the image was taken, keep the cameras synchronised as tightly as possible.
-- Track slower stuff. Boring, but a reality of using USB cameras that have inherently unreliable timing
-
-## Spatial Resolution
-
-
+## Caveats
+This is all vibe coded, so double check calculations. It's very likely wrong in places.
