@@ -14,7 +14,7 @@
     </h1>
     <div class="flex gap-1">
       <button id="tab-spatial" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium active">Spatial Resolution</button>
-      <button id="tab-temporal" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Camera sync</button>
+      <button id="tab-temporal" class="chart-tab rounded-md px-4 py-1.5 text-xs font-medium">Temporal Resolution</button>
     </div>
   </header>
 
@@ -224,11 +224,11 @@
               <!-- Shutter speed -->
               <div class="flex-[0.7] min-w-0 quick-ctrl">
                 <p class="quick-ctrl-title">Shutter speed</p>
-                <div class="flex items-center gap-0.5">
-                  <span class="text-[10px] text-slate-500">1/</span>
-                  <input id="sync-shutter-input" class="calc-input input-compact w-14" type="number" step="1" min="1" max="10000" value="60" />
+                <div class="flex items-center gap-1">
+                  <input id="sync-shutter-slider" class="flex-1 min-w-0 w-full" type="range" min="1" max="10000" step="1" value="60" />
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap shrink-0">1/</span>
+                  <input id="sync-shutter-input" class="calc-input input-compact w-14 shrink-0" type="number" step="1" min="1" max="10000" value="60" />
                 </div>
-                <input id="sync-shutter-slider" class="w-full mt-1" type="range" min="1" max="10000" step="1" value="60" />
               </div>
 
               <!-- Sync with Spatial tab -->
@@ -309,11 +309,11 @@
           <div class="shrink-0 flex flex-col gap-1.5 w-56">
             <div class="flex-1 quick-ctrl">
               <p class="quick-ctrl-title">Shutter speed</p>
-              <div class="flex items-center gap-0.5">
-                <span class="text-[10px] text-slate-500">1/</span>
-                <input id="spatial-shutter-input" class="calc-input input-compact w-14" type="number" step="1" min="1" max="10000" value="60" />
+              <div class="flex items-center gap-1">
+                <input id="spatial-shutter-slider" class="flex-1 min-w-0 w-full" type="range" min="1" max="10000" step="1" value="60" />
+                <span class="text-[10px] text-slate-500 whitespace-nowrap shrink-0">1/</span>
+                <input id="spatial-shutter-input" class="calc-input input-compact w-14 shrink-0" type="number" step="1" min="1" max="10000" value="60" />
               </div>
-              <input id="spatial-shutter-slider" class="w-full mt-1" type="range" min="1" max="10000" step="1" value="60" />
             </div>
             <div class="flex-1 quick-ctrl">
               <p class="quick-ctrl-title">Gain</p>
@@ -340,11 +340,13 @@
               <input id="snr-undershoot-pct" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="0" max="50" value="10" title="Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" />
               <span class="text-[9px] text-slate-600 whitespace-nowrap">% SNR slack</span>
             </div>
-            <div class="flex items-center gap-1 mt-1">
-              <span class="text-[9px] text-slate-500 whitespace-nowrap shrink-0">Target distance from camera</span>
-              <input id="exposure-target-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="3" />
-              <input id="exposure-target-distance-input" class="calc-input input-compact" style="width:44px" type="number" step="0.1" min="0.5" max="20" value="3" />
-              <span class="text-[9px] text-slate-600 whitespace-nowrap">m</span>
+            <div class="mt-1">
+              <div class="mb-0.5 text-[9px] font-medium text-slate-500">Target distance from camera</div>
+              <div class="flex items-center gap-1">
+                <input id="exposure-target-distance" class="w-full" type="range" min="0.5" max="20" step="0.5" value="3" />
+                <input id="exposure-target-distance-input" class="calc-input input-compact" style="width:44px" type="number" step="0.1" min="0.5" max="20" value="3" />
+                <span class="text-[9px] text-slate-600 whitespace-nowrap">m</span>
+              </div>
             </div>
             <div class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Current SNR</div>

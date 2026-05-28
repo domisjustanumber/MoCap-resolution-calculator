@@ -443,6 +443,24 @@ if (showCloudCheckbox) {
 }
 
 // --- Chart tab switching ---
+const PATH_SPATIAL = '/spatial';
+const PATH_TEMPORAL = '/temporal';
+
+function normalizePath(path: string): string {
+  const trimmed = path.replace(/\/+$/, '');
+  return trimmed || '/';
+}
+
+function tabFromPath(path: string): 'spatial' | 'temporal' {
+  const p = normalizePath(path);
+  if (p === PATH_TEMPORAL || p === '/camera-sync') return 'temporal';
+  return 'spatial';
+}
+
+function pathForTab(tab: 'spatial' | 'temporal'): string {
+  return tab === 'temporal' ? PATH_TEMPORAL : PATH_SPATIAL;
+}
+
 let activeTab = 'spatial';
 
 function switchTab(tab: string): void {
@@ -482,11 +500,11 @@ function switchTab(tab: string): void {
 
 document.getElementById('tab-spatial')?.addEventListener('click', () => {
   switchTab('spatial');
-  window.history.pushState({ tab: 'spatial' }, '', '/');
+  window.history.pushState({ tab: 'spatial' }, '', PATH_SPATIAL);
 });
 document.getElementById('tab-temporal')?.addEventListener('click', () => {
   switchTab('temporal');
-  window.history.pushState({ tab: 'temporal' }, '', '/camera-sync');
+  window.history.pushState({ tab: 'temporal' }, '', PATH_TEMPORAL);
 });
 
 // --- Y-axis scale for distance chart ---
@@ -588,15 +606,17 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('popstate', (e) => {
-  const tab = e.state?.tab === 'temporal' ? 'temporal' : 'spatial';
+  const tab =
+    e.state?.tab === 'temporal' ? 'temporal'
+    : e.state?.tab === 'spatial' ? 'spatial'
+    : tabFromPath(window.location.pathname);
   switchTab(tab);
 });
 
-const initialPath = window.location.pathname.replace(/\/+$/, '');
-if (initialPath === '/camera-sync') {
-  switchTab('temporal');
-  window.history.replaceState({ tab: 'temporal' }, '', '/camera-sync');
-}
+const initialPath = normalizePath(window.location.pathname);
+const initialTab = tabFromPath(initialPath);
+switchTab(initialTab);
+window.history.replaceState({ tab: initialTab }, '', pathForTab(initialTab));
 
 window.addEventListener('beforeunload', () => {
   disposeScene3d();
