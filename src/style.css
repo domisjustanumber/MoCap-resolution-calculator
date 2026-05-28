@@ -185,6 +185,23 @@ html {
     @apply cursor-grabbing;
   }
 
+  .exp-target-marker-line {
+    @apply absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 pointer-events-none;
+    width: 2px;
+    height: 16px;
+    background: rgb(226 232 240 / 0.7);
+  }
+
+  .exp-target-label {
+    @apply absolute z-10 -translate-x-1/2 pointer-events-none;
+    top: 100%;
+    margin-top: 2px;
+    font-size: 9px;
+    font-family: ui-monospace, monospace;
+    color: rgb(148 163 184 / 0.9);
+    white-space: nowrap;
+  }
+
   .sync-summary {
     @apply text-sm leading-relaxed text-slate-300 mb-1;
   }

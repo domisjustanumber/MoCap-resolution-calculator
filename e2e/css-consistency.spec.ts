@@ -31,7 +31,7 @@ test.describe('CSS consistency', () => {
   });
 
   test('compact inputs use shared height classes', async ({ page }) => {
-    const compact = await page.locator('#velocity-custom').evaluate((el) => ({
+    const compact = await page.locator('#accel-custom-input').evaluate((el) => ({
       height: parseFloat(getComputedStyle(el).height),
       fontSize: getComputedStyle(el).fontSize,
     }));

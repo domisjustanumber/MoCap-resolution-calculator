@@ -1,7 +1,7 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatFov, formatSensorSize } from '../engine';
 import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep, darkCurrentAtTemp, chromaSnrPenaltyDb } from '../constants';
-import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, setAcceleration, setAngularVelocity } from '../temporalState';
+import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
 import { motionHeadroom } from '../optimizer';
@@ -81,11 +81,9 @@ function updateExposurePanel(app: AppStateFull): void {
 const SNR_BAR_MAX_DB = 50;
 const ACCEL_BAR_MAX = 50;
 const ROT_BAR_MAX = 120;
-
 let draggingExpBar: string | null = null;
 let exposurePanelApp: AppStateFull | null = null;
 let exposurePanelRefresh: (() => void) | null = null;
-let onMotionTargetEdited: (() => void) | null = null;
 
 function setMarkerPosition(marker: HTMLElement, value: number, barMax: number): void {
   const pct = Math.max(0, Math.min(100, (value / barMax) * 100));
@@ -140,6 +138,18 @@ function updateSnrBar(app: AppStateFull): void {
   }
 }
 
+function setClampedLabelPosition(id: string, value: number, barMax: number): void {
+  const label = document.getElementById(id);
+  const track = label?.parentElement;
+  if (!label || !track) return;
+  const rawPct = (value / barMax) * 100;
+  const labelHalfPx = label.offsetWidth / 2;
+  const trackWidth = track.offsetWidth;
+  const margin = trackWidth > 0 ? (labelHalfPx / trackWidth) * 100 : 0;
+  const pct = Math.max(margin, Math.min(100 - margin, rawPct));
+  label.style.left = pct + '%';
+}
+
 function updateAccelBar(): void {
   const bar = document.getElementById('exp-accel-bar');
   const label = document.getElementById('exp-accel-label');
@@ -152,6 +162,8 @@ function updateAccelBar(): void {
   const target = motion.acceleration;
 
   label.textContent = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
+  setText('exp-accel-target', target.toFixed(1));
+  setClampedLabelPosition('exp-accel-target', target, ACCEL_BAR_MAX);
 
   let barColor: string;
   if (target < 1e-6 || maxAccel >= target) {
@@ -166,8 +178,7 @@ function updateAccelBar(): void {
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
-  syncTargetInput('exp-accel-target', target, 1);
-  if (marker && draggingExpBar !== 'accel') {
+  if (marker) {
     setMarkerPosition(marker, target, ACCEL_BAR_MAX);
   }
 }
@@ -184,6 +195,8 @@ function updateRotBar(): void {
   const target = motion.angularVelocity;
 
   label.textContent = maxTurn.toLocaleString() + ' °/s';
+  setText('exp-rot-target', String(Math.round(target)));
+  setClampedLabelPosition('exp-rot-target', target, ROT_BAR_MAX);
 
   let barColor: string;
   if (target < 1e-6 || maxTurn >= target) {
@@ -198,8 +211,7 @@ function updateRotBar(): void {
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
-  syncTargetInput('exp-rot-target', target, 0);
-  if (marker && draggingExpBar !== 'rot') {
+  if (marker) {
     setMarkerPosition(marker, target, ROT_BAR_MAX);
   }
 }
@@ -215,7 +227,6 @@ interface ExpBarBinding {
   step: number;
   decimals: number;
   apply: (value: number) => void;
-  isMotion?: boolean;
 }
 
 function valueFromClientX(track: HTMLElement, clientX: number, barMax: number, min: number, max: number, step: number): number {
@@ -278,7 +289,6 @@ function bindExpBar(config: ExpBarBinding): void {
     const clamped = clampStep(v, config.min, config.max, config.step);
     config.apply(clamped);
     setMarkerPosition(marker, clamped, config.barMax);
-    if (config.isMotion) onMotionTargetEdited?.();
     if (exposurePanelRefresh) exposurePanelRefresh();
   });
 }
@@ -286,11 +296,10 @@ function bindExpBar(config: ExpBarBinding): void {
 export function initExposurePanel(
   app: AppStateFull,
   refresh: () => void,
-  onMotionTargetChange: () => void,
+  _onMotionTargetChange: () => void,
 ): void {
   exposurePanelApp = app;
   exposurePanelRefresh = refresh;
-  onMotionTargetEdited = onMotionTargetChange;
 
   bindExpBar({
     id: 'snr',
@@ -305,34 +314,6 @@ export function initExposurePanel(
     apply: (value) => {
       if (exposurePanelApp) setField(exposurePanelApp, 'desiredSnrDb', value);
     },
-  });
-
-  bindExpBar({
-    id: 'accel',
-    trackId: 'exp-accel-track',
-    markerId: 'exp-accel-target-marker',
-    inputId: 'exp-accel-target',
-    barMax: ACCEL_BAR_MAX,
-    min: 0,
-    max: 20,
-    step: 0.1,
-    decimals: 1,
-    isMotion: true,
-    apply: (value) => setAcceleration(value),
-  });
-
-  bindExpBar({
-    id: 'rot',
-    trackId: 'exp-rot-track',
-    markerId: 'exp-rot-target-marker',
-    inputId: 'exp-rot-target',
-    barMax: ROT_BAR_MAX,
-    min: 0,
-    max: 360,
-    step: 1,
-    decimals: 0,
-    isMotion: true,
-    apply: (value) => setAngularVelocity(value),
   });
 }
 
