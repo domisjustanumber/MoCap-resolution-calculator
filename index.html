@@ -309,12 +309,11 @@
           <div class="shrink-0 flex flex-col gap-1.5 w-56">
             <div class="flex-1 quick-ctrl">
               <p class="quick-ctrl-title">Shutter speed</p>
-              <div class="grid grid-cols-5 gap-0.5" id="shutter-presets">
-                <div class="flex items-center gap-0.5">
-                  <span class="text-[10px] text-slate-500">1/</span>
-                  <input id="shutter-custom" class="calc-input input-compact w-full" type="number" step="1" min="1" max="8000" placeholder="N" />
-                </div>
+              <div class="flex items-center gap-0.5">
+                <span class="text-[10px] text-slate-500">1/</span>
+                <input id="spatial-shutter-input" class="calc-input input-compact w-14" type="number" step="1" min="1" max="10000" value="60" />
               </div>
+              <input id="spatial-shutter-slider" class="w-full mt-1" type="range" min="1" max="10000" step="1" value="60" />
             </div>
             <div class="flex-1 quick-ctrl">
               <p class="quick-ctrl-title">Gain</p>

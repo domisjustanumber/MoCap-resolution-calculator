@@ -3,7 +3,7 @@ import { setField, applyPreset, recalculate, setSensorPreset, readoutTypeToMetho
 import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, clamped, LENS_TIER_DR } from '../constants';
 import { drawDistanceChart, setMaxDistance } from './distanceChart';
-import { updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
+import { updateFpsPresetStyles } from './fpsShutterPresets';
 import { isFieldEstimated, hasAnyEstimated, stripAsterisk } from './provenance';
 
 let app: AppStateFull;
@@ -599,7 +599,6 @@ export function syncInputsFromState(): void {
   handleExtractedClamp();
 
   updateFpsPresetStyles();
-  updateShutterPresetStyles();
 
   updateDrBar();
   updateProvenanceLabels();

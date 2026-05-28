@@ -1,6 +1,41 @@
+import type { ExposureOptimization } from './types';
+import { EXPOSURE_HEADROOM_FACTOR } from './constants';
+
 export interface TimingValues {
   fps: number;
   shutterDenom: number;
+}
+
+/**
+ * Max shutter denominator (shortest exposure) to search for SNR, from exposure pass 1.
+ * Uses floor — never round — so off-grid rounding cannot drop valid longer exposures.
+ * When SNR needs more time than motion allows (tMinusSnr > tCeiling), caps at motion.
+ */
+export function idealMaxShutterDenomFromExposure(
+  exposure: Pick<ExposureOptimization, 'tMinusSnr' | 'tMotionMax' | 'tSaturation'>,
+  maxShutterDenom: number,
+  headroomFactor = EXPOSURE_HEADROOM_FACTOR,
+): number {
+  const tSatCap =
+    exposure.tSaturation > 0 && isFinite(exposure.tSaturation)
+      ? headroomFactor * exposure.tSaturation
+      : Infinity;
+  const tMotion =
+    exposure.tMotionMax > 0 && isFinite(exposure.tMotionMax) ? exposure.tMotionMax : Infinity;
+  const tCeiling = Math.min(tSatCap, tMotion);
+  const tSnrMin =
+    exposure.tMinusSnr > 0 && isFinite(exposure.tMinusSnr) ? exposure.tMinusSnr : 0;
+
+  let tForUpper: number;
+  if (tSnrMin > 0 && tSnrMin <= tCeiling) {
+    tForUpper = tSnrMin;
+  } else if (isFinite(tCeiling) && tCeiling > 0) {
+    tForUpper = tCeiling;
+  } else {
+    return maxShutterDenom;
+  }
+
+  return Math.min(maxShutterDenom, Math.max(1, Math.floor(1 / tForUpper)));
 }
 
 /** Shutter denominators on the ½× / 1× / 2× / … regional grid. */
@@ -9,6 +44,33 @@ export function enumerateRegionShutterDenoms(regionHz: number, maxDenom = 8000):
   const denoms: number[] = [regionHz / 2, regionHz];
   for (let v = regionHz * 2; v <= maxDenom; v += regionHz) denoms.push(v);
   return denoms;
+}
+
+/** On-grid shutter denominators ≥ minDenom, capped by maxDenom. Empty when region is free. */
+export function validShutterDenomsForRegion(
+  regionHz: number,
+  minDenom: number,
+  maxDenom: number,
+): number[] {
+  if (regionHz <= 0) return [];
+  return enumerateRegionShutterDenoms(regionHz, maxDenom).filter((d) => d >= minDenom);
+}
+
+/** Index into valid[] whose denom is nearest to denom (exact match preferred). */
+export function nearestValidShutterIndex(valid: readonly number[], denom: number): number {
+  if (valid.length === 0) return 0;
+  const exact = valid.indexOf(denom);
+  if (exact >= 0) return exact;
+  let best = 0;
+  let bestDist = Infinity;
+  for (let i = 0; i < valid.length; i++) {
+    const dist = Math.abs(valid[i] - denom);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = i;
+    }
+  }
+  return best;
 }
 
 /** Valid region fps values up to maxFps (half-step and multiples). */
@@ -109,7 +171,7 @@ export function shuttersForFpsSearch(
   }
 
   // Free region: any integer ≥ fps; evaluate the exposure-optimal cap only (avoid O(n) scan).
-  return [Math.max(fps, Math.round(rawUpper))];
+  return [Math.max(fps, Math.floor(rawUpper))];
 }
 
 /**
@@ -125,7 +187,10 @@ export function snapTimingPreservingSnr(
 ): TimingValues & { onRegionGrid: boolean } {
   if (regionHz <= 0) {
     const fps = Math.max(1, Math.min(maxFps, Math.round(timing.fps)));
-    const shutterDenom = Math.max(fps, Math.min(maxShutterDenom, Math.round(timing.shutterDenom)));
+    const shutterDenom = Math.max(
+      fps,
+      Math.min(maxShutterDenom, Math.floor(timing.shutterDenom)),
+    );
     return { fps, shutterDenom, onRegionGrid: true };
   }
 

@@ -100,7 +100,13 @@ export function setTemporalFrameRate(fps: number): void {
   }
 }
 export function setTemporalShutterDenom(d: number): void {
-  temporalShutterDenom = clamped(Math.round(d), temporalFrameRate, maxShutterDenom);
+  temporalShutterDenom = snapShutterToRegion(
+    Math.round(d),
+    temporalRegionHz,
+    temporalFrameRate,
+    maxShutterDenom,
+    'nearest',
+  );
 }
 export function setTemporalRegionHz(hz: number): void {
   temporalRegionHz = hz;
@@ -180,7 +186,13 @@ export function setFrameRate(fps: number): void {
 }
 
 export function setShutterDenom(d: number): void {
-  shutterDenom = clamped(Math.round(d), frameRate, maxShutterDenom);
+  shutterDenom = snapShutterToRegion(
+    Math.round(d),
+    regionHz,
+    frameRate,
+    maxShutterDenom,
+    'nearest',
+  );
   if (linkMode) temporalShutterDenom = shutterDenom;
 }
 

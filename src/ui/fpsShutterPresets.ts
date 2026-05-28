@@ -1,4 +1,4 @@
-import { getFrameRate, getMaxFpsLimit, getShutterDenom, getMaxShutterLimit, getRegionHz, setRegionHz, setFrameRate, setShutterDenom, setTemporalPhase, setTemporalJitter, setTemporalZoom, getEffectiveFrameRate, isLinkMode, setLinkMode } from '../temporalState';
+import { getFrameRate, getMaxFpsLimit, getRegionHz, setRegionHz, setFrameRate, getEffectiveFrameRate, isLinkMode, setLinkMode } from '../temporalState';
 
 let refreshAll: () => void;
 
@@ -19,29 +19,6 @@ export function updateFpsPresetStyles(): void {
     fpsCustom.max = String(max);
     if (fpsCustom !== document.activeElement) {
       fpsCustom.value = String(getFrameRate());
-    }
-  }
-}
-
-export function updateShutterPresetStyles(): void {
-  const minDenom = getFrameRate();
-  const maxDenom = getMaxShutterLimit();
-  updatePresetStyles('.shutter-preset', () => getShutterDenom(), 'shutter');
-  document.querySelectorAll('.shutter-preset').forEach((el) => {
-    const btn = el as HTMLButtonElement;
-    const denom = parseInt(btn.dataset.shutter || '0', 10);
-    if (denom < minDenom || denom > maxDenom) {
-      btn.classList.add('disabled-preset');
-    } else {
-      btn.classList.remove('disabled-preset');
-    }
-  });
-  const shutterMax = getMaxShutterLimit();
-  const shutterCustom = document.getElementById('shutter-custom') as HTMLInputElement | null;
-  if (shutterCustom) {
-    shutterCustom.max = String(shutterMax);
-    if (shutterCustom !== document.activeElement) {
-      shutterCustom.value = String(getShutterDenom());
     }
   }
 }
@@ -107,41 +84,6 @@ function rebuildFpsPresets(): void {
   updateFpsPresetStyles();
 }
 
-function rebuildShutterPresets(): void {
-  const container = document.getElementById('shutter-presets');
-  if (!container) return;
-  container.querySelectorAll('.shutter-preset').forEach(el => el.remove());
-  const reference = container.lastElementChild;
-  const regionHz = getRegionHz();
-  const MAX_BUTTONS = 9;
-  const MAX_DENOM = 8000;
-  let count = 0;
-
-  const baseDenom = regionHz > 0 ? regionHz : 60;
-  if (regionHz > 0) {
-    const half = regionHz / 2;
-    const btn = document.createElement('button');
-    btn.dataset.shutter = String(half);
-    btn.className = 'shutter-preset';
-    btn.textContent = '1/' + half;
-    container.insertBefore(btn, reference);
-    count++;
-  }
-
-  let denom = baseDenom;
-  while (count < MAX_BUTTONS) {
-    if (denom > MAX_DENOM) denom = MAX_DENOM;
-    const btn = document.createElement('button');
-    btn.dataset.shutter = String(denom);
-    btn.className = 'shutter-preset';
-    btn.textContent = '1/' + denom;
-    container.insertBefore(btn, reference);
-    count++;
-    if (denom < MAX_DENOM) denom *= 2;
-  }
-  updateShutterPresetStyles();
-}
-
 function updateRegionPresetStyles(): void {
   updatePresetStyles('.region-preset', () => getRegionHz(), 'region');
 }
@@ -153,7 +95,6 @@ export function initFpsShutterControls(rf: () => void): void {
   setRegionHz(defaultHz);
 
   rebuildFpsPresets();
-  rebuildShutterPresets();
   updateRegionPresetStyles();
 
   document.getElementById('fps-presets')?.addEventListener('click', (e) => {
@@ -164,17 +105,6 @@ export function initFpsShutterControls(rf: () => void): void {
     setFrameRate(fps);
     updateFpsPresetStyles();
     updateFpsLabel();
-    updateShutterPresetStyles();
-    refreshAll();
-  });
-
-  document.getElementById('shutter-presets')?.addEventListener('click', (e) => {
-    const btn = (e.target as HTMLElement).closest('.shutter-preset') as HTMLButtonElement;
-    if (!btn) return;
-    const d = parseInt(btn.dataset.shutter || '0', 10);
-    if (d < getFrameRate()) return;
-    setShutterDenom(d);
-    updateShutterPresetStyles();
     refreshAll();
   });
 
@@ -185,10 +115,8 @@ export function initFpsShutterControls(rf: () => void): void {
     if (hz === getRegionHz()) return;
     setRegionHz(hz);
     rebuildFpsPresets();
-    rebuildShutterPresets();
     updateRegionPresetStyles();
     updateFpsPresetStyles();
-    updateShutterPresetStyles();
     refreshAll();
   });
 
@@ -200,7 +128,6 @@ export function initFpsShutterControls(rf: () => void): void {
       setFrameRate(fps);
       updateFpsPresetStyles();
       updateFpsLabel();
-      updateShutterPresetStyles();
       refreshAll();
     });
     customFpsInput.addEventListener('change', () => {
@@ -210,30 +137,6 @@ export function initFpsShutterControls(rf: () => void): void {
         if (detected !== getRegionHz()) {
           setRegionHz(detected);
           rebuildFpsPresets();
-          rebuildShutterPresets();
-          updateRegionPresetStyles();
-        }
-      }
-    });
-  }
-
-  const customShutterInput = document.getElementById('shutter-custom') as HTMLInputElement | null;
-  if (customShutterInput) {
-    customShutterInput.addEventListener('input', () => {
-      const d = parseInt(customShutterInput.value, 10);
-      if (isNaN(d) || d < 1) return;
-      setShutterDenom(d);
-      updateShutterPresetStyles();
-      refreshAll();
-    });
-    customShutterInput.addEventListener('change', () => {
-      const parsed = parseInt(customShutterInput.value, 10);
-      if (!isNaN(parsed) && parsed > 0) {
-        const detected = detectRegionForValue(parsed);
-        if (detected !== getRegionHz()) {
-          setRegionHz(detected);
-          rebuildFpsPresets();
-          rebuildShutterPresets();
           updateRegionPresetStyles();
         }
       }
@@ -254,7 +157,6 @@ export function initFpsShutterControls(rf: () => void): void {
       const linked = !isLinkMode();
       setLinkMode(linked);
       updatePill(linked);
-      // Also update the sync tab's link pill if visible
       const syncPill = document.getElementById('sync-link-toggle');
       if (syncPill) {
         syncPill.classList.toggle('linked', linked);

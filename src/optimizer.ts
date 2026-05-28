@@ -6,7 +6,12 @@ import type { SensorGeometry, V4l2Mode } from '../presets';
 import { DEFAULT_RADIOMETRY, chromaSnrPenaltyDb, DEFAULT_SNR_UNDERSHOOT_PCT, MOTION_UNDERSHOOT_IMPROVEMENT_PCT } from './constants';
 import { getRegionHz } from './temporalState';
 import { readoutTypeToMethod } from './state';
-import { shuttersForFpsSearch, snapTimingPreservingSnr, enumerateRegionFpsValues } from './temporalQuantize';
+import {
+  shuttersForFpsSearch,
+  snapTimingPreservingSnr,
+  enumerateRegionFpsValues,
+  idealMaxShutterDenomFromExposure,
+} from './temporalQuantize';
 
 export interface OptimizationResult {
   fps: number;
@@ -223,7 +228,8 @@ export function runOptimization(
   let initialModeStrict: ResolvedCandidate | null = null;
 
   for (const c of candidates) {
-    const tempState: AppState = { ...app.state, ...c.statePatch };
+    // Search always assumes auto gain — applied app.state.gain must not change SNR ranking.
+    const tempState: AppState = { ...app.state, ...c.statePatch, gain: 0 };
     const tempDerived = calculateDerived(tempState);
 
   // Pass 1 — baseline fEffective with minimal motion blur penalty, no sync
@@ -440,6 +446,7 @@ export function runOptimization(
     readoutPitchMultiplier: bestPitchMult,
     readoutFullFoV: bestFullFoV,
     readoutMethod: bestReadoutMethod,
+    gain: 0,
   };
   const winnerDerived = calculateDerived(winnerState);
 
@@ -455,7 +462,15 @@ export function runOptimization(
     meetsSnr,
   );
 
-  const finalExposure = calculateExposureOptimizer(winnerState, winnerDerived, radiometry, motion, bestTargetFreq, 1 / snapped.shutterDenom, true);
+  const finalExposure = calculateExposureOptimizer(
+    winnerState,
+    winnerDerived,
+    radiometry,
+    motion,
+    bestTargetFreq,
+    1 / snapped.shutterDenom,
+    true,
+  );
   const finalSnrDb = finalExposure.snrAtOptimalDb - chromaSnrPenaltyDb(winnerState);
   const finalSnrMet = finalSnrDb >= app.state.desiredSnrDb;
 
@@ -470,7 +485,7 @@ export function runOptimization(
     readoutMethod: bestReadoutMethod,
     minFeatureSize: bestMinFeature,
     snrMet: finalSnrMet,
-    optimalGain: winner.exposure.optimalGain,
+    optimalGain: finalExposure.optimalGain,
   };
 }
 
@@ -591,10 +606,7 @@ function searchTimingAtFreq(
 ): TimingPair | null {
   const exposure = calculateExposureOptimizer(state, derived, radiometry, motion, targetFreq);
 
-  const idealShutterDenom = Math.min(
-    maxShutterDenom,
-    Math.max(1, Math.round(1 / Math.max(0.000001, exposure.tOptimal))),
-  );
+  const idealShutterDenom = idealMaxShutterDenomFromExposure(exposure, maxShutterDenom);
 
   let bestStrict: TimingPair | null = null;
   let bestRelaxed: TimingPair | null = null;
@@ -644,8 +656,17 @@ function snrAtShutter(
   targetFreq: number,
   shutterTime: number,
 ): number {
-  const exposure = calculateExposureOptimizer(state, derived, radiometry, motion, targetFreq, shutterTime);
-  return applyChromaSnrPenalty(exposure.snrAtOptimalDb, state);
+  const autoGainState = state.gain === 0 ? state : { ...state, gain: 0 };
+  const exposure = calculateExposureOptimizer(
+    autoGainState,
+    derived,
+    radiometry,
+    motion,
+    targetFreq,
+    shutterTime,
+    true,
+  );
+  return applyChromaSnrPenalty(exposure.snrAtOptimalDb, autoGainState);
 }
 
 function applyChromaSnrPenalty(snrDb: number, state: AppState): number {

@@ -37,7 +37,16 @@ function actualSnr(app: AppStateFull, result: NonNullable<ReturnType<typeof runO
   const baseline = calculateResults(state, derived, motion, 0.000001, 999999, 0, false);
   const radiometry = SENSOR_RADIOMETRY['imx219'];
   const shutterTime = 1 / Math.max(1, result.shutterDenom);
-  const exposure = calculateExposureOptimizer(state, derived, radiometry, motion, baseline.fEffective, shutterTime);
+  const evalState = { ...state, gain: result.optimalGain > 0 ? result.optimalGain : 0 };
+  const exposure = calculateExposureOptimizer(
+    evalState,
+    derived,
+    radiometry,
+    motion,
+    baseline.fEffective,
+    shutterTime,
+    evalState.gain === 0,
+  );
   let snr = exposure.snrAtOptimalDb;
   if (state.measurementMode === 'colour' && state.outputFormat !== 'raw8' && state.outputFormat !== 'raw10') {
     snr -= state.outputFormat === 'uyuv' ? 3 : 6;

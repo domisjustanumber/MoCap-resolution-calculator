@@ -11,12 +11,12 @@
     },
     "after": {
       "fps": 25,
-      "sd": 50,
+      "sd": 100,
       "res": "1296x972",
-      "snr": 13.434243105852923,
-      "feat1m": 32.895346119443744,
-      "feat2m": 32.895346119443744,
-      "snrMet": true,
+      "snr": 9.208805498883244,
+      "feat1m": 16.420442972462485,
+      "feat2m": 16.420442972462485,
+      "snrMet": false,
       "bottleneck": "motion-limited",
       "atOneSixtiethSameConfig": {
         "snr": 12.370680549442483,

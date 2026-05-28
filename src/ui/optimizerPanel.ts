@@ -2,7 +2,7 @@ import type { AppStateFull } from '../types';
 import { runOptimization } from '../optimizer';
 import { recalculate } from '../state';
 import { getMotionParams, getErrorBudget, getSnrUndershootPct, setSnrUndershootPct, setFrameRate, setShutterDenom } from '../temporalState';
-import { updateFpsLabel, updateFpsPresetStyles, updateShutterPresetStyles } from './fpsShutterPresets';
+import { updateFpsLabel, updateFpsPresetStyles } from './fpsShutterPresets';
 import { updateGainDisplay } from './gainDisplay';
 import { showOptimizerWarning } from './outputs';
 
@@ -43,7 +43,6 @@ export function initOptimizerPanel(a: AppStateFull, rf: () => void): void {
         setShutterDenom(result.shutterDenom);
         updateFpsLabel();
         updateFpsPresetStyles();
-        updateShutterPresetStyles();
         refreshAll();
         updateGainDisplay(app);
         if (!result.snrMet) {

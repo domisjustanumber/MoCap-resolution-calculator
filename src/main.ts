@@ -6,13 +6,17 @@ import { drawDistanceChart, setYMax } from './ui/distanceChart';
 import { drawTemporalChart } from './ui/temporalChart';
 import { initMotionControls, updateMotionPresetStyles, syncQcInputsFromParams, setActiveMotionPreset } from './ui/motionControls';
 import { initLuxControls } from './ui/luxControls';
-import { initFpsShutterControls, updateFpsPresetStyles, updateShutterPresetStyles, updateFpsLabel } from './ui/fpsShutterPresets';
+import { initFpsShutterControls, updateFpsPresetStyles, updateFpsLabel } from './ui/fpsShutterPresets';
 import { initOptimizerPanel } from './ui/optimizerPanel';
 import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
 import { updateGainDisplay } from './ui/gainDisplay';
-import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance, getTemporalDistance, setCameraHeight, getCameraHeight, setObjectSizeMm, getObjectSizeMm, setTemporalFrameRate, setTemporalShutterDenom, setTemporalRegionHz, setTemporalVelocityOnly, setSpatialVelocity, setTemporalVelocity, isLinkMode, setLinkMode, getEffectiveFrameRate, getEffectiveShutterDenom, getEffectiveVelocity, getEffectiveRegionHz, getMaxFpsLimit, getTemporalPhase, getTemporalJitter, getPhaseFrames, getJitterFrames, setPhaseFrames, setJitterFrames, isTimingInFrames, setTimingInFrames, setRegionHz, setFrameRate, setShutterDenom } from './temporalState';
+import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance, getTemporalDistance, setCameraHeight, getCameraHeight, setObjectSizeMm, getObjectSizeMm, setTemporalFrameRate, setTemporalRegionHz, setTemporalVelocityOnly, setSpatialVelocity, setTemporalVelocity, isLinkMode, setLinkMode, getEffectiveFrameRate, getEffectiveShutterDenom, getEffectiveVelocity, getEffectiveRegionHz, getMaxFpsLimit, getShutterDenom, getTemporalPhase, getTemporalJitter, getPhaseFrames, getJitterFrames, setPhaseFrames, setJitterFrames, isTimingInFrames, setTimingInFrames, setRegionHz, setFrameRate } from './temporalState';
 import { initScene3d, updateScene3d, resizeScene3d, disposeScene3d, animateToObject, toggleObjectSphere, toggleBlurCloud } from './ui/scene3d';
 import { initSyncSceneControls } from './ui/syncSceneControls';
+import {
+  bindShutterControls,
+  syncShutterPair,
+} from './ui/shutterControls';
 
 const app = createState();
 setTemporalDistance(app.state.distanceToSubject);
@@ -47,10 +51,23 @@ function rebuildSyncFpsPresets(): void {
   }
 }
 
+function syncShutterInputs(): void {
+  syncShutterPair(
+    document.getElementById('spatial-shutter-slider') as HTMLInputElement | null,
+    document.getElementById('spatial-shutter-input') as HTMLInputElement | null,
+    getShutterDenom(),
+    'spatial',
+  );
+  syncShutterPair(
+    document.getElementById('sync-shutter-slider') as HTMLInputElement | null,
+    document.getElementById('sync-shutter-input') as HTMLInputElement | null,
+    getEffectiveShutterDenom(),
+    'sync',
+  );
+}
+
 function syncSyncInputs(): void {
   const fpsInput = document.getElementById('sync-fps-custom') as HTMLInputElement | null;
-  const shutterSlider = document.getElementById('sync-shutter-slider') as HTMLInputElement | null;
-  const shutterInput = document.getElementById('sync-shutter-input') as HTMLInputElement | null;
   const distInput = document.getElementById('temporal-distance-input') as HTMLInputElement | null;
   const heightInput = document.getElementById('temporal-height-input') as HTMLInputElement | null;
   const velSlider = document.getElementById('sync-velocity-slider') as HTMLInputElement | null;
@@ -58,13 +75,7 @@ function syncSyncInputs(): void {
   if (fpsInput && fpsInput !== document.activeElement) {
     fpsInput.value = String(getEffectiveFrameRate());
   }
-  const effDenom = getEffectiveShutterDenom();
-  if (shutterSlider && shutterSlider !== document.activeElement) {
-    shutterSlider.value = String(effDenom);
-  }
-  if (shutterInput && shutterInput !== document.activeElement) {
-    shutterInput.value = String(effDenom);
-  }
+  syncShutterInputs();
   const distSlider = document.getElementById('temporal-distance') as HTMLInputElement | null;
   const heightSlider = document.getElementById('temporal-height') as HTMLInputElement | null;
   if (distInput && distInput !== document.activeElement) {
@@ -110,7 +121,6 @@ let refreshAll = function(): void {
   drawTemporalChart(app);
   updateAdvancedSensorSpecs(app);
   updateGainDisplay(app);
-  updateShutterPresetStyles();
   updateFpsPresetStyles();
   updateFpsLabel();
   if (isLinkMode()) setTemporalDistance(app.state.distanceToSubject);
@@ -379,39 +389,24 @@ document.getElementById('sync-region-buttons')?.addEventListener('click', (e) =>
   }
 });
 
-// --- Sync tab: Shutter slider + input ---
-const syncShutterSlider = document.getElementById('sync-shutter-slider') as HTMLInputElement | null;
-const syncShutterInput = document.getElementById('sync-shutter-input') as HTMLInputElement | null;
-const shutterSet = (d: number) => {
-  if (isLinkMode()) {
-    setShutterDenom(d);
-    refreshAll();
-  } else {
-    setTemporalShutterDenom(d);
-    refreshTemporalOnly();
-  }
-};
-if (syncShutterSlider) {
-  syncShutterSlider.addEventListener('input', () => {
-    const d = parseInt(syncShutterSlider.value, 10);
-    if (isNaN(d) || d < 1) return;
-    if (syncShutterInput && syncShutterInput !== document.activeElement) {
-      syncShutterInput.value = String(d);
-    }
-    shutterSet(d);
-  });
+// --- Shutter slider + input (spatial + sync tabs) — bound after refresh fns exist ---
+function initShutterControlBindings(): void {
+  bindShutterControls(
+    document.getElementById('sync-shutter-slider') as HTMLInputElement | null,
+    document.getElementById('sync-shutter-input') as HTMLInputElement | null,
+    'sync',
+    refreshAll,
+    refreshTemporalOnly,
+  );
+  bindShutterControls(
+    document.getElementById('spatial-shutter-slider') as HTMLInputElement | null,
+    document.getElementById('spatial-shutter-input') as HTMLInputElement | null,
+    'spatial',
+    refreshAll,
+    refreshTemporalOnly,
+  );
 }
-if (syncShutterInput) {
-  syncShutterInput.addEventListener('input', () => {
-    const d = parseInt(syncShutterInput.value, 10);
-    if (isNaN(d) || d < 1) return;
-    const clamped = Math.max(1, Math.min(10000, d));
-    if (syncShutterSlider && syncShutterSlider !== document.activeElement) {
-      syncShutterSlider.value = String(clamped);
-    }
-    shutterSet(clamped);
-  });
-}
+initShutterControlBindings();
 
 // --- Sync tab: show/hide object sphere & point cloud ---
 const showObjectCheckbox = document.getElementById('sync-show-object') as HTMLInputElement | null;

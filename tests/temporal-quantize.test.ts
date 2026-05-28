@@ -1,17 +1,34 @@
 import { describe, it, expect } from 'vitest';
 import {
   enumerateRegionShutterDenoms,
+  idealMaxShutterDenomFromExposure,
   isValidRegionFps,
   isValidRegionShutterDenom,
+  nearestValidShutterIndex,
   snapFpsToRegion,
   snapShutterToRegion,
   snapTimingPreservingSnr,
   shuttersForFpsSearch,
+  validShutterDenomsForRegion,
 } from '../src/temporalQuantize';
 
 describe('temporalQuantize', () => {
   it('enumerates 50 Hz shutter grid', () => {
     expect(enumerateRegionShutterDenoms(50, 200)).toEqual([25, 50, 100, 150, 200]);
+  });
+
+  it('validShutterDenomsForRegion respects min exposure (fps)', () => {
+    const valid = validShutterDenomsForRegion(50, 30, 8000);
+    expect(valid[0]).toBe(50);
+    expect(valid).not.toContain(25);
+    expect(valid.every((d) => isValidRegionShutterDenom(d, 50) && d >= 30)).toBe(true);
+  });
+
+  it('nearestValidShutterIndex picks closest grid point', () => {
+    const valid = [25, 50, 100, 150, 200];
+    expect(nearestValidShutterIndex(valid, 50)).toBe(1);
+    expect(nearestValidShutterIndex(valid, 48)).toBe(1);
+    expect(nearestValidShutterIndex(valid, 90)).toBe(2);
   });
 
   it('validates region fps and shutter', () => {
@@ -55,6 +72,32 @@ describe('temporalQuantize', () => {
     expect(shutters.every((d) => d <= 1740)).toBe(true);
     expect(shutters).toContain(1740);
     expect(shutters).not.toContain(1750);
+  });
+
+  it('idealMaxShutterDenomFromExposure uses SNR floor when longer than motion ceiling', () => {
+    const denom = idealMaxShutterDenomFromExposure(
+      { tMinusSnr: 1 / 50, tMotionMax: 1 / 30, tSaturation: 10 },
+      8000,
+    );
+    expect(denom).toBe(50);
+    expect(denom).not.toBe(30);
+  });
+
+  it('idealMaxShutterDenomFromExposure floors continuous cap (no round-up)', () => {
+    const denom = idealMaxShutterDenomFromExposure(
+      { tMinusSnr: 1 / 49.6, tMotionMax: 1 / 30, tSaturation: 10 },
+      8000,
+    );
+    expect(denom).toBe(49);
+  });
+
+  it('shuttersForFpsSearch includes grid steps up to SNR-based ideal cap', () => {
+    const shutters = shuttersForFpsSearch(25, 50, 8000, 50);
+    expect(shutters).toContain(25);
+    expect(shutters).toContain(50);
+    expect(shutters.length).toBeGreaterThan(1);
+    const motionOnlyCap = shuttersForFpsSearch(25, 30, 8000, 50);
+    expect(motionOnlyCap).not.toContain(50);
   });
 
   it('prefers on-grid timing when SNR still passes', () => {
