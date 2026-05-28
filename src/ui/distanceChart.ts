@@ -1,8 +1,8 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from '../temporalState';
-import { MOTION_MTF50_CONST, BOTTLENECK_RATIO } from '../constants';
-import { computeImageVelocity } from '../engine';
+import { MOTION_MTF50_CONST, BOTTLENECK_RATIO, CHARUCO_SQUARE_TO_MIN_FEATURE } from '../constants';
+import { computeImageVelocity, staticSceneFeatureMm } from '../engine';
 
 let lastHash = '';
 let mouseX = -1;
@@ -15,6 +15,7 @@ let yMaxOverride = 100;
 export interface Pin {
   distance: number;
   color: string;
+  isDefault?: boolean;
 }
 
 export let pins: Pin[] = [];
@@ -24,6 +25,9 @@ let onPinsChanged: (() => void) | null = null;
 export function setOnPinsChanged(cb: () => void): void {
   onPinsChanged = cb;
 }
+
+const DEFAULT_MARKER_COLOR = '#22d3ee';
+const DEFAULT_MARKER_STROKE = 'rgba(34, 211, 238, 0.6)';
 
 const PIN_COLORS = [
   '#fbbf24',
@@ -146,6 +150,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const vScaleStep = 2;
   const vScaleMax = 20;
   const vAtD = (d: number) => MOTION_MTF50_CONST * d / (shutterS * focalLength * vTargetFreq);
+  const maxVelocityLabel = (d: number) => 'Max Velocity ' + vAtD(d).toFixed(1) + ' m/s';
   const pyV = (v: number) => pad.top + (1 - v / vScaleMax) * plotH;
 
   const featureMm = (d: number) => {
@@ -166,6 +171,12 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     const optical = (minFeatureSize * dEff) / focalLength;
     return syncEnabled ? Math.hypot(optical, syncErrP95) : optical;
   };
+
+  const staticFeatureMm = (d: number) =>
+    staticSceneFeatureMm(d, focalLength, fcAberrated, fNyquistSkipped, fDRLimited, formatEfficiency);
+
+  const charucoMm = (d: number) => staticFeatureMm(d) * CHARUCO_SQUARE_TO_MIN_FEATURE;
+  const charucoLabel = (d: number) => 'Min ChAruCo length ' + Math.ceil(charucoMm(d)) + ' mm';
 
   const yStep = yMax / 5;
   const py = (f: number) => pad.top + (1 - f / yMax) * plotH;
@@ -301,13 +312,53 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   // Auto-place first pin at target distance on initial draw
   if (pins.length === 0 && !hasAutoPlaced) {
     const targetD = Math.min(Math.max(0, state.distanceToSubject), dMax);
-    pins.push({ distance: targetD, color: PIN_COLORS[0] });
+    pins.push({ distance: targetD, color: DEFAULT_MARKER_COLOR, isDefault: true });
     nextColorIndex = 1;
     hasAutoPlaced = true;
   }
 
-  // Pinned markers
   const usedLabelYs: number[] = [];
+  const drawLabelCallout = (
+    text: string,
+    anchorX: number,
+    anchorY: number,
+    strokeColor: string,
+    textColor: string,
+  ) => {
+    ctx.font = 'bold 11px monospace';
+    const textW = ctx.measureText(text).width;
+    const bx = Math.min(anchorX + 10, cssW - pad.right - textW - 12);
+    let by = anchorY - 14;
+    while (usedLabelYs.some((y) => Math.abs(y - by) < 20)) {
+      by += 20;
+    }
+    usedLabelYs.push(by);
+    const bpad = 6;
+    ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(bx - bpad, by - bpad, textW + bpad * 2, 18 + bpad * 2, 4);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'left';
+    ctx.fillText(text, bx, by + 5);
+  };
+
+  const drawVelocityMarker = (d: number, dotColor: string, strokeColor: string) => {
+    const v = vAtD(d);
+    if (!isFinite(v) || v > vScaleMax) return;
+    const x = px(d);
+    const y = pyV(v);
+    ctx.fillStyle = dotColor;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    drawLabelCallout(maxVelocityLabel(d), x, y, strokeColor, dotColor);
+  };
+
+  // Pinned markers
   for (const pin of pins) {
     if (pin.distance < 0 || pin.distance > dMax) continue;
     const pinnedX = px(pin.distance);
@@ -328,26 +379,12 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.fill();
 
     const fMm = featureMm(pin.distance);
-    const pinLabel = fMm.toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m | ChArUco ' + (fMm * 8.8).toFixed(1) + ' mm';
-    ctx.font = 'bold 11px monospace';
-    const textW = ctx.measureText(pinLabel).width;
-    const bx = Math.min(pinnedX + 10, cssW - pad.right - textW - 12);
-    let by = pinnedY - 14;
-    while (usedLabelYs.some((y) => Math.abs(y - by) < 20)) {
-      by += 20;
+    const pinLabel = fMm.toFixed(2) + ' mm @ ' + pin.distance.toFixed(1) + ' m | ' + charucoLabel(pin.distance);
+    drawLabelCallout(pinLabel, pinnedX, pinnedY, pin.color + '99', pin.color);
+
+    if (pin.isDefault) {
+      drawVelocityMarker(pin.distance, DEFAULT_MARKER_COLOR, DEFAULT_MARKER_STROKE);
     }
-    usedLabelYs.push(by);
-    ctx.fillStyle = 'rgba(2, 6, 23, 0.88)';
-    ctx.strokeStyle = pin.color + '99';
-    ctx.lineWidth = 1;
-    const bpad = 6;
-    ctx.beginPath();
-    ctx.roundRect(bx - bpad, by - bpad, textW + bpad * 2, 18 + bpad * 2, 4);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = pin.color;
-    ctx.textAlign = 'left';
-    ctx.fillText(pinLabel, bx, by + 5);
   }
 
   setupEvents(canvas);
@@ -375,17 +412,9 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.arc(hoverX, hoverY, 5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Dot on the velocity curve
-    const vHover = vAtD(dHover);
-    const vHoverY = pyV(vHover);
-    ctx.fillStyle = '#f472b6';
-    ctx.beginPath();
-    ctx.arc(hoverX, vHoverY, 5, 0, Math.PI * 2);
-    ctx.fill();
+    drawVelocityMarker(dHover, '#f472b6', 'rgba(244, 114, 182, 0.6)');
 
-    // Tooltip box
-    const velText = ' | max ' + vAtD(dHover).toFixed(1) + ' m/s';
-    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ChArUco ' + (fHover * 8.8).toFixed(1) + ' mm' + velText;
+    const tooltipText = fHover.toFixed(2) + ' mm @ ' + dHover.toFixed(1) + ' m | ' + charucoLabel(dHover);
     const tipX = hoverX + 10 < cssW - pad.right ? hoverX + 10 : hoverX - 10;
     const tipY = hoverY - 10 > pad.top ? hoverY - 10 : hoverY + 10;
     ctx.font = 'bold 11px monospace';

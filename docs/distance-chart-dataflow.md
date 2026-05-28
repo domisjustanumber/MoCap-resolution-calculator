@@ -186,9 +186,18 @@ featureMm(d) = syncEnabled
 - Color: indigo (`rgba(99, 102, 241, 0.9)`), line width 2.5
 
 ### Interactive Features
-- **Hover**: vertical cursor line + dot on curve + tooltip with feature size + ChArUco marker recommendation (feature × 8.8 for 8×8 grid marker)
-- **Click**: pins a marker at clicked distance, shows feature size and ChArUco size
-- **Metric card** (`card-feature-distance`): updated from hover tooltip
+- **Hover**: vertical cursor line + dot on motion-aware curve + tooltip with:
+  - **Feature size** (`featureMm(d)`): includes motion blur and sync error (when enabled) — matches the Y-axis curve
+  - **ChArUco** (`staticFeatureMm(d) × CHARUCO_SQUARE_TO_MIN_FEATURE`, labeled “static”): optical limits only (lens, Nyquist, DR, compression) — no motion blur, no sync — for sizing a stationary calibration board
+- **Click**: pins a marker at clicked distance; same dual values as hover
+
+### Static ChArUco sizing (`staticSceneFeatureMm` in engine.ts)
+```
+fStatic = min(fcAberrated, fNyquistSkipped, fDRLimited) × formatEfficiency
+staticFeatureMm(d) = (1000 / (2 × fStatic) / focalLength) × d
+charucoMm(d) = staticFeatureMm(d) × CHARUCO_SQUARE_TO_MIN_FEATURE   // 8.8
+```
+Grows linearly with distance (straight line through origin). Independent of subject velocity and camera-sync P95.
 
 ### Hash / Redraw Trigger
 ```

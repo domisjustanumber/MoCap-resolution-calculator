@@ -101,6 +101,23 @@ export function calculateDiffractionCutoff(aperture: number, wavelengthNm: numbe
   return 1 / (wavelengthMm * aperture);
 }
 
+/** Scene-space min feature (mm) at distanceM with optical limits only — no motion blur or sync error. */
+export function staticSceneFeatureMm(
+  distanceM: number,
+  focalLengthMm: number,
+  fcAberrated: number,
+  fNyquistSkipped: number,
+  fDRLimited: number,
+  formatEfficiency: number,
+): number {
+  const dEff = Math.max(0.01, distanceM);
+  if (focalLengthMm <= 1e-6) return 0;
+  const fStatic = Math.min(fcAberrated, fNyquistSkipped, fDRLimited) * formatEfficiency;
+  if (fStatic <= 1e-6) return 0;
+  const minFeatUm = 500 / fStatic;
+  return (minFeatUm * dEff) / focalLengthMm;
+}
+
 export function calculateResults(
   state: Readonly<AppState>,
   derived: Readonly<DerivedState>,
