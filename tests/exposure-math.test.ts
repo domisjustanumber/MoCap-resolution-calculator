@@ -177,6 +177,14 @@ describe('motion ceiling', () => {
     // 2× resolution → 1/2 the motion allowance
     expect(o200.tMotionMax).toBeCloseTo(o100.tMotionMax / 2, 1);
   });
+
+  it('scales linearly with target distance from camera', () => {
+    const s = makeState({ luxAtSubject: 50000, desiredSnrDb: 15 });
+    const near = optimize({ ...s, distanceToSubject: 1 }, imx219, 5, 100);
+    const far = optimize({ ...s, distanceToSubject: 4 }, imx219, 5, 100);
+    expect(far.tMotionMax).toBeGreaterThan(near.tMotionMax);
+    expect(far.tMotionMax / near.tMotionMax).toBeCloseTo(4, 0.15);
+  });
 });
 
 // ── Saturation Ceiling ──────────────────────────────────────────

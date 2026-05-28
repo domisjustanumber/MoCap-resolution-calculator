@@ -10,7 +10,7 @@ import { initFpsShutterControls, updateFpsPresetStyles, updateFpsLabel } from '.
 import { initOptimizerPanel } from './ui/optimizerPanel';
 import { updateAdvancedSensorSpecs } from './ui/sensorSpecs';
 import { updateGainDisplay } from './ui/gainDisplay';
-import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance, getTemporalDistance, setCameraHeight, getCameraHeight, setObjectSizeMm, getObjectSizeMm, setTemporalFrameRate, setTemporalRegionHz, setTemporalVelocityOnly, setSpatialVelocity, setTemporalVelocity, isLinkMode, setLinkMode, getEffectiveFrameRate, getEffectiveShutterDenom, getEffectiveVelocity, getEffectiveRegionHz, getMaxFpsLimit, getShutterDenom, getTemporalPhase, getTemporalJitter, getPhaseFrames, getJitterFrames, setPhaseFrames, setJitterFrames, isTimingInFrames, setTimingInFrames, setRegionHz, setFrameRate } from './temporalState';
+import { setTemporalPhase, setTemporalJitter, setTemporalZoom, setTemporalDistance, getTemporalDistance, setCameraHeight, getCameraHeight, setObjectSizeMm, getObjectSizeMm, setTemporalFrameRate, setTemporalRegionHz, setTemporalVelocityOnly, setSpatialVelocity, setTemporalVelocity, isLinkMode, setLinkMode, setOnLinkModeChange, getEffectiveFrameRate, getEffectiveShutterDenom, getEffectiveVelocity, getEffectiveRegionHz, getMaxFpsLimit, getShutterDenom, getTemporalPhase, getTemporalJitter, getPhaseFrames, getJitterFrames, setPhaseFrames, setJitterFrames, isTimingInFrames, setTimingInFrames, setRegionHz, setFrameRate } from './temporalState';
 import { initScene3d, updateScene3d, resizeScene3d, disposeScene3d, animateToObject, toggleObjectSphere, toggleBlurCloud } from './ui/scene3d';
 import { initSyncSceneControls } from './ui/syncSceneControls';
 import {
@@ -20,6 +20,33 @@ import {
 
 const app = createState();
 setTemporalDistance(app.state.distanceToSubject);
+setObjectSizeMm(100);
+
+setOnLinkModeChange((linked) => {
+  if (linked) setTemporalDistance(app.state.distanceToSubject);
+});
+
+function syncDistanceControls(): void {
+  const targetDist = app.state.distanceToSubject;
+  const targetSlider = document.getElementById('exposure-target-distance') as HTMLInputElement | null;
+  const targetInput = document.getElementById('exposure-target-distance-input') as HTMLInputElement | null;
+  if (targetSlider && targetSlider !== document.activeElement) {
+    targetSlider.value = String(targetDist);
+  }
+  if (targetInput && targetInput !== document.activeElement) {
+    targetInput.value = String(targetDist);
+  }
+
+  const cameraDist = getTemporalDistance();
+  const distSlider = document.getElementById('temporal-distance') as HTMLInputElement | null;
+  const distInput = document.getElementById('temporal-distance-input') as HTMLInputElement | null;
+  if (distSlider && distSlider !== document.activeElement) {
+    distSlider.value = String(cameraDist);
+  }
+  if (distInput && distInput !== document.activeElement) {
+    distInput.value = String(cameraDist);
+  }
+}
 
 function rebuildSyncFpsPresets(): void {
   const container = document.getElementById('sync-fps-buttons');
@@ -68,7 +95,6 @@ function syncShutterInputs(): void {
 
 function syncSyncInputs(): void {
   const fpsInput = document.getElementById('sync-fps-custom') as HTMLInputElement | null;
-  const distInput = document.getElementById('temporal-distance-input') as HTMLInputElement | null;
   const heightInput = document.getElementById('temporal-height-input') as HTMLInputElement | null;
   const velSlider = document.getElementById('sync-velocity-slider') as HTMLInputElement | null;
   const velInput = document.getElementById('sync-velocity-input') as HTMLInputElement | null;
@@ -76,14 +102,8 @@ function syncSyncInputs(): void {
     fpsInput.value = String(getEffectiveFrameRate());
   }
   syncShutterInputs();
-  const distSlider = document.getElementById('temporal-distance') as HTMLInputElement | null;
+  syncDistanceControls();
   const heightSlider = document.getElementById('temporal-height') as HTMLInputElement | null;
-  if (distInput && distInput !== document.activeElement) {
-    distInput.value = String(getTemporalDistance());
-  }
-  if (distSlider && distSlider !== document.activeElement) {
-    distSlider.value = String(getTemporalDistance());
-  }
   if (heightInput && heightInput !== document.activeElement) {
     heightInput.value = String(getCameraHeight());
   }
@@ -123,7 +143,7 @@ let refreshAll = function(): void {
   updateGainDisplay(app);
   updateFpsPresetStyles();
   updateFpsLabel();
-  if (isLinkMode()) setTemporalDistance(app.state.distanceToSubject);
+  syncDistanceControls();
   updateScene3d(app);
   syncSyncInputs();
   syncTimingSliders();
@@ -518,6 +538,12 @@ function bindSlider(
     });
   }
 }
+
+bindSlider('exposure-target-distance', (v) => {
+  setField(app, 'distanceToSubject', v);
+  if (isLinkMode()) setTemporalDistance(v);
+  refreshAll();
+}, '', '', 'exposure-target-distance-input');
 
 bindSlider('temporal-distance', (v) => {
   setTemporalDistance(v);

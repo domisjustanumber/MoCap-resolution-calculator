@@ -600,6 +600,15 @@ export function syncInputsFromState(): void {
 
   updateFpsPresetStyles();
 
+  const targetSlider = document.getElementById('exposure-target-distance') as HTMLInputElement | null;
+  const targetInput = document.getElementById('exposure-target-distance-input') as HTMLInputElement | null;
+  if (targetSlider && targetSlider !== document.activeElement) {
+    targetSlider.value = String(app.state.distanceToSubject);
+  }
+  if (targetInput && targetInput !== document.activeElement) {
+    targetInput.value = String(app.state.distanceToSubject);
+  }
+
   updateDrBar();
   updateProvenanceLabels();
 }

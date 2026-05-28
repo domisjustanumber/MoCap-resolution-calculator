@@ -55,7 +55,7 @@ export const DEFAULT_STATE: AppState = {
   measurementMode: 'monochrome',
   lensTier: 'cheap-plastic',
   shutterType: 'global' as const,
-  distanceToSubject: 2,
+  distanceToSubject: 3,
   dynamicRangeDb: 66,
   luxAtSubject: DEFAULT_LUX_SUBJECT,
   subjectReflectance: DEFAULT_REFLECTANCE,

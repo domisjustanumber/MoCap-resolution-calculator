@@ -23,6 +23,19 @@ The **Optimize** button runs `runOptimization()`. That function evaluates every 
 | **SNR slack %** | 10% | Allows SNR to fall to `desiredSnrDb × (1 − slack/100)` when a worthwhile trade exists |
 | **Error budget** (Camera Sync tab) | 5 mm | Used to compute motion headroom for acceleration/rotation slack decisions |
 | **Region Hz** (Quick Settings) | Auto-detected (50 or 60) | Constrains fps and shutter search to mains-frequency preset values |
+| **Target distance from camera** (Spatial → Exposure Optimizer) | 3 m | Motion blur distance for exposure math, spatial results, and **Optimize** (`distanceToSubject`) |
+| **Camera distance** (Camera Sync tab) | 3 m | 3D scene layout and sync Monte Carlo (`temporalDistance`) |
+
+### Distance controls (linked vs unlinked)
+
+Two sliders share the same range (0.5–20 m) but can store different values:
+
+| Link mode | Target distance (Spatial) | Camera distance (Sync) |
+|-----------|----------------------------|-------------------------|
+| **Unlinked** | Updates exposure + Optimize only | Updates 3D/sync only |
+| **Linked** | Updates both values and both UIs | Updates both values and both UIs |
+
+Enabling link copies the current **target** distance into **camera** distance (same pattern as fps/shutter). Motion ceiling uses `vImg ∝ focalLength / distanceToSubject`; changing target distance scales allowed shutter time linearly when motion-limited.
 
 After Optimize, fps and shutter are set as manual values — the user can tweak them freely. If no valid configuration exists, a red banner suggests increasing lux or lowering the SNR target. If a best-effort result is returned below the SNR target, a separate warning is shown.
 
@@ -427,7 +440,7 @@ OptimizationResult
 
 ## Design trade-offs and limitations
 
-**Strict tier prefers short exposure, not best spatial resolution.** The distance chart's "min resolvable @ 2 m" uses distance-dependent motion math and may differ from `minFeatureSize` at `distanceToSubject` (default 1 m). Optimize does not directly minimise chart distance resolution unless a worthwhile spatial slack trade exists.
+**Strict tier prefers short exposure, not best spatial resolution.** The distance chart sweeps distance on the X-axis independently of the target-distance slider. Optimize does not directly minimise chart distance resolution unless a worthwhile spatial slack trade exists.
 
 **Regional grid constrains the search space.** With a region set, only preset fps values are evaluated — not every integer up to `maxFps`. This matches real camera drivers (e.g. 30 or 60 fps, never 40). Some SNR targets achievable with off-grid timings (e.g. fps=15) may become unreachable on-grid; the optimizer returns `null` or a best-effort fallback in those cases.
 

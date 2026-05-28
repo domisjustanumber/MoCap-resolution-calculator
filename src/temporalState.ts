@@ -11,7 +11,7 @@ let motionParams: MotionParams = {
   linearVelocity: 1.5,
   acceleration: 0,
   angularVelocity: 0,
-  subjectHalfWidth: 0.5,
+  subjectHalfWidth: 0.1,
 };
 
 let zoomMax = 200;
@@ -28,9 +28,9 @@ let syncToggle = false;
 let maxFps = 240;
 let maxShutterDenom = 8000;
 let regionHz = 50;
-let temporalDistance = 2; // meters
+let temporalDistance = 3; // meters
 let cameraHeight = 0;
-let objectSizeMm = 10;
+let objectSizeMm = 100;
 let timingInFrames = true; // true → sliders display in frames; canonical storage is always ms
 
 // Independent temporal copies for unlinked mode
@@ -39,6 +39,11 @@ let temporalShutterDenom = 60;
 let temporalVelocity = 1.5;
 let temporalRegionHz = 50;
 let linkMode = false;
+let onLinkModeChange: ((linked: boolean) => void) | undefined;
+
+export function setOnLinkModeChange(fn: (linked: boolean) => void): void {
+  onLinkModeChange = fn;
+}
 
 export function getMotionParams(): MotionParams { return { ...motionParams }; }
 export function getFrameRate(): number { return frameRate; }
@@ -81,6 +86,7 @@ export function setLinkMode(on: boolean): void {
     temporalVelocity = targetVelocity;
     temporalRegionHz = regionHz;
   }
+  onLinkModeChange?.(on);
 }
 
 // Effective getters for sync simulation — use temporal copies when unlinked
