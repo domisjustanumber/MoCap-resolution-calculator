@@ -76,11 +76,6 @@
               </div>
               <div class="flex-1 min-w-0">
                 <canvas id="distance-chart"></canvas>
-                <div class="mt-1.5 flex items-center gap-2 px-1">
-                  <label class="text-[10px] font-medium text-slate-500" for="dist-range">X</label>
-                  <input id="dist-range" class="w-full" type="range" min="1" max="10" step="1" value="3" />
-                  <span id="dist-range-label" class="min-w-[3ch] text-right text-[10px] font-mono text-slate-400">3m</span>
-                </div>
               </div>
             </div>
           </div>
@@ -337,8 +332,8 @@
             <p class="quick-ctrl-title">Exposure Optimizer</p>
             <div class="flex items-center gap-1">
               <button id="optimize-btn" class="action-btn">Optimize</button>
-              <input id="snr-undershoot-pct" class="calc-input input-compact-sm w-9 text-right" type="number" step="1" min="0" max="50" value="10" title="Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" />
-              <span class="text-[9px] text-slate-600 whitespace-nowrap">% SNR slack</span>
+              <input id="snr-undershoot-pct" class="calc-input input-compact-sm w-9 text-right hidden" type="number" step="1" min="0" max="50" value="10" title="Allow up to this % SNR undershoot when motion targets underperform or min spatial resolution improves by 20%+" />
+              <span class="text-[9px] text-slate-600 whitespace-nowrap hidden">% SNR slack</span>
             </div>
             <div class="mt-1">
               <div class="mb-0.5 text-[9px] font-medium text-slate-500">Target distance from camera</div>

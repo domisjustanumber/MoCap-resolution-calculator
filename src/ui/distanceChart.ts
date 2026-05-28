@@ -9,7 +9,7 @@ let mouseX = -1;
 let mouseY = -1;
 let mouseInCanvas = false;
 let appRef: AppStateFull | null = null;
-let maxDistance = 3;
+const CHART_MAX_DISTANCE_M = 10;
 let yMaxOverride = 100;
 
 export interface Pin {
@@ -38,10 +38,6 @@ const PIN_COLORS = [
 
 let nextColorIndex = 0;
 
-export function setMaxDistance(d: number): void {
-  maxDistance = Math.max(1, d);
-}
-
 export function setYMax(y: number): void {
   yMaxOverride = Math.max(20, Math.min(500, y));
 }
@@ -69,12 +65,12 @@ function setupEvents(canvas: HTMLCanvasElement): void {
     const clickX = mouseX;
   const pad = { top: 36, right: 50, bottom: 52, left: 60 };
     const plotW = rect.width - pad.left - pad.right;
-    const dClicked = ((clickX - pad.left) / plotW) * maxDistance;
-    if (dClicked < 0 || dClicked > maxDistance) return;
+    const dClicked = ((clickX - pad.left) / plotW) * CHART_MAX_DISTANCE_M;
+    if (dClicked < 0 || dClicked > CHART_MAX_DISTANCE_M) return;
 
     const clickPx = (clickX - pad.left) / plotW;
     const existingIdx = pins.findIndex((p) => {
-      const pPx = p.distance / maxDistance;
+      const pPx = p.distance / CHART_MAX_DISTANCE_M;
       return Math.abs(pPx - clickPx) * plotW < 10;
     });
 
@@ -101,7 +97,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const hash =
     String(app.results.minFeatureSize) +
     String(app.state.focalLength) +
-    String(maxDistance) +
+    String(CHART_MAX_DISTANCE_M) +
     String(yMaxOverride) +
     pins.map((p) => p.distance.toFixed(2) + p.color).join('|') +
     String(isSyncToggleOn()) +
@@ -125,7 +121,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const { results, state } = app;
   const { minFeatureSize, fcAberrated, fNyquistSkipped, fDRLimited, formatEfficiency } = results;
   const { focalLength } = state;
-  const dMax = maxDistance;
+  const dMax = CHART_MAX_DISTANCE_M;
 
   const motion = getMotionParams();
   const shutterS = getShutterTime();
@@ -302,9 +298,10 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
     ctx.fillText(vTotal.toFixed(1) + ' m/s', vLabelX, pyV(vTotal) - 4);
   }
 
-  // Auto-place first pin at 2m on initial draw
-  if (pins.length === 0 && !hasAutoPlaced && maxDistance >= 2) {
-    pins.push({ distance: 2, color: PIN_COLORS[0] });
+  // Auto-place first pin at target distance on initial draw
+  if (pins.length === 0 && !hasAutoPlaced) {
+    const targetD = Math.min(Math.max(0, state.distanceToSubject), dMax);
+    pins.push({ distance: targetD, color: PIN_COLORS[0] });
     nextColorIndex = 1;
     hasAutoPlaced = true;
   }

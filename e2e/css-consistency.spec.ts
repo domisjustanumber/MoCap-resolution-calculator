@@ -9,14 +9,14 @@ test.describe('CSS consistency', () => {
   });
 
   test('horizontal sliders share dark track styling', async ({ page }) => {
-    for (const id of ['gain-slider', 'dist-range', 'lux-slider']) {
+    for (const id of ['gain-slider', 'lux-slider', 'exposure-target-distance']) {
       const bg = await page.locator(`#${id}`).evaluate((el) => getComputedStyle(el).backgroundColor);
       expect(bg, `#${id} track`).toBe(SLATE_700);
     }
   });
 
   test('vertical Y-axis slider matches horizontal slider styling', async ({ page }) => {
-    const horizontal = await page.locator('#dist-range').evaluate((el) => ({
+    const horizontal = await page.locator('#gain-slider').evaluate((el) => ({
       track: getComputedStyle(el).height,
       accent: getComputedStyle(el).accentColor,
       trackBg: getComputedStyle(el).backgroundColor,

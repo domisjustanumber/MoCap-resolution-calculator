@@ -2,7 +2,7 @@ import type { AppStateFull, AppState } from '../types';
 import { setField, applyPreset, recalculate, setSensorPreset, readoutTypeToMethod } from '../state';
 import { PRESETS, SENSOR_GEOMETRY } from '../../presets';
 import { WAVELENGTH_PRESETS, wavelengthLabel, wavelengthColor, clamped, LENS_TIER_DR } from '../constants';
-import { drawDistanceChart, setMaxDistance } from './distanceChart';
+import { drawDistanceChart } from './distanceChart';
 import { updateFpsPresetStyles } from './fpsShutterPresets';
 import { isFieldEstimated, hasAnyEstimated, stripAsterisk } from './provenance';
 
@@ -37,7 +37,6 @@ export function initInputs(state: AppStateFull, rf: () => void): void {
   bindH264BitrateInput();
   bindGainInput();
   bindRadioGroup('measurementMode', 'measurementMode');
-  bindDistanceRange();
   bindLensTierChips();
   bindShutterRadios();
   bindPresetChips();
@@ -208,18 +207,6 @@ function bindShutterRadios(): void {
       syncInputsFromState();
       refreshAll();
     });
-  });
-}
-
-function bindDistanceRange(): void {
-  const el = document.getElementById('dist-range') as HTMLInputElement | null;
-  const label = document.getElementById('dist-range-label');
-  if (!el) return;
-  el.addEventListener('input', () => {
-    const v = parseInt(el.value, 10);
-    if (label) label.textContent = v + 'm';
-    setMaxDistance(v);
-    drawDistanceChart(app, true);
   });
 }
 
