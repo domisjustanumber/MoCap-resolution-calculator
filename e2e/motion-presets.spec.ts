@@ -11,14 +11,24 @@ test.describe('Motion presets', () => {
       await expect(page.locator('#angular-custom')).toHaveValue('10');
   });
 
-  test('sports preset sets velocity to 5 and updates motion fields', async ({ page }) => {
+  test('running preset sets velocity to 8 and updates motion fields', async ({ page }) => {
     await page.goto('/');
-    await page.locator('#qc-velocity-presets .vel-preset[data-velocity="sports"]').click();
+    await page.locator('#qc-velocity-presets .vel-preset[data-velocity="running"]').click();
     await page.waitForTimeout(300);
     const velInput = page.locator('#velocity-custom');
-    await expect(velInput).toHaveValue('5');
-    await expect(page.locator('#accel-custom')).toHaveValue('4.0');
-    await expect(page.locator('#angular-custom')).toHaveValue('60');
+    await expect(velInput).toHaveValue('8');
+    await expect(page.locator('#accel-custom')).toHaveValue('3.0');
+    await expect(page.locator('#angular-custom')).toHaveValue('15');
+  });
+
+  test('agility preset sets velocity to 1 and updates motion fields', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#qc-velocity-presets .vel-preset[data-velocity="agility"]').click();
+    await page.waitForTimeout(300);
+    const velInput = page.locator('#velocity-custom');
+    await expect(velInput).toHaveValue('1');
+    await expect(page.locator('#accel-custom')).toHaveValue('2.0');
+    await expect(page.locator('#angular-custom')).toHaveValue('150');
   });
 
   test('static preset zeroes all motion', async ({ page }) => {

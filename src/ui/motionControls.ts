@@ -4,9 +4,10 @@ import type { MotionParams } from '../types';
 import { setInputIfNotFocused } from './domUtils';
 
 const MOTION_PRESETS: Record<string, MotionParams> = {
-  static:  { linearVelocity: 0,   acceleration: 0,   angularVelocity: 0,   subjectHalfWidth: 0.5 },
-  walking: { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10,  subjectHalfWidth: 0.5 },
-  sports:  { linearVelocity: 5,   acceleration: 4,   angularVelocity: 60,  subjectHalfWidth: 0.5 },
+  static:   { linearVelocity: 0,   acceleration: 0,   angularVelocity: 0,   subjectHalfWidth: 0.5 },
+  walking:  { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10,  subjectHalfWidth: 0.5 },
+  running: { linearVelocity: 8,   acceleration: 3,   angularVelocity: 15,  subjectHalfWidth: 0.5 },
+  agility:  { linearVelocity: 1,   acceleration: 2,   angularVelocity: 150, subjectHalfWidth: 0.5 },
 };
 
 let activeMotionPreset = 'walking';

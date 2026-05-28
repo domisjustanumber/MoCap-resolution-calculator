@@ -153,13 +153,13 @@ describe('runOptimization SNR guarantee', () => {
 
   it('Pi HQ Sports picks worthwhile relaxed option over strict when motion gains 20%+', () => {
     setRegionHz(50);
-    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 100;
     app.state.measurementMode = 'monochrome';
 
-    const strict = runOptimization(app, sports, 5, 0);
-    const relaxed = runOptimization(app, sports, 5, 50);
+    const strict = runOptimization(app, motionParams, 5, 0);
+    const relaxed = runOptimization(app, motionParams, 5, 50);
     expect(strict).not.toBeNull();
     expect(relaxed).not.toBeNull();
     expect(relaxed!.extractedWidth).toBe(1332);
@@ -168,8 +168,8 @@ describe('runOptimization SNR guarantee', () => {
     expect(actualSnr(app, relaxed!)).toBeLessThan(app.state.desiredSnrDb);
     expect(actualSnr(app, relaxed!)).toBeGreaterThanOrEqual(minAcceptableSnrDb(app.state.desiredSnrDb, 50) - 0.5);
 
-    const strictMotion = motionHeadroom(sports, strict!.fps, 5);
-    const relaxedMotion = motionHeadroom(sports, relaxed!.fps, 5);
+    const strictMotion = motionHeadroom(motionParams, strict!.fps, 5);
+    const relaxedMotion = motionHeadroom(motionParams, relaxed!.fps, 5);
     expect(snrUndershootWorthwhile(strictMotion, relaxedMotion)).toBe(true);
   });
 
@@ -203,13 +203,13 @@ describe('runOptimization SNR guarantee', () => {
 
   it('Pi HQ Sports daylight picks 120 fps on 1332×990 mode', () => {
     setRegionHz(60);
-    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 10_000;
     app.state.measurementMode = 'monochrome';
     recalculate(app);
 
-    const result = runOptimization(app, sports, 5, 10);
+    const result = runOptimization(app, motionParams, 5, 10);
     expect(result).not.toBeNull();
     expect(result!.extractedWidth).toBe(1332);
     expect(result!.extractedHeight).toBe(990);
@@ -219,13 +219,13 @@ describe('runOptimization SNR guarantee', () => {
 
   it('setFrameRate must run after recalculate when applying optimize result', () => {
     setRegionHz(60);
-    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 10_000;
     recalculate(app);
     expect(getMaxFpsLimit()).toBe(40);
 
-    const result = runOptimization(app, sports, 5, 10);
+    const result = runOptimization(app, motionParams, 5, 10);
     expect(result!.fps).toBe(120);
 
     setFrameRate(result!.fps);
@@ -243,13 +243,13 @@ describe('runOptimization SNR guarantee', () => {
 
 describe('pickBestWorthwhileRelaxed', () => {
   it('chooses largest underperforming-target gain among qualifying relaxed candidates', () => {
-    const sports: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
+    const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const options = [
       { fps: 50, shutterDenom: 50, width: 2028, height: 1080, v4l2Mode: 2, pitchMult: 2, fullFoV: false, readoutMethod: 'binning' as const, minFeature: 100, maxFps: 50, maxShutter: 400, targetFreq: 1, snrDb: 15 },
       { fps: 60, shutterDenom: 60, width: 1332, height: 990, v4l2Mode: 3, pitchMult: 3.05, fullFoV: false, readoutMethod: 'subsampling' as const, minFeature: 200, maxFps: 120, maxShutter: 800, targetFreq: 1, snrDb: 14.6 },
       { fps: 120, shutterDenom: 120, width: 1332, height: 990, v4l2Mode: 3, pitchMult: 3.05, fullFoV: false, readoutMethod: 'subsampling' as const, minFeature: 300, maxFps: 120, maxShutter: 800, targetFreq: 1, snrDb: 10.4 },
     ];
-    const pick = pickBestWorthwhileRelaxed(25, 100, sports, 5, options);
+    const pick = pickBestWorthwhileRelaxed(25, 100, motionParams, 5, options);
     expect(pick?.fps).toBe(120);
     expect(pick?.width).toBe(1332);
   });

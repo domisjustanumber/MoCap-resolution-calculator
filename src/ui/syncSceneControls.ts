@@ -17,7 +17,8 @@ import type { AppStateFull } from '../types';
 const VELOCITY_VALUES: Record<string, number> = {
   static: 0,
   walking: 1.5,
-  sports: 5,
+  running: 8,
+  agility: 1,
 };
 
 export function initSyncSceneControls(
