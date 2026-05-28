@@ -166,6 +166,7 @@ describe('runOptimization SNR guarantee', () => {
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 100;
     app.state.measurementMode = 'monochrome';
+    app.state.desiredSnrDb = 20;
 
     const strict = runOptimization(app, motionParams, 5, 0);
     const relaxed = runOptimization(app, motionParams, 5, 50);
@@ -188,6 +189,7 @@ describe('runOptimization SNR guarantee', () => {
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.measurementMode = 'monochrome';
     app.state.luxAtSubject = 50;
+    app.state.desiredSnrDb = 20;
 
     const strictOnly = runOptimization(app, walking, 5, 0);
     const withSlack = runOptimization(app, walking, 5, 10);
@@ -204,6 +206,7 @@ describe('runOptimization SNR guarantee', () => {
     setRegionHz(60);
     const app = applyPreset(createState(), {}, 'pi-cam-v1');
     app.state.luxAtSubject = 400;
+    app.state.desiredSnrDb = 20;
     const result = runOptimization(app, motion, 5, 10);
     expect(result).not.toBeNull();
     expect(isValidRegionFps(result!.fps, 60)).toBe(true);
@@ -231,6 +234,7 @@ describe('runOptimization SNR guarantee', () => {
     const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 10_000;
+    app.state.desiredSnrDb = 20;
     recalculate(app);
     expect(getMaxFpsLimit()).toBe(40);
 

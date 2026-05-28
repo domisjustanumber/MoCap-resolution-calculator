@@ -192,7 +192,7 @@ html {
   .exp-target-label {
     @apply absolute z-10 -translate-x-1/2 pointer-events-none;
     top: 100%;
-    margin-top: 2px;
+    margin-top: 6px;
     font-size: 9px;
     font-family: ui-monospace, monospace;
     color: rgb(148 163 184 / 0.9);

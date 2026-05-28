@@ -65,7 +65,7 @@ export const BOTTLENECK_RATIO = 0.85;
 export const PHOTONS_PER_UM2_PER_LUX_SEC = 4130;
 export const DEFAULT_LENS_TRANSMISSION = 0.85;
 export const DEFAULT_REFLECTANCE = 0.18;
-export const DEFAULT_SNR_TARGET_DB = 20;
+export const DEFAULT_SNR_TARGET_DB = 32;
 export const DEFAULT_TEMPERATURE_C = 25;
 export const DARK_CURRENT_DOUBLING_C = 6;
 export const DEFAULT_LUX_SUBJECT = 100;
@@ -81,6 +81,8 @@ export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
 export const DEFAULT_SNR_UNDERSHOOT_PCT = 10;
 export const MOTION_UNDERSHOOT_IMPROVEMENT_PCT = 20;
+export const MOTION_ACCEL_MAX = 20;
+export const MOTION_ANGULAR_VELOCITY_MAX = 360;
 
 export function chromaFormatEfficiencyPenalty(state: Readonly<AppState>): number {
   if (state.measurementMode === 'colour' && !(RAW_FORMATS as readonly string[]).includes(state.outputFormat)) {

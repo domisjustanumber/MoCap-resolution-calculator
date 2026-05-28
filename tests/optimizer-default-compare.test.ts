@@ -41,6 +41,7 @@ describe('default optimize vs 1/60', () => {
       setRegionHz(regionHz);
       const app = applyPreset(createState(), {}, preset);
       app.state.measurementMode = 'monochrome';
+      app.state.desiredSnrDb = 20;
       const beforeResults = calculateResults(app.state, app.derived, getMotionParams(), 1 / 60, 30, 0, false);
       const before = {
         fps: 30, sd: 60, res: `${app.state.extractedWidth}x${app.state.extractedHeight}`,

@@ -44,6 +44,7 @@ function defaultPiCamV1App(lux = 100) {
   const app = applyPreset(createState(), {}, 'pi-cam-v1');
   app.state.measurementMode = 'monochrome';
   app.state.luxAtSubject = lux;
+  app.state.desiredSnrDb = 20;
   return recalculate(app);
 }
 

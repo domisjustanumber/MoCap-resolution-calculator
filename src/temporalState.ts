@@ -1,6 +1,11 @@
 import type { MotionParams } from './types';
 import { snapFpsToRegion, snapShutterToRegion } from './temporalQuantize';
-import { DEFAULT_SNR_UNDERSHOOT_PCT, clamped } from './constants';
+import {
+  DEFAULT_SNR_UNDERSHOOT_PCT,
+  MOTION_ACCEL_MAX,
+  MOTION_ANGULAR_VELOCITY_MAX,
+  clamped,
+} from './constants';
 
 let motionParams: MotionParams = {
   linearVelocity: 1.5,
@@ -123,8 +128,8 @@ export function setTemporalVelocityOnly(v: number): void {
 
 export function setMotionParams(p: Partial<MotionParams>): void {
   if (p.linearVelocity !== undefined) motionParams.linearVelocity = clamped(p.linearVelocity, 0, 20);
-  if (p.acceleration !== undefined) motionParams.acceleration = clamped(p.acceleration, 0, 20);
-  if (p.angularVelocity !== undefined) motionParams.angularVelocity = clamped(p.angularVelocity, 0, 360);
+  if (p.acceleration !== undefined) motionParams.acceleration = clamped(p.acceleration, 0, MOTION_ACCEL_MAX);
+  if (p.angularVelocity !== undefined) motionParams.angularVelocity = clamped(p.angularVelocity, 0, MOTION_ANGULAR_VELOCITY_MAX);
   motionParams.subjectHalfWidth = 0.5;
 }
 
@@ -133,11 +138,11 @@ export function setLinearVelocity(v: number): void {
 }
 
 export function setAcceleration(v: number): void {
-  motionParams.acceleration = clamped(v, 0, 20);
+  motionParams.acceleration = clamped(v, 0, MOTION_ACCEL_MAX);
 }
 
 export function setAngularVelocity(v: number): void {
-  motionParams.angularVelocity = clamped(v, 0, 360);
+  motionParams.angularVelocity = clamped(v, 0, MOTION_ANGULAR_VELOCITY_MAX);
 }
 
 export function setSubjectHalfWidth(_v: number): void {

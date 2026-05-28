@@ -1,6 +1,18 @@
 import type { AppStateFull, BottleneckType, OutputFormat } from '../types';
 import { formatLpMm, formatFov, formatSensorSize } from '../engine';
-import { MJPG_BLOCK_SIZE_PX, H264_MB_SIZE_PX, RAW_FORMATS, SNR_DB_MIN, SNR_DB_MAX, DEFAULT_RADIOMETRY, clampStep, darkCurrentAtTemp, chromaSnrPenaltyDb } from '../constants';
+import {
+  MJPG_BLOCK_SIZE_PX,
+  H264_MB_SIZE_PX,
+  RAW_FORMATS,
+  SNR_DB_MIN,
+  SNR_DB_MAX,
+  DEFAULT_RADIOMETRY,
+  MOTION_ACCEL_MAX,
+  MOTION_ANGULAR_VELOCITY_MAX,
+  clampStep,
+  darkCurrentAtTemp,
+  chromaSnrPenaltyDb,
+} from '../constants';
 import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
@@ -79,8 +91,6 @@ function updateExposurePanel(app: AppStateFull): void {
 }
 
 const SNR_BAR_MAX_DB = 50;
-const ACCEL_BAR_MAX = 50;
-const ROT_BAR_MAX = 120;
 let draggingExpBar: string | null = null;
 let exposurePanelApp: AppStateFull | null = null;
 let exposurePanelRefresh: (() => void) | null = null;
@@ -120,9 +130,11 @@ function updateSnrBar(app: AppStateFull): void {
   label.textContent = snr.toFixed(1) + ' dB';
 
   let barColor: string;
-  if (snrRounded >= target) {
+  if (snrRounded >= 40) {
+    barColor = '#f8fafc';
+  } else if (snrRounded >= 30) {
     barColor = '#10b981';
-  } else if (snrRounded >= target * 0.5) {
+  } else if (snrRounded >= 20) {
     barColor = '#eab308';
   } else {
     barColor = '#ef4444';
@@ -163,7 +175,7 @@ function updateAccelBar(): void {
 
   label.textContent = maxAccel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s²';
   setText('exp-accel-target', target.toFixed(1));
-  setClampedLabelPosition('exp-accel-target', target, ACCEL_BAR_MAX);
+  setClampedLabelPosition('exp-accel-target', target, MOTION_ACCEL_MAX);
 
   let barColor: string;
   if (target < 1e-6 || maxAccel >= target) {
@@ -174,12 +186,12 @@ function updateAccelBar(): void {
     barColor = '#ef4444';
   }
 
-  const pct = Math.max(0, Math.min(100, (maxAccel / ACCEL_BAR_MAX) * 100));
+  const pct = Math.max(0, Math.min(100, (maxAccel / MOTION_ACCEL_MAX) * 100));
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
   if (marker) {
-    setMarkerPosition(marker, target, ACCEL_BAR_MAX);
+    setMarkerPosition(marker, target, MOTION_ACCEL_MAX);
   }
 }
 
@@ -196,7 +208,7 @@ function updateRotBar(): void {
 
   label.textContent = maxTurn.toLocaleString() + ' °/s';
   setText('exp-rot-target', String(Math.round(target)));
-  setClampedLabelPosition('exp-rot-target', target, ROT_BAR_MAX);
+  setClampedLabelPosition('exp-rot-target', target, MOTION_ANGULAR_VELOCITY_MAX);
 
   let barColor: string;
   if (target < 1e-6 || maxTurn >= target) {
@@ -207,12 +219,12 @@ function updateRotBar(): void {
     barColor = '#ef4444';
   }
 
-  const pct = Math.max(0, Math.min(100, (maxTurn / ROT_BAR_MAX) * 100));
+  const pct = Math.max(0, Math.min(100, (maxTurn / MOTION_ANGULAR_VELOCITY_MAX) * 100));
   bar.style.width = pct + '%';
   bar.style.backgroundColor = barColor;
 
   if (marker) {
-    setMarkerPosition(marker, target, ROT_BAR_MAX);
+    setMarkerPosition(marker, target, MOTION_ANGULAR_VELOCITY_MAX);
   }
 }
 
