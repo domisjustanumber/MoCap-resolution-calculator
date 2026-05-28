@@ -571,3 +571,7 @@ if (initialPath === '/camera-sync') {
   switchTab('temporal');
   window.history.replaceState({ tab: 'temporal' }, '', '/camera-sync');
 }
+
+window.addEventListener('beforeunload', () => {
+  disposeScene3d();
+});

@@ -249,8 +249,9 @@ export function getCameraAngles(count: number): number[] {
   return CAMERA_ANGLES[count] || [0];
 }
 
-// Velocity direction in XZ plane (unit vector)
+// Velocity direction (unit vector)
 let velocityDirX = 1;
+let velocityDirY = 0;
 let velocityDirZ = 0;
 
 export function getVelocityDirXZ(): { x: number; z: number } {
@@ -259,8 +260,18 @@ export function getVelocityDirXZ(): { x: number; z: number } {
 
 export function setVelocityDirXZ(x: number, z: number): void {
   const len = Math.sqrt(x * x + z * z);
-  if (len < 1e-6) { velocityDirX = 1; velocityDirZ = 0; }
-  else { velocityDirX = x / len; velocityDirZ = z / len; }
+  if (len < 1e-6) { velocityDirX = 1; velocityDirY = 0; velocityDirZ = 0; }
+  else { velocityDirX = x / len; velocityDirY = 0; velocityDirZ = z / len; }
+}
+
+export function getVelocityDir3D(): { x: number; y: number; z: number } {
+  return { x: velocityDirX, y: velocityDirY, z: velocityDirZ };
+}
+
+export function setVelocityDir3D(x: number, y: number, z: number): void {
+  const len = Math.sqrt(x * x + y * y + z * z);
+  if (len < 1e-6) { velocityDirX = 1; velocityDirY = 0; velocityDirZ = 0; }
+  else { velocityDirX = x / len; velocityDirY = y / len; velocityDirZ = z / len; }
 }
 
 const SAMPLE_SIZE = 2500;
@@ -282,7 +293,7 @@ function makeSimHash(): string {
   return [
     getEffectiveVelocity(), getEffectiveFrameRate(), getEffectiveShutterDenom(),
     phaseOffset, jitterValueMs, temporalCameraCount,
-    velocityDirX.toFixed(3), velocityDirZ.toFixed(3),
+    velocityDirX.toFixed(3), velocityDirY.toFixed(3), velocityDirZ.toFixed(3),
     temporalDistance, cameraHeight, objectSizeMm,
   ].join('|');
 }
@@ -302,13 +313,13 @@ function runSimulation(): SimResult {
   // the component of horizontal velocity visible as lateral image motion.
   const D = temporalDistance;
   const h = cameraHeight;
-  const elevRatio = D / Math.sqrt(D * D + h * h); // cos(elevation)
   const tangFactors = angles.map(deg => {
     const rad = (deg * Math.PI) / 180;
-    // View direction XZ component (toward origin), scaled by elevation ratio
-    const viewX = -Math.sin(rad) * elevRatio;
-    const viewZ =  Math.cos(rad) * elevRatio;
-    const dot = velocityDirX * viewX + velocityDirZ * viewZ;
+    const d = Math.sqrt(D * D + h * h);
+    const viewX = -Math.sin(rad) * D / d;
+    const viewY = -h / d;
+    const viewZ = Math.cos(rad) * D / d;
+    const dot = velocityDirX * viewX + velocityDirY * viewY + velocityDirZ * viewZ;
     return Math.sqrt(Math.max(0, 1 - dot * dot));
   });
 
