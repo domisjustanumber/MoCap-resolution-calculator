@@ -11,7 +11,7 @@ let motionParams: MotionParams = {
   linearVelocity: 1.5,
   acceleration: 0,
   angularVelocity: 0,
-  subjectHalfWidth: 0.1,
+  subjectHalfWidth: 0.01,
 };
 
 let zoomMax = 200;
@@ -30,7 +30,7 @@ let maxShutterDenom = 8000;
 let regionHz = 50;
 let temporalDistance = 3; // meters
 let cameraHeight = 0;
-let objectSizeMm = 100;
+let objectSizeMm = 10;
 let timingInFrames = true; // true → sliders display in frames; canonical storage is always ms
 
 // Independent temporal copies for unlinked mode
@@ -67,9 +67,11 @@ export function setCameraHeight(h: number): void {
 }
 
 export function getObjectSizeMm(): number { return objectSizeMm; }
+/** Tracked object radius in metres (matches 3D sphere and predicted-position markers). */
+export function getObjectRadiusM(): number { return objectSizeMm / 1000; }
 export function setObjectSizeMm(mm: number): void {
   objectSizeMm = clamped(Math.round(mm), 1, 100);
-  motionParams.subjectHalfWidth = objectSizeMm / 1000;
+  motionParams.subjectHalfWidth = getObjectRadiusM();
 }
 
 export function isTimingInFrames(): boolean { return timingInFrames; }
@@ -136,7 +138,7 @@ export function setMotionParams(p: Partial<MotionParams>): void {
   if (p.linearVelocity !== undefined) motionParams.linearVelocity = clamped(p.linearVelocity, 0, 20);
   if (p.acceleration !== undefined) motionParams.acceleration = clamped(p.acceleration, 0, MOTION_ACCEL_MAX);
   if (p.angularVelocity !== undefined) motionParams.angularVelocity = clamped(p.angularVelocity, 0, MOTION_ANGULAR_VELOCITY_MAX);
-  motionParams.subjectHalfWidth = 0.5;
+  motionParams.subjectHalfWidth = getObjectRadiusM();
 }
 
 export function setLinearVelocity(v: number): void {
@@ -152,7 +154,7 @@ export function setAngularVelocity(v: number): void {
 }
 
 export function setSubjectHalfWidth(_v: number): void {
-  motionParams.subjectHalfWidth = 0.5;
+  motionParams.subjectHalfWidth = getObjectRadiusM();
 }
 
 export function setSpatialVelocity(v: number): void {
@@ -239,7 +241,7 @@ export function setMaxShutterLimit(max: number): void { maxShutterDenom = max; }
 
 let temporalCameraCount = 3;
 
-export function getTemporalObjectRadius(): number { return 0.5; }
+export function getTemporalObjectRadius(): number { return getObjectRadiusM(); }
 export function getTemporalCameraCount(): number { return temporalCameraCount; }
 export function setTemporalCameraCount(n: number): void {
   temporalCameraCount = clamped(Math.round(n), 1, 6);

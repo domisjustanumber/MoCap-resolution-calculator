@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+﻿import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Line2 } from 'three/addons/lines/Line2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -11,7 +11,7 @@ import {
   getVelocityDir3D,
   getCameraAngles,
   getCameraHeight,
-  getObjectSizeMm,
+  getObjectRadiusM,
   getTemporalDistance,
   getTotalErrorP95,
   getCachedMaxErrors,
@@ -248,6 +248,9 @@ function buildBlurCloud(): THREE.Group | null {
   ];
 
   const group = new THREE.Group();
+  const objR = getObjectRadiusM();
+  // Stroke width in world metres — matches tracked object diameter
+  const lineWidth = Math.max(0.0005, objR * 2);
 
   for (const tier of tiers) {
     const count = tier.end - tier.start;
@@ -269,7 +272,6 @@ function buildBlurCloud(): THREE.Group | null {
         .addScaledVector(localUp, Math.sin(theta) * lateralMag);
 
       // Object physical extent: random scatter within object radius
-      const objR = getObjectSizeMm() / 1000;
       const objTheta = Math.random() * Math.PI * 2;
       const objPhi = Math.acos(2 * Math.random() - 1);
       const objOffset = new THREE.Vector3(
@@ -287,7 +289,7 @@ function buildBlurCloud(): THREE.Group | null {
     geo.setPositions(positions);
     const mat = new LineMaterial({
       color: tier.color,
-      linewidth: 0.003,  // fixed 3mm — thin enough to not merge into a solid block
+      linewidth: lineWidth,
       transparent: true,
       opacity: tier.opacity,
       depthWrite: false,
@@ -319,7 +321,7 @@ function buildSceneElements(app: AppStateFull): void {
   // Tracked object sphere at origin
   const showObject = document.getElementById('sync-show-object') as HTMLInputElement | null;
   objectSphere = new THREE.Mesh(
-    new THREE.SphereGeometry(getObjectSizeMm() / 1000, 16, 16),
+    new THREE.SphereGeometry(getObjectRadiusM(), 16, 16),
     new THREE.MeshPhongMaterial({ color: 0x3b82f6, opacity: 0.7, transparent: true }),
   );
   objectSphere.visible = showObject ? showObject.checked : true;
@@ -367,7 +369,7 @@ function buildSceneElements(app: AppStateFull): void {
 function cleanupSceneElements(): void {
   if (blurCloud) {
     scene?.remove(blurCloud);
-    blurCloud.children.forEach(c => {
+    blurCloud.children.forEach((c) => {
       const line = c as Line2;
       line.geometry?.dispose();
       line.material?.dispose();
@@ -753,7 +755,7 @@ export function computeObjectPosition(): THREE.Vector3 {
       if (bm > maxBlurM) maxBlurM = bm;
     }
   }
-  const primaryExtent = maxSyncM + maxBlurM + getObjectSizeMm() / 1000;
+  const primaryExtent = maxSyncM + maxBlurM + getObjectRadiusM();
   const lateralExtent = primaryExtent * 0.25 * 1.5;
   const maxR = Math.sqrt(primaryExtent * primaryExtent + lateralExtent * lateralExtent);
 

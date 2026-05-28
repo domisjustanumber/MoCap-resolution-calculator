@@ -20,7 +20,7 @@ import {
 
 const app = createState();
 setTemporalDistance(app.state.distanceToSubject);
-setObjectSizeMm(100);
+setObjectSizeMm(10);
 
 setOnLinkModeChange((linked) => {
   if (linked) setTemporalDistance(app.state.distanceToSubject);
@@ -453,7 +453,7 @@ function normalizePath(path: string): string {
 
 function tabFromPath(path: string): 'spatial' | 'temporal' {
   const p = normalizePath(path);
-  if (p === PATH_TEMPORAL || p === '/camera-sync') return 'temporal';
+  if (p === PATH_TEMPORAL) return 'temporal';
   return 'spatial';
 }
 
