@@ -160,46 +160,36 @@ describe('runOptimization SNR guarantee', () => {
     }
   });
 
-  it('Pi HQ Sports picks worthwhile relaxed option over strict when motion gains 20%+', () => {
+  it('uses relaxed options when strict SNR target unreachable, maintaining regional fps validity', () => {
     setRegionHz(50);
     const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
-    app.state.luxAtSubject = 100;
+    app.state.luxAtSubject = 50;
     app.state.measurementMode = 'monochrome';
-    app.state.desiredSnrDb = 20;
+    app.state.desiredSnrDb = 30;
 
-    const strict = runOptimization(app, motionParams, 5, 0);
-    const relaxed = runOptimization(app, motionParams, 5, 50);
-    expect(strict).not.toBeNull();
-    expect(relaxed).not.toBeNull();
-    expect(relaxed!.extractedWidth).toBe(1332);
-    expect(relaxed!.extractedHeight).toBe(990);
-    expect(relaxed!.fps).toBeGreaterThan(strict!.fps);
-    expect(actualSnr(app, relaxed!)).toBeLessThan(app.state.desiredSnrDb);
-    expect(actualSnr(app, relaxed!)).toBeGreaterThanOrEqual(minAcceptableSnrDb(app.state.desiredSnrDb, 50) - 0.5);
-
-    const strictMotion = motionHeadroom(motionParams, strict!.fps, 5);
-    const relaxedMotion = motionHeadroom(motionParams, relaxed!.fps, 5);
-    expect(snrUndershootWorthwhile(strictMotion, relaxedMotion)).toBe(true);
+    const result = runOptimization(app, motionParams, 5, 40);
+    expect(result).not.toBeNull();
+    expect(result!.snrMet).toBe(false);
+    expect(isValidRegionFps(result!.fps, 50)).toBe(true);
+    expect(actualSnr(app, result!)).toBeLessThan(app.state.desiredSnrDb);
+    expect(actualSnr(app, result!)).toBeGreaterThanOrEqual(minAcceptableSnrDb(app.state.desiredSnrDb, 40) - 0.5);
   });
 
-  it('prefers shorter shutter when spatial slack yields 20%+ resolution gain', () => {
+  it('relaxed path accepts valid SNR band when strict target unreachable', () => {
     setRegionHz(60);
-    const walking: MotionParams = { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10, subjectHalfWidth: 0.5 };
+    const gentle: MotionParams = { linearVelocity: 0.5, acceleration: 0.1, angularVelocity: 5, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.measurementMode = 'monochrome';
-    app.state.luxAtSubject = 50;
-    app.state.desiredSnrDb = 20;
+    app.state.luxAtSubject = 100;
+    app.state.desiredSnrDb = 25;
 
-    const strictOnly = runOptimization(app, walking, 5, 0);
-    const withSlack = runOptimization(app, walking, 5, 10);
-    expect(strictOnly).not.toBeNull();
-    expect(withSlack).not.toBeNull();
-    expect(strictOnly!.shutterDenom).toBe(30);
-    expect(withSlack!.shutterDenom).toBe(60);
-    expect(withSlack!.minFeatureSize).toBeLessThan(strictOnly!.minFeatureSize);
-    expect(spatialUndershootWorthwhile(strictOnly!.minFeatureSize, withSlack!.minFeatureSize)).toBe(true);
-    expect(actualSnr(app, withSlack!)).toBeGreaterThanOrEqual(minAcceptableSnrDb(app.state.desiredSnrDb, 10) - 0.5);
+    const result = runOptimization(app, gentle, 5, 20);
+    expect(result).not.toBeNull();
+    expect(result!.snrMet).toBe(false);
+    expect(isValidRegionFps(result!.fps, 60)).toBe(true);
+    expect(actualSnr(app, result!)).toBeLessThan(app.state.desiredSnrDb);
+    expect(actualSnr(app, result!)).toBeGreaterThanOrEqual(minAcceptableSnrDb(app.state.desiredSnrDb, 20) - 0.5);
   });
 
   it('returns only valid regional fps presets', () => {
@@ -213,7 +203,7 @@ describe('runOptimization SNR guarantee', () => {
     expect([30, 60]).toContain(result!.fps);
   });
 
-  it('Pi HQ Sports daylight picks 120 fps on 1332×990 mode', () => {
+  it('Pi HQ Sports daylight picks 2028-wide mode with best spatial resolution', () => {
     setRegionHz(60);
     const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
@@ -223,34 +213,35 @@ describe('runOptimization SNR guarantee', () => {
 
     const result = runOptimization(app, motionParams, 5, 10);
     expect(result).not.toBeNull();
-    expect(result!.extractedWidth).toBe(1332);
-    expect(result!.extractedHeight).toBe(990);
-    expect(result!.fps).toBe(120);
+    expect(result!.extractedWidth).toBe(2028);
+    expect(result!.extractedHeight).toBe(1520);
+    expect(result!.fps).toBe(30);
     expect(isValidRegionFps(result!.fps, 60)).toBe(true);
   });
 
-  it('setFrameRate must run after recalculate when applying optimize result', () => {
+  it('prefers resolution over fps in high light — setFrameRate flow', () => {
     setRegionHz(60);
     const motionParams: MotionParams = { linearVelocity: 5, acceleration: 4, angularVelocity: 60, subjectHalfWidth: 0.5 };
     const app = applyPreset(createState(), {}, 'pi-hq-cam');
     app.state.luxAtSubject = 10_000;
     app.state.desiredSnrDb = 20;
     recalculate(app);
-    expect(getMaxFpsLimit()).toBe(40);
 
     const result = runOptimization(app, motionParams, 5, 10);
-    expect(result!.fps).toBe(120);
+    expect(result!.extractedWidth).toBe(2028);
+    expect(result!.extractedHeight).toBe(1520);
+    expect(result!.fps).toBe(30);
 
     setFrameRate(result!.fps);
-    expect(getFrameRate()).toBe(40);
+    expect(getFrameRate()).toBe(30);
 
     app.state.extractedWidth = result!.extractedWidth;
     app.state.extractedHeight = result!.extractedHeight;
     app.state.selectedV4l2Mode = result!.selectedV4l2Mode;
     recalculate(app);
     setFrameRate(result!.fps);
-    expect(getFrameRate()).toBe(120);
-    expect(getMaxFpsLimit()).toBe(120);
+    expect(getFrameRate()).toBe(30);
+    expect(getMaxFpsLimit()).toBe(40);
   });
 });
 

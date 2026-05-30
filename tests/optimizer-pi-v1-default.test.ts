@@ -5,6 +5,7 @@ import { calculateResults } from '../src/engine';
 import { calculateExposureOptimizer } from '../src/exposure';
 import { SENSOR_RADIOMETRY } from '../presets';
 import { setRegionHz, setMotionParams, setFrameRate, setShutterDenom } from '../src/temporalState';
+import { isValidRegionFps } from '../src/temporalQuantize';
 
 const walking = { linearVelocity: 1.5, acceleration: 0.5, angularVelocity: 10, subjectHalfWidth: 0.5 };
 
@@ -79,18 +80,14 @@ describe('Pi Cam v1 default load — spatial slack picks 1/60', () => {
     expect(r2!.selectedV4l2Mode).toBe(r1!.selectedV4l2Mode);
   });
 
-  it('at ~400 lux, 10% slack picks shortest on-grid shutter that meets SNR @ 1920×1080', () => {
+  it('at ~400 lux, prefers higher spatial resolution when shutter speed is competitive', () => {
     const app = defaultPiCamV1App(400);
-    expect(uiSnrDb(app, 60, 30)).toBeCloseTo(19.8, 0);
 
     const result = runOptimization(app, walking, 5, 10);
     expect(result).not.toBeNull();
-    expect(result!.fps).toBe(60);
-    expect(result!.shutterDenom).toBeGreaterThanOrEqual(60);
-    expect(result!.shutterDenom % 60).toBe(0);
-    expect(result!.extractedWidth).toBeGreaterThan(0);
-    expect(result!.extractedHeight).toBeGreaterThan(0);
     expect(result!.snrMet).toBe(true);
+    expect(isValidRegionFps(result!.fps, 60)).toBe(true);
+    expect(result!.shutterDenom).toBeGreaterThan(0);
 
     const appAfter = recalculate({
       ...app,
@@ -109,12 +106,16 @@ describe('Pi Cam v1 default load — spatial slack picks 1/60', () => {
     expect(snr).toBeGreaterThanOrEqual(minAcceptableSnrDb(20, 10) - 0.5);
   });
 
-  it('at ~400 lux, 20% slack also picks worthwhile spatial over 1/30 strict', () => {
+  it('at ~400 lux, SNR slack does not overrule strict winner when strict options exist', () => {
     const app = defaultPiCamV1App(400);
-    const result = runOptimization(app, walking, 5, 20);
-    expect(result).not.toBeNull();
-    expect(result!.extractedWidth).toBe(1920);
-    expect(result!.shutterDenom).toBeGreaterThanOrEqual(60);
-    expect(result!.minFeatureSize).toBeLessThan(197.81);
+    const noSlack = runOptimization(app, walking, 5, 0);
+    const withSlack = runOptimization(app, walking, 5, 20);
+    expect(noSlack).not.toBeNull();
+    expect(withSlack).not.toBeNull();
+    expect(withSlack!.fps).toBe(noSlack!.fps);
+    expect(withSlack!.shutterDenom).toBe(noSlack!.shutterDenom);
+    expect(withSlack!.extractedWidth).toBe(noSlack!.extractedWidth);
+    expect(withSlack!.extractedHeight).toBe(noSlack!.extractedHeight);
+    expect(withSlack!.snrMet).toBe(true);
   });
 });

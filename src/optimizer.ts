@@ -236,14 +236,10 @@ export function runOptimization(
   const focalLength = app.state.focalLength;
   const distance = app.state.distanceToSubject;
   const regionHz = getRegionHz();
-  const initialWidth = app.state.extractedWidth;
-  const initialHeight = app.state.extractedHeight;
 
   const strictOptions: ResolvedCandidate[] = [];
   const relaxedOptions: ResolvedCandidate[] = [];
   const fallbackOptions: ResolvedCandidate[] = [];
-
-  let initialModeStrict: ResolvedCandidate | null = null;
 
   for (const c of candidates) {
     // Search always assumes auto gain — applied app.state.gain must not change SNR ranking.
@@ -264,37 +260,6 @@ export function runOptimization(
       regionHz,
       minSnrDb,
     );
-
-    const candWidth = c.statePatch.extractedWidth ?? tempState.extractedWidth;
-    const candHeight = c.statePatch.extractedHeight ?? tempState.extractedHeight;
-    if (candWidth === initialWidth && candHeight === initialHeight) {
-      const baselineStrict = searchTimingAtFreq(
-        tempState, tempDerived, radiometry, motion, baseline.fEffective,
-        c.maxFps, c.maxShutterDenom, regionHz, minSnrDb, 'strict',
-      );
-      if (baselineStrict) {
-        const shutterTime = 1 / Math.max(1, baselineStrict.shutterDenom);
-        const results = calculateResults(
-          tempState, tempDerived, motion, shutterTime, baselineStrict.fps, 0, false, baselineStrict.exposure,
-        );
-        initialModeStrict = {
-          fps: baselineStrict.fps,
-          shutterDenom: baselineStrict.shutterDenom,
-          width: candWidth,
-          height: candHeight,
-          v4l2Mode: c.statePatch.selectedV4l2Mode ?? -1,
-          pitchMult: c.statePatch.readoutPitchMultiplier ?? 1,
-          fullFoV: c.statePatch.readoutFullFoV ?? true,
-          readoutMethod: (c.statePatch.readoutMethod as ReadoutMethod) ?? tempState.readoutMethod,
-          minFeature: results.minFeatureSize,
-          maxFps: c.maxFps,
-          maxShutter: c.maxShutterDenom,
-          targetFreq: baseline.fEffective,
-          snrDb: baselineStrict.snrDb,
-          exposure: baselineStrict.exposure,
-        };
-      }
-    }
 
     for (const timing of [timings.strict, timings.fallback]) {
       if (!timing) continue;
@@ -372,63 +337,36 @@ export function runOptimization(
   let useStrict = false;
 
   if (hasValidMet) {
-    strictOptions.sort((a, b) => {
-      if (a.shutterDenom !== b.shutterDenom) return b.shutterDenom - a.shutterDenom;
-      return a.minFeature - b.minFeature;
-    });
-    const baselineStrict = strictOptions[0];
+    const withMotion = strictOptions.map(opt => ({
+      opt,
+      mh: motionHeadroom(motion, opt.fps, errorBudgetMm, focalLength, distance),
+    }));
 
-    const strictMotion = motionHeadroom(motion, baselineStrict.fps, errorBudgetMm, focalLength, distance);
-    const motionQualifyingStrict = strictOptions.filter((opt) =>
-      snrUndershootWorthwhile(strictMotion, motionHeadroom(motion, opt.fps, errorBudgetMm, focalLength, distance)),
+    const satisficing = withMotion.filter(
+      ({ mh }) => !mh.velUnderperforming && !mh.accelUnderperforming && !mh.turnUnderperforming,
     );
-    const strictWinner = motionQualifyingStrict.length > 0
-      ? pickBestWorthwhileRelaxed(baselineStrict.fps, baselineStrict.minFeature, motion, errorBudgetMm, motionQualifyingStrict, true, focalLength, distance) ?? baselineStrict
-      : baselineStrict;
 
-    if (hasRelaxed && minSnrDb < app.state.desiredSnrDb) {
-      const winnerMotion = motionHeadroom(motion, strictWinner.fps, errorBudgetMm, focalLength, distance);
-      const motionQualifying = relaxedOptions.filter((opt) =>
-        snrUndershootWorthwhile(winnerMotion, motionHeadroom(motion, opt.fps, errorBudgetMm, focalLength, distance)),
-      );
-      const motionPick = motionQualifying.length > 0
-        ? pickBestWorthwhileRelaxed(strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, motionQualifying, true, focalLength, distance)
-        : null;
-
-      let relaxedPick = motionPick ?? pickBestWorthwhileRelaxed(
-        strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, relaxedOptions, false, focalLength, distance,
-      );
-
-      if (!motionPick && initialModeStrict) {
-        const atInitialRes = relaxedOptions.filter(
-          (o) => o.width === initialWidth && o.height === initialHeight,
-        );
-        const initialRelaxedPick = pickBestWorthwhileRelaxed(
-          initialModeStrict.fps,
-          initialModeStrict.minFeature,
-          motion,
-          errorBudgetMm,
-          atInitialRes,
-          false,
-          focalLength,
-          distance,
-        );
-        if (initialRelaxedPick &&
-            spatialUndershootWorthwhile(initialModeStrict.minFeature, initialRelaxedPick.minFeature)) {
-          relaxedPick = initialRelaxedPick;
-        }
-      }
-
-      if (relaxedPick) {
-        winner = relaxedPick;
-      } else {
-        winner = strictWinner;
-        useStrict = true;
-      }
+    let strictWinner: ResolvedCandidate;
+    if (satisficing.length > 0) {
+      satisficing.sort((a, b) => a.opt.minFeature - b.opt.minFeature);
+      strictWinner = satisficing[0].opt;
     } else {
-      winner = strictWinner;
-      useStrict = true;
+      withMotion.sort((a, b) => {
+        if (a.opt.minFeature !== b.opt.minFeature) return a.opt.minFeature - b.opt.minFeature;
+
+        const aUnder = (a.mh.velUnderperforming ? 1 : 0) + (a.mh.accelUnderperforming ? 1 : 0) + (a.mh.turnUnderperforming ? 1 : 0);
+        const bUnder = (b.mh.velUnderperforming ? 1 : 0) + (b.mh.accelUnderperforming ? 1 : 0) + (b.mh.turnUnderperforming ? 1 : 0);
+        if (aUnder !== bUnder) return aUnder - bUnder;
+
+        const aDeficit = Math.max(0, motion.linearVelocity - a.mh.maxVel) + Math.max(0, motion.acceleration - a.mh.maxAccel) + Math.max(0, motion.angularVelocity - a.mh.maxTurn);
+        const bDeficit = Math.max(0, motion.linearVelocity - b.mh.maxVel) + Math.max(0, motion.acceleration - b.mh.maxAccel) + Math.max(0, motion.angularVelocity - b.mh.maxTurn);
+        return aDeficit - bDeficit;
+      });
+      strictWinner = withMotion[0].opt;
     }
+
+    winner = strictWinner;
+    useStrict = true;
   } else if (hasRelaxed) {
     fallbackOptions.sort((a, b) => b.snrDb - a.snrDb);
     const bestFallback = fallbackOptions[0];
