@@ -87,7 +87,7 @@ function updateBitrate(app: AppStateFull): void {
 
 function updateExposurePanel(app: AppStateFull): void {
   updateSnrBar(app);
-  updateVelBar();
+  updateVelBar(app);
   updateAccelBar();
   updateRotBar();
 }
@@ -164,7 +164,7 @@ function setClampedLabelPosition(id: string, value: number, barMax: number): voi
   label.style.left = pct + '%';
 }
 
-function updateVelBar(): void {
+function updateVelBar(app: AppStateFull): void {
   const bar = document.getElementById('exp-vel-bar');
   const label = document.getElementById('exp-vel-label');
   const marker = document.getElementById('exp-vel-target-marker');
@@ -172,7 +172,7 @@ function updateVelBar(): void {
 
   const fps = getFrameRate();
   const motion = getMotionParams();
-  const { maxVel } = motionHeadroom(motion, fps, getErrorBudget());
+  const { maxVel } = motionHeadroom(motion, fps, getErrorBudget(), app.state.focalLength, app.state.distanceToSubject);
   const target = motion.linearVelocity;
 
   label.textContent = maxVel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s';

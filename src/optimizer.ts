@@ -72,9 +72,11 @@ export interface MotionHeadroom {
   turnUnderperforming: boolean;
 }
 
-export function motionHeadroom(motion: MotionParams, fps: number, errorBudgetMm: number): MotionHeadroom {
+export function motionHeadroom(motion: MotionParams, fps: number, errorBudgetMm: number, focalLength?: number, distance?: number): MotionHeadroom {
   const epsilon = errorBudgetMm / 1000;
-  const maxVel = epsilon * fps;
+  const maxVel = (focalLength !== undefined && distance !== undefined)
+    ? epsilon * fps * distance / Math.max(0.1, focalLength)
+    : epsilon * fps;
   const maxAccel = epsilon * fps * fps;
   const maxTurn = motion.subjectHalfWidth > 0
     ? (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI)
@@ -150,16 +152,19 @@ export function pickBestWorthwhileRelaxed(
   errorBudgetMm: number,
   relaxedOptions: ResolvedCandidate[],
   motionOnly = false,
+  focalLength?: number,
+  distance?: number,
 ): ResolvedCandidate | null {
   if (relaxedOptions.length === 0) return null;
 
-  const baseline = motionHeadroom(motion, baselineFps, errorBudgetMm);
+  const mh = (m: MotionParams, f: number) => motionHeadroom(m, f, errorBudgetMm, focalLength, distance);
+  const baseline = mh(motion, baselineFps);
   const qualifying = relaxedOptions.filter((opt) =>
     motionOnly
-      ? snrUndershootWorthwhile(baseline, motionHeadroom(motion, opt.fps, errorBudgetMm))
+      ? snrUndershootWorthwhile(baseline, mh(motion, opt.fps))
       : candidateWorthwhileSnrUndershoot(
           baseline,
-          motionHeadroom(motion, opt.fps, errorBudgetMm),
+          mh(motion, opt.fps),
           baselineMinFeature,
           opt.minFeature,
         ),
@@ -167,7 +172,7 @@ export function pickBestWorthwhileRelaxed(
   if (qualifying.length === 0) return null;
 
   const improvementScore = (opt: ResolvedCandidate): number => {
-    const candidate = motionHeadroom(motion, opt.fps, errorBudgetMm);
+    const candidate = mh(motion, opt.fps);
     let score = 0;
     if (spatialUndershootWorthwhile(baselineMinFeature, opt.minFeature) && !motionOnly) {
       score = Math.max(score, baselineMinFeature / opt.minFeature);
@@ -182,7 +187,7 @@ export function pickBestWorthwhileRelaxed(
   };
 
   const undershootGain = (opt: ResolvedCandidate): number => {
-    const candidate = motionHeadroom(motion, opt.fps, errorBudgetMm);
+    const candidate = mh(motion, opt.fps);
     let gain = 0;
     if (spatialUndershootWorthwhile(baselineMinFeature, opt.minFeature) && !motionOnly) {
       gain = Math.max(gain, baselineMinFeature - opt.minFeature);
@@ -228,6 +233,8 @@ export function runOptimization(
   const candidates = buildCandidates(app, radiometry, sensorGeom);
   if (candidates.length === 0) return null;
 
+  const focalLength = app.state.focalLength;
+  const distance = app.state.distanceToSubject;
   const regionHz = getRegionHz();
   const initialWidth = app.state.extractedWidth;
   const initialHeight = app.state.extractedHeight;
@@ -371,25 +378,25 @@ export function runOptimization(
     });
     const baselineStrict = strictOptions[0];
 
-    const strictMotion = motionHeadroom(motion, baselineStrict.fps, errorBudgetMm);
+    const strictMotion = motionHeadroom(motion, baselineStrict.fps, errorBudgetMm, focalLength, distance);
     const motionQualifyingStrict = strictOptions.filter((opt) =>
-      snrUndershootWorthwhile(strictMotion, motionHeadroom(motion, opt.fps, errorBudgetMm)),
+      snrUndershootWorthwhile(strictMotion, motionHeadroom(motion, opt.fps, errorBudgetMm, focalLength, distance)),
     );
     const strictWinner = motionQualifyingStrict.length > 0
-      ? pickBestWorthwhileRelaxed(baselineStrict.fps, baselineStrict.minFeature, motion, errorBudgetMm, motionQualifyingStrict, true) ?? baselineStrict
+      ? pickBestWorthwhileRelaxed(baselineStrict.fps, baselineStrict.minFeature, motion, errorBudgetMm, motionQualifyingStrict, true, focalLength, distance) ?? baselineStrict
       : baselineStrict;
 
     if (hasRelaxed && minSnrDb < app.state.desiredSnrDb) {
-      const winnerMotion = motionHeadroom(motion, strictWinner.fps, errorBudgetMm);
+      const winnerMotion = motionHeadroom(motion, strictWinner.fps, errorBudgetMm, focalLength, distance);
       const motionQualifying = relaxedOptions.filter((opt) =>
-        snrUndershootWorthwhile(winnerMotion, motionHeadroom(motion, opt.fps, errorBudgetMm)),
+        snrUndershootWorthwhile(winnerMotion, motionHeadroom(motion, opt.fps, errorBudgetMm, focalLength, distance)),
       );
       const motionPick = motionQualifying.length > 0
-        ? pickBestWorthwhileRelaxed(strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, motionQualifying, true)
+        ? pickBestWorthwhileRelaxed(strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, motionQualifying, true, focalLength, distance)
         : null;
 
       let relaxedPick = motionPick ?? pickBestWorthwhileRelaxed(
-        strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, relaxedOptions,
+        strictWinner.fps, strictWinner.minFeature, motion, errorBudgetMm, relaxedOptions, false, focalLength, distance,
       );
 
       if (!motionPick && initialModeStrict) {
@@ -402,6 +409,9 @@ export function runOptimization(
           motion,
           errorBudgetMm,
           atInitialRes,
+          false,
+          focalLength,
+          distance,
         );
         if (initialRelaxedPick &&
             spatialUndershootWorthwhile(initialModeStrict.minFeature, initialRelaxedPick.minFeature)) {
@@ -424,7 +434,7 @@ export function runOptimization(
     const bestFallback = fallbackOptions[0];
 
     if (bestFallback) {
-      const relaxedPick = pickBestWorthwhileRelaxed(bestFallback.fps, bestFallback.minFeature, motion, errorBudgetMm, relaxedOptions);
+      const relaxedPick = pickBestWorthwhileRelaxed(bestFallback.fps, bestFallback.minFeature, motion, errorBudgetMm, relaxedOptions, false, focalLength, distance);
       winner = relaxedPick ?? bestFallback;
     } else {
       winner = pickBestRelaxedOverall(relaxedOptions);
