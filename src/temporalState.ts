@@ -251,11 +251,11 @@ export function getTemporalVelocity(): number { return getEffectiveVelocity(); }
 // Camera placement angles (degrees in XZ plane) for each count
 const CAMERA_ANGLES: Record<number, number[]> = {
   1: [0],
-  2: [-45, 45],
-  3: [-45, 0, 45],
-  4: [45, 135, 225, 315],
-  5: [0, 45, 135, 225, 315],
-  6: [0, 60, 120, 180, 240, 300],
+  2: [0, 45],
+  3: [0, 45, -45],
+  4: [0, 45, -45, 180],
+  5: [0, 45, -45, 180, 135],
+  6: [0, 45, -45, 180, 135, 225],
 };
 
 export function getCameraAngles(count: number): number[] {
