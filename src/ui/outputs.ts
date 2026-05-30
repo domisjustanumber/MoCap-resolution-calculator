@@ -10,11 +10,14 @@ import {
   MOTION_VELOCITY_MAX,
   MOTION_ACCEL_MAX,
   MOTION_ANGULAR_VELOCITY_MAX,
+  MOTION_MTF50_CONST,
+  MOTION_SYNC_MTF50_CONST,
+  BOTTLENECK_RATIO,
   clampStep,
   darkCurrentAtTemp,
   chromaSnrPenaltyDb,
 } from '../constants';
-import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget } from '../temporalState';
+import { getFrameRate, getShutterTime, getMotionParams, getErrorBudget, isSyncToggleOn, getSyncErrorP95 } from '../temporalState';
 import { SENSOR_RADIOMETRY } from '../../presets';
 import { setField, getH264InterlockWarning } from '../state';
 import { motionHeadroom } from '../optimizer';
@@ -170,12 +173,23 @@ function updateVelBar(app: AppStateFull): void {
   const marker = document.getElementById('exp-vel-target-marker');
   if (!bar || !label) return;
 
-  const fps = getFrameRate();
+  const shutterS = getShutterTime();
   const motion = getMotionParams();
-  const { maxVel } = motionHeadroom(motion, fps, getErrorBudget(), app.state.focalLength, app.state.distanceToSubject);
   const target = motion.linearVelocity;
+  const syncEnabled = isSyncToggleOn();
+  const syncErrP95 = getSyncErrorP95();
+  const fSyncMTF50 = syncEnabled && syncErrP95 > 0.001 ? MOTION_SYNC_MTF50_CONST / syncErrP95 : Infinity;
+  const nextBestLimit = Math.min(
+    app.results.fcAberrated,
+    app.results.fNyquistSkipped,
+    app.results.fDRLimited,
+    fSyncMTF50,
+  );
+  const vTargetFreq = nextBestLimit * BOTTLENECK_RATIO;
+  const maxVel = MOTION_MTF50_CONST * app.state.distanceToSubject
+    / (shutterS * app.state.focalLength * vTargetFreq);
 
-  label.textContent = maxVel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s';
+  label.textContent = maxVel.toLocaleString(undefined, { maximumFractionDigits: 1 }) + ' m/s';
   setText('exp-vel-target', target.toFixed(1));
   setClampedLabelPosition('exp-vel-target', target, MOTION_VELOCITY_MAX);
 

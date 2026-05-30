@@ -52,6 +52,7 @@ export const RAW_FORMATS: readonly OutputFormat[] = ['raw8', 'raw10'];
 // Engine computation constants
 export const OLPF_PENALTY = 0.85;
 export const MOTION_MTF50_CONST = 0.603;
+export const MOTION_SYNC_MTF50_CONST = 0.1874;
 export const FORMAT_EFFICIENCY_MJPG_BASE = 0.4;
 export const FORMAT_EFFICIENCY_MJPG_RANGE = 0.6;
 export const FORMAT_EFFICIENCY_H264_BASE = 0.30;

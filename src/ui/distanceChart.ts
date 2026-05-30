@@ -1,7 +1,7 @@
 import type { AppStateFull } from '../types';
 import { getCssWidth, sizeCanvas, getCanvasContext, drawBackground, drawGrid, drawAxes } from './canvasUtils';
 import { isSyncToggleOn, getSyncErrorP95, getMotionParams, getShutterTime } from '../temporalState';
-import { MOTION_MTF50_CONST, BOTTLENECK_RATIO, CHARUCO_SQUARE_TO_MIN_FEATURE } from '../constants';
+import { MOTION_MTF50_CONST, MOTION_SYNC_MTF50_CONST, BOTTLENECK_RATIO, CHARUCO_SQUARE_TO_MIN_FEATURE } from '../constants';
 import { computeImageVelocity, staticSceneFeatureMm } from '../engine';
 
 let lastHash = '';
@@ -144,7 +144,7 @@ export function drawDistanceChart(app: AppStateFull, force = false): void {
   const { vTotal } = computeImageVelocity(motion, shutterS, focalLength, 1);
 
   // Max trackable velocity (right y-axis)
-  const fSyncMTF50_local = syncEnabled && syncErrP95 > 0.001 ? 0.1874 / syncErrP95 : Infinity;
+  const fSyncMTF50_local = syncEnabled && syncErrP95 > 0.001 ? MOTION_SYNC_MTF50_CONST / syncErrP95 : Infinity;
   const nextBestLimit = Math.min(fcAberrated, fNyquistSkipped, fDRLimited, fSyncMTF50_local);
   const vTargetFreq = nextBestLimit * BOTTLENECK_RATIO;
   const vScaleStep = 2;
