@@ -1,4 +1,4 @@
-import { getMotionParams, setMotionParams, setTemporalVelocity, setAcceleration, setAngularVelocity } from '../temporalState';
+import { getMotionParams, setMotionParams, setTemporalVelocity, setLinearVelocity, setAcceleration, setAngularVelocity, isLinkMode } from '../temporalState';
 import { updatePresetStyles } from './fpsShutterPresets';
 import type { MotionParams } from '../types';
 import { setInputIfNotFocused } from './domUtils';
@@ -16,7 +16,7 @@ const PRESET_DESCRIPTIONS: Record<string, string> = {
   walking: 'Gentle motion and direction changes',
   running: 'Fast linear motion at 8 m/s (29 km/h) - sprinters, straight-line athletes.',
   agility: 'Rapid rotation with low linear speed - bat/raquet swings, combat, quick direction changes.',
-  custom:  'Manually tuned acceleration and rotation values.',
+  custom:  'Manually tuned velocity, acceleration, and rotation values.',
 };
 
 let activeMotionPreset = 'walking';
@@ -36,6 +36,8 @@ function updateMotionPresetDescription(preset: string): void {
 
 export function syncQcInputsFromParams(p?: MotionParams): void {
   const m = p ?? getMotionParams();
+  setInputIfNotFocused('velocity-custom', m.linearVelocity.toFixed(1));
+  setInputIfNotFocused('velocity-custom-input', m.linearVelocity.toFixed(1));
   setInputIfNotFocused('accel-custom', m.acceleration.toFixed(1));
   setInputIfNotFocused('accel-custom-input', m.acceleration.toFixed(1));
   setInputIfNotFocused('angular-custom', String(Math.round(m.angularVelocity)));
@@ -100,6 +102,10 @@ export function initMotionControls(rf: () => void): void {
     });
   });
 
+  bindMotionSlider('velocity-custom', 'velocity-custom-input', (v) => {
+    setLinearVelocity(v);
+    if (isLinkMode()) setTemporalVelocity(v);
+  });
   bindMotionSlider('accel-custom', 'accel-custom-input', (v) => setAcceleration(v));
   bindMotionSlider('angular-custom', 'angular-custom-input', (v) => setAngularVelocity(v));
 

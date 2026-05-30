@@ -130,11 +130,13 @@
                   <button data-velocity="running" class="vel-preset">Running</button>
                   <button data-velocity="agility" class="vel-preset">Agility</button>
                 </div>
+                <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Velocity</div>
                 <div class="flex items-center gap-1">
-                  <span class="text-[10px] text-slate-500">Velocity</span>
-                  <input id="sync-velocity-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="1.5" />
+                  <div class="flex-1 min-w-0">
+                    <input id="sync-velocity-slider" class="w-full" type="range" min="0" max="20" step="0.1" value="1.5" />
+                  </div>
                   <input id="sync-velocity-input" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="1.5" />
-                  <span class="text-[10px] text-slate-500 whitespace-nowrap">m/s</span>
+                  <span class="text-[9px] text-slate-600 whitespace-nowrap">m/s</span>
                 </div>
                 <div class="flex items-center gap-1 mt-1">
                   <span class="text-[10px] text-slate-500">Object size</span>
@@ -255,13 +257,19 @@
               Subject is stationary — no motion blur from movement.
             </p>
 
-            <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Acceleration</div>
+            <div class="mb-0.5 text-[9px] font-medium text-slate-500">Max Velocity</div>
+            <div class="flex items-center gap-1">
+              <div class="flex-1 min-w-0">
+                <input id="velocity-custom" class="w-full" type="range" min="0" max="20" step="0.1" value="1.5" />
+              </div>
+              <input id="velocity-custom-input" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="1.5" />
+              <span class="text-[9px] text-slate-600 whitespace-nowrap">m/s</span>
+            </div>
+
+            <div class="mt-1 mb-0.5 text-[9px] font-medium text-slate-500">Max Acceleration</div>
             <div class="flex items-center gap-1">
               <div class="flex-1 min-w-0">
                 <input id="accel-custom" class="w-full" type="range" min="0" max="20" step="0.1" value="0" />
-                <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
-                  <span>0</span><span>5</span><span>10</span><span>20 m/s²</span>
-                </div>
               </div>
               <input id="accel-custom-input" class="calc-input input-compact w-10" type="number" step="0.1" min="0" max="20" value="0" />
               <span class="text-[9px] text-slate-600 whitespace-nowrap">m/s²</span>
@@ -271,9 +279,6 @@
             <div class="flex items-center gap-1">
               <div class="flex-1 min-w-0">
                 <input id="angular-custom" class="w-full" type="range" min="0" max="360" step="1" value="0" />
-                <div class="mt-0.5 flex justify-between text-[9px] text-slate-600">
-                  <span>0</span><span>90</span><span>180</span><span>360 °/s</span>
-                </div>
               </div>
               <input id="angular-custom-input" class="calc-input input-compact w-10" type="number" step="1" min="0" max="360" value="0" />
               <span class="text-[9px] text-slate-600 whitespace-nowrap">°/s</span>
