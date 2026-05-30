@@ -34,6 +34,8 @@ function makeState(overrides: Partial<AppState> = {}): AppState {
     desiredSnrDb: 20,
     temperatureC: 25,
     lensTransmission: 0.85,
+    shutterType: 'rolling',
+    gain: 0,
     ...overrides,
   };
 }
