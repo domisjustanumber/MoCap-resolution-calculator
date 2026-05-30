@@ -85,7 +85,7 @@ describe('Pi Cam v1 default load — spatial slack picks 1/60', () => {
 
     const result = runOptimization(app, walking, 5, 10);
     expect(result).not.toBeNull();
-    expect(result!.fps).toBe(30);
+    expect(result!.fps).toBe(60);
     expect(result!.shutterDenom).toBeGreaterThanOrEqual(60);
     expect(result!.shutterDenom % 60).toBe(0);
     expect(result!.extractedWidth).toBeGreaterThan(0);

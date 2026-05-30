@@ -89,8 +89,8 @@ describe('snrUndershootWorthwhile', () => {
   });
 
   it('does not undershoot when motion targets are already met', () => {
-    const met = motionHeadroom({ linearVelocity: 2, acceleration: 5, angularVelocity: 0, subjectHalfWidth: 0.5 }, 60, 5);
-    const faster = motionHeadroom({ linearVelocity: 2, acceleration: 5, angularVelocity: 0, subjectHalfWidth: 0.5 }, 80, 5);
+    const met = motionHeadroom({ linearVelocity: 0.2, acceleration: 5, angularVelocity: 0, subjectHalfWidth: 0.5 }, 60, 5);
+    const faster = motionHeadroom({ linearVelocity: 0.2, acceleration: 5, angularVelocity: 0, subjectHalfWidth: 0.5 }, 80, 5);
     expect(snrUndershootWorthwhile(met, faster)).toBe(false);
   });
 });

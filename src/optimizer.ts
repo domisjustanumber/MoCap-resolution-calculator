@@ -64,21 +64,26 @@ export function minAcceptableSnrDb(desiredSnrDb: number, undershootPct: number):
 }
 
 export interface MotionHeadroom {
+  maxVel: number;
   maxAccel: number;
   maxTurn: number;
+  velUnderperforming: boolean;
   accelUnderperforming: boolean;
   turnUnderperforming: boolean;
 }
 
 export function motionHeadroom(motion: MotionParams, fps: number, errorBudgetMm: number): MotionHeadroom {
   const epsilon = errorBudgetMm / 1000;
+  const maxVel = epsilon * fps;
   const maxAccel = epsilon * fps * fps;
   const maxTurn = motion.subjectHalfWidth > 0
     ? (epsilon * fps / motion.subjectHalfWidth) * (180 / Math.PI)
     : Infinity;
   return {
+    maxVel,
     maxAccel,
     maxTurn,
+    velUnderperforming: motion.linearVelocity >= 1e-6 && maxVel < motion.linearVelocity,
     accelUnderperforming: motion.acceleration >= 1e-6 && maxAccel < motion.acceleration,
     turnUnderperforming: motion.angularVelocity >= 1e-6 && maxTurn < motion.angularVelocity,
   };
@@ -93,6 +98,12 @@ export function snrUndershootWorthwhile(
   let underperforming = false;
   let worthwhile = false;
 
+  if (baseline.velUnderperforming) {
+    underperforming = true;
+    if (candidate.maxVel >= baseline.maxVel * (1 + minImprovementRatio)) {
+      worthwhile = true;
+    }
+  }
   if (baseline.accelUnderperforming) {
     underperforming = true;
     if (candidate.maxAccel >= baseline.maxAccel * (1 + minImprovementRatio)) {

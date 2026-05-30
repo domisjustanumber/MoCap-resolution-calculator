@@ -81,6 +81,7 @@ export const SNR_DB_MIN = 5;
 export const SNR_DB_MAX = 50;
 export const DEFAULT_SNR_UNDERSHOOT_PCT = 10;
 export const MOTION_UNDERSHOOT_IMPROVEMENT_PCT = 20;
+export const MOTION_VELOCITY_MAX = 20;
 export const MOTION_ACCEL_MAX = 20;
 export const MOTION_ANGULAR_VELOCITY_MAX = 360;
 /** ChArUco square edge length ≈ min resolvable feature × this ratio (8×8 grid marker). */

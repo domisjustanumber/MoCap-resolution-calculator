@@ -7,6 +7,7 @@ import {
   SNR_DB_MIN,
   SNR_DB_MAX,
   DEFAULT_RADIOMETRY,
+  MOTION_VELOCITY_MAX,
   MOTION_ACCEL_MAX,
   MOTION_ANGULAR_VELOCITY_MAX,
   clampStep,
@@ -86,6 +87,7 @@ function updateBitrate(app: AppStateFull): void {
 
 function updateExposurePanel(app: AppStateFull): void {
   updateSnrBar(app);
+  updateVelBar();
   updateAccelBar();
   updateRotBar();
 }
@@ -160,6 +162,39 @@ function setClampedLabelPosition(id: string, value: number, barMax: number): voi
   const margin = trackWidth > 0 ? (labelHalfPx / trackWidth) * 100 : 0;
   const pct = Math.max(margin, Math.min(100 - margin, rawPct));
   label.style.left = pct + '%';
+}
+
+function updateVelBar(): void {
+  const bar = document.getElementById('exp-vel-bar');
+  const label = document.getElementById('exp-vel-label');
+  const marker = document.getElementById('exp-vel-target-marker');
+  if (!bar || !label) return;
+
+  const fps = getFrameRate();
+  const motion = getMotionParams();
+  const { maxVel } = motionHeadroom(motion, fps, getErrorBudget());
+  const target = motion.linearVelocity;
+
+  label.textContent = maxVel.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' m/s';
+  setText('exp-vel-target', target.toFixed(1));
+  setClampedLabelPosition('exp-vel-target', target, MOTION_VELOCITY_MAX);
+
+  let barColor: string;
+  if (target < 1e-6 || maxVel >= target) {
+    barColor = '#10b981';
+  } else if (maxVel >= target * 0.5) {
+    barColor = '#eab308';
+  } else {
+    barColor = '#ef4444';
+  }
+
+  const pct = Math.max(0, Math.min(100, (maxVel / MOTION_VELOCITY_MAX) * 100));
+  bar.style.width = pct + '%';
+  bar.style.backgroundColor = barColor;
+
+  if (marker) {
+    setMarkerPosition(marker, target, MOTION_VELOCITY_MAX);
+  }
 }
 
 function updateAccelBar(): void {
